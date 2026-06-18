@@ -1,0 +1,103 @@
+-- Seed data for Sushi-Ro
+
+INSERT INTO menu_sections (id, name, slug, sort_order, accent_color) VALUES
+  ('11111111-1111-1111-1111-111111111101', 'Menu', 'menu', 1, '#1a1a1a'),
+  ('11111111-1111-1111-1111-111111111102', 'Gluten Free', 'gluten-free', 2, '#0d9488');
+
+INSERT INTO labels (id, name, slug) VALUES
+  ('22222222-2222-2222-2222-222222222201', 'Vegetarian', 'vegetarian'),
+  ('22222222-2222-2222-2222-222222222202', 'Egg', 'egg'),
+  ('22222222-2222-2222-2222-222222222203', 'Cheese', 'cheese'),
+  ('22222222-2222-2222-2222-222222222204', 'Popular', 'popular');
+
+INSERT INTO menu_options (id, name, price_modifier, sort_order) VALUES
+  ('33333333-3333-3333-3333-333333333301', 'Deep-fried', 1.00, 1),
+  ('33333333-3333-3333-3333-333333333302', 'Replace with Soy Sheet', 1.00, 2),
+  ('33333333-3333-3333-3333-333333333303', 'Spicy', 1.50, 3);
+
+INSERT INTO restaurant_settings (is_open, banner_image_url, closing_time, business_email) VALUES
+  (true, '/banner.jpg', '20:45:00', 'sushi-ro@sushi-ro.com');
+
+INSERT INTO waiting_time (minutes) VALUES (15);
+
+-- Menu categories
+INSERT INTO categories (id, section_id, name, slug, sort_order) VALUES
+  ('c1000001-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111101', 'Nigiri & Sashimi', 'nigiri-sashimi', 1),
+  ('c1000001-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111101', 'Vegetable Roll', 'vegetable-roll', 2),
+  ('c1000001-0000-0000-0000-000000000003', '11111111-1111-1111-1111-111111111101', 'Appetizer', 'appetizer', 3),
+  ('c1000001-0000-0000-0000-000000000004', '11111111-1111-1111-1111-111111111101', 'Sushi Pizza', 'sushi-pizza', 4),
+  ('c1000001-0000-0000-0000-000000000005', '11111111-1111-1111-1111-111111111101', 'Soup & Salad', 'soup-salad', 5),
+  ('c1000001-0000-0000-0000-000000000006', '11111111-1111-1111-1111-111111111101', 'Traditional Roll', 'traditional-roll', 6),
+  ('c1000001-0000-0000-0000-000000000007', '11111111-1111-1111-1111-111111111101', 'Fusion Roll', 'fusion-roll', 7),
+  ('c1000001-0000-0000-0000-000000000008', '11111111-1111-1111-1111-111111111101', 'Moriawase', 'moriawase', 8),
+  ('c1000001-0000-0000-0000-000000000009', '11111111-1111-1111-1111-111111111101', 'Ramen', 'ramen', 9),
+  ('c1000001-0000-0000-0000-00000000000a', '11111111-1111-1111-1111-111111111101', 'Bento Box', 'bento-box', 10),
+  ('c1000001-0000-0000-0000-00000000000b', '11111111-1111-1111-1111-111111111101', 'Dessert', 'dessert', 11),
+  ('c1000001-0000-0000-0000-00000000000c', '11111111-1111-1111-1111-111111111101', 'Tray', 'tray', 12),
+  ('c2000001-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111102', 'Traditional Roll', 'gf-traditional-roll', 1),
+  ('c2000001-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111102', 'Vegetable Roll', 'gf-vegetable-roll', 2),
+  ('c2000001-0000-0000-0000-000000000003', '11111111-1111-1111-1111-111111111102', 'Appetizer', 'gf-appetizer', 3),
+  ('c2000001-0000-0000-0000-000000000004', '11111111-1111-1111-1111-111111111102', 'Fusion Roll', 'gf-fusion-roll', 4),
+  ('c2000001-0000-0000-0000-000000000005', '11111111-1111-1111-1111-111111111102', 'Moriawase', 'gf-moriawase', 5);
+
+-- Sample menu items (Menu section)
+INSERT INTO menu_items (id, category_id, name, description, price, has_roll_options, sort_order) VALUES
+  ('m1000001-0000-0000-0000-000000000001', 'c1000001-0000-0000-0000-000000000001', 'EBI Nigiri / Sashimi', 'Shrimp — 2 pc nigiri or 3 pc sashimi', 5.50, false, 1),
+  ('m1000001-0000-0000-0000-000000000002', 'c1000001-0000-0000-0000-000000000001', 'SAKE Nigiri / Sashimi', 'Salmon — 2 pc nigiri or 3 pc sashimi', 7.00, false, 2),
+  ('m1000001-0000-0000-0000-000000000003', 'c1000001-0000-0000-0000-000000000001', 'MAGURO Nigiri / Sashimi', 'Red Tuna — 2 pc nigiri or 3 pc sashimi', 7.50, false, 3),
+  ('m1000001-0000-0000-0000-000000000004', 'c1000001-0000-0000-0000-000000000002', 'KAPPA MAKI', '6 pcs — Cucumber', 6.00, true, 1),
+  ('m1000001-0000-0000-0000-000000000005', 'c1000001-0000-0000-0000-000000000002', 'AVOCADO MAKI', '6 pcs', 7.50, true, 2),
+  ('m1000001-0000-0000-0000-000000000006', 'c1000001-0000-0000-0000-000000000002', 'VEGETABLE DRAGON MAKI', '8 pcs — Sweet potato, cucumber, topped with avocado & grilled veggies', 14.00, true, 3),
+  ('m1000001-0000-0000-0000-000000000007', 'c1000001-0000-0000-0000-000000000003', 'EDAMAME', 'Steamed soybeans', 7.00, false, 1),
+  ('m1000001-0000-0000-0000-000000000008', 'c1000001-0000-0000-0000-000000000003', 'AGEDASHI TOFU', 'Deep-fried tofu in dashi broth', 8.00, false, 2),
+  ('m1000001-0000-0000-0000-000000000009', 'c1000001-0000-0000-0000-000000000003', 'SHRIMP TEMPURA', '5 pcs', 10.00, false, 3),
+  ('m1000001-0000-0000-0000-00000000000a', 'c1000001-0000-0000-0000-000000000004', 'SALMON PIZZA', 'Crispy rice base with salmon', 12.50, false, 1),
+  ('m1000001-0000-0000-0000-00000000000b', 'c1000001-0000-0000-0000-000000000005', 'MISO SOUP', 'Traditional miso soup', 3.00, false, 1),
+  ('m1000001-0000-0000-0000-00000000000c', 'c1000001-0000-0000-0000-000000000005', 'WAKAME SALAD', 'Japanese seaweed salad', 7.00, false, 2),
+  ('m1000001-0000-0000-0000-00000000000d', 'c1000001-0000-0000-0000-000000000006', 'CALIFORNIA MAKI', '6 pcs — Crab, avocado, cucumber', 8.50, true, 1),
+  ('m1000001-0000-0000-0000-00000000000e', 'c1000001-0000-0000-0000-000000000006', 'SPICY SALMON MAKI', '6 pcs — Salmon, avocado, spicy mayo', 9.00, true, 2),
+  ('m1000001-0000-0000-0000-00000000000f', 'c1000001-0000-0000-0000-000000000006', 'SPIDER MAKI', '8 pcs — Softshell crab, cucumber, avocado', 14.00, true, 3),
+  ('m1000001-0000-0000-0000-000000000010', 'c1000001-0000-0000-0000-000000000007', 'DRAGON ROLL', 'Cucumber, avocado, shrimp + your topping choice', 13.00, true, 1),
+  ('m1000001-0000-0000-0000-000000000011', 'c1000001-0000-0000-0000-000000000007', 'ROCK''N ROLL', 'Cucumber, avocado, lobster tail. Topped with fried ginger, green onion, garlic', 16.50, true, 2),
+  ('m1000001-0000-0000-0000-000000000012', 'c1000001-0000-0000-0000-000000000007', 'CLOUD NINE', 'Avocado, cream cheese, asparagus. Topped with smoked salmon', 15.50, true, 3),
+  ('m1000001-0000-0000-0000-000000000013', 'c1000001-0000-0000-0000-000000000008', 'SUSHI MORIAWASE', 'Nigiri, sashimi, maki combo', 21.00, false, 1),
+  ('m1000001-0000-0000-0000-000000000014', 'c1000001-0000-0000-0000-000000000008', 'SUSHI-RO BOAT FOR 2', '14 maki, 10 nigiri, 10 sashimi', 65.00, false, 2),
+  ('m1000001-0000-0000-0000-000000000015', 'c1000001-0000-0000-0000-000000000009', 'TONKOTSU RAMEN', 'Rich pork bone broth ramen', 17.00, false, 1),
+  ('m1000001-0000-0000-0000-000000000016', 'c1000001-0000-0000-0000-00000000000a', 'SALMON TERIYAKI BENTO', 'Salmon teriyaki with rice and sides', 17.50, false, 1),
+  ('m1000001-0000-0000-0000-000000000017', 'c1000001-0000-0000-0000-00000000000b', 'MATCHA TIRAMISU', 'Green tea tiramisu', 5.50, false, 1);
+
+-- Gluten Free items
+INSERT INTO menu_items (id, category_id, name, description, price, has_roll_options, sort_order) VALUES
+  ('m2000001-0000-0000-0000-000000000001', 'c2000001-0000-0000-0000-000000000001', 'SAKE OR TEKKA MAKI (GF)', '6 pcs — Salmon or Red Tuna (+$1 for tuna)', 7.50, true, 1),
+  ('m2000001-0000-0000-0000-000000000002', 'c2000001-0000-0000-0000-000000000001', 'SPICY SALMON MAKI (GF)', '6 pcs — Salmon, avocado, spicy mayo', 9.00, true, 2),
+  ('m2000001-0000-0000-0000-000000000003', 'c2000001-0000-0000-0000-000000000002', 'KAPPA MAKI (GF)', '6 pcs — Cucumber', 6.00, true, 1),
+  ('m2000001-0000-0000-0000-000000000004', 'c2000001-0000-0000-0000-000000000003', 'EDAMAME (GF)', 'Steamed soybeans', 7.00, false, 1),
+  ('m2000001-0000-0000-0000-000000000005', 'c2000001-0000-0000-0000-000000000004', 'DRAGON WITH YOUR TOPPING (GF)', 'Cucumber, avocado, shrimp + topping', 14.00, true, 1),
+  ('m2000001-0000-0000-0000-000000000006', 'c2000001-0000-0000-0000-000000000004', 'FUJI MOUNTAIN (GF)', 'Cucumber, avocado, salmon, spicy mayo', 14.00, true, 2),
+  ('m2000001-0000-0000-0000-000000000007', 'c2000001-0000-0000-0000-000000000005', 'SUSHI MORIAWASE (GF)', 'Nigiri, sashimi, maki combo', 21.00, false, 1);
+
+-- Roll options for items with has_roll_options
+INSERT INTO menu_item_options (menu_item_id, menu_option_id)
+SELECT mi.id, mo.id
+FROM menu_items mi
+CROSS JOIN menu_options mo
+WHERE mi.has_roll_options = true;
+
+-- Labels
+INSERT INTO menu_item_labels (menu_item_id, label_id) VALUES
+  ('m1000001-0000-0000-0000-000000000004', '22222222-2222-2222-2222-222222222201'),
+  ('m1000001-0000-0000-0000-000000000005', '22222222-2222-2222-2222-222222222201'),
+  ('m1000001-0000-0000-0000-000000000007', '22222222-2222-2222-2222-222222222201'),
+  ('m1000001-0000-0000-0000-00000000000e', '22222222-2222-2222-2222-222222222204'),
+  ('m1000001-0000-0000-0000-000000000010', '22222222-2222-2222-2222-222222222204'),
+  ('m1000001-0000-0000-0000-000000000011', '22222222-2222-2222-2222-222222222204'),
+  ('m1000001-0000-0000-0000-000000000012', '22222222-2222-2222-2222-222222222203'),
+  ('m1000001-0000-0000-0000-000000000012', '22222222-2222-2222-2222-222222222204');
+
+-- Featured items (5)
+INSERT INTO featured_items (menu_item_id, sort_order) VALUES
+  ('m1000001-0000-0000-0000-000000000010', 1),
+  ('m1000001-0000-0000-0000-000000000011', 2),
+  ('m1000001-0000-0000-0000-00000000000e', 3),
+  ('m1000001-0000-0000-0000-000000000014', 4),
+  ('m1000001-0000-0000-0000-000000000015', 5);

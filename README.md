@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Sushi-Ro Online Ordering System
 
 Responsive pickup-only online ordering for [Sushi-Ro](https://www.sushi-ro.com), built with Next.js, TypeScript, Tailwind CSS, and Supabase.
@@ -117,3 +118,7 @@ supabase/
 ├── migrations/       # Database schema
 └── seed.sql          # Menu seed data
 ```
+=======
+# sushi-ro-ordering
+Online Ordering System for Sushi-ro
+>>>>>>> 535c305f9645873e984de2a37bc220b21ef98da6

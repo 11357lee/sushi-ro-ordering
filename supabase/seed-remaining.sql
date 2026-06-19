@@ -1,44 +1,5 @@
--- Seed data for Sushi-Ro
-
-INSERT INTO menu_sections (id, name, slug, sort_order, accent_color) VALUES
-  ('11111111-1111-1111-1111-111111111101', 'Menu', 'menu', 1, '#1a1a1a'),
-  ('11111111-1111-1111-1111-111111111102', 'Gluten Free', 'gluten-free', 2, '#0d9488');
-
-INSERT INTO labels (id, name, slug) VALUES
-  ('22222222-2222-2222-2222-222222222201', 'Vegetarian', 'vegetarian'),
-  ('22222222-2222-2222-2222-222222222202', 'Egg', 'egg'),
-  ('22222222-2222-2222-2222-222222222203', 'Cheese', 'cheese'),
-  ('22222222-2222-2222-2222-222222222204', 'Popular', 'popular');
-
-INSERT INTO menu_options (id, name, price_modifier, sort_order) VALUES
-  ('33333333-3333-3333-3333-333333333301', 'Deep-fried', 1.00, 1),
-  ('33333333-3333-3333-3333-333333333302', 'Replace with Soy Sheet', 1.00, 2),
-  ('33333333-3333-3333-3333-333333333303', 'Spicy', 1.50, 3);
-
-INSERT INTO restaurant_settings (is_open, banner_image_url, closing_time, business_email) VALUES
-  (true, '/banner.jpg', '20:45:00', 'sushi-ro@sushi-ro.com');
-
-INSERT INTO waiting_time (minutes) VALUES (15);
-
--- Menu categories
-INSERT INTO categories (id, section_id, name, slug, sort_order) VALUES
-  ('c1000001-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111101', 'Nigiri & Sashimi', 'nigiri-sashimi', 1),
-  ('c1000001-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111101', 'Vegetable Roll', 'vegetable-roll', 2),
-  ('c1000001-0000-0000-0000-000000000003', '11111111-1111-1111-1111-111111111101', 'Appetizer', 'appetizer', 3),
-  ('c1000001-0000-0000-0000-000000000004', '11111111-1111-1111-1111-111111111101', 'Sushi Pizza', 'sushi-pizza', 4),
-  ('c1000001-0000-0000-0000-000000000005', '11111111-1111-1111-1111-111111111101', 'Soup & Salad', 'soup-salad', 5),
-  ('c1000001-0000-0000-0000-000000000006', '11111111-1111-1111-1111-111111111101', 'Traditional Roll', 'traditional-roll', 6),
-  ('c1000001-0000-0000-0000-000000000007', '11111111-1111-1111-1111-111111111101', 'Fusion Roll', 'fusion-roll', 7),
-  ('c1000001-0000-0000-0000-000000000008', '11111111-1111-1111-1111-111111111101', 'Moriawase', 'moriawase', 8),
-  ('c1000001-0000-0000-0000-000000000009', '11111111-1111-1111-1111-111111111101', 'Ramen', 'ramen', 9),
-  ('c1000001-0000-0000-0000-00000000000a', '11111111-1111-1111-1111-111111111101', 'Bento Box', 'bento-box', 10),
-  ('c1000001-0000-0000-0000-00000000000b', '11111111-1111-1111-1111-111111111101', 'Dessert', 'dessert', 11),
-  ('c1000001-0000-0000-0000-00000000000c', '11111111-1111-1111-1111-111111111101', 'Tray', 'tray', 12),
-  ('c2000001-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111102', 'Traditional Roll', 'gf-traditional-roll', 1),
-  ('c2000001-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111102', 'Vegetable Roll', 'gf-vegetable-roll', 2),
-  ('c2000001-0000-0000-0000-000000000003', '11111111-1111-1111-1111-111111111102', 'Appetizer', 'gf-appetizer', 3),
-  ('c2000001-0000-0000-0000-000000000004', '11111111-1111-1111-1111-111111111102', 'Fusion Roll', 'gf-fusion-roll', 4),
-  ('c2000001-0000-0000-0000-000000000005', '11111111-1111-1111-1111-111111111102', 'Moriawase', 'gf-moriawase', 5);
+-- Run this ONLY if schema + categories already loaded but menu_items failed.
+-- (Fixes invalid UUID prefix: m1000001 → a1000001)
 
 -- Sample menu items (Menu section)
 INSERT INTO menu_items (id, category_id, name, description, price, has_roll_options, sort_order) VALUES
@@ -66,7 +27,6 @@ INSERT INTO menu_items (id, category_id, name, description, price, has_roll_opti
   ('a1000001-0000-0000-0000-000000000016', 'c1000001-0000-0000-0000-00000000000a', 'SALMON TERIYAKI BENTO', 'Salmon teriyaki with rice and sides', 17.50, false, 1),
   ('a1000001-0000-0000-0000-000000000017', 'c1000001-0000-0000-0000-00000000000b', 'MATCHA TIRAMISU', 'Green tea tiramisu', 5.50, false, 1);
 
--- Gluten Free items
 INSERT INTO menu_items (id, category_id, name, description, price, has_roll_options, sort_order) VALUES
   ('a2000001-0000-0000-0000-000000000001', 'c2000001-0000-0000-0000-000000000001', 'SAKE OR TEKKA MAKI (GF)', '6 pcs — Salmon or Red Tuna (+$1 for tuna)', 7.50, true, 1),
   ('a2000001-0000-0000-0000-000000000002', 'c2000001-0000-0000-0000-000000000001', 'SPICY SALMON MAKI (GF)', '6 pcs — Salmon, avocado, spicy mayo', 9.00, true, 2),
@@ -76,14 +36,12 @@ INSERT INTO menu_items (id, category_id, name, description, price, has_roll_opti
   ('a2000001-0000-0000-0000-000000000006', 'c2000001-0000-0000-0000-000000000004', 'FUJI MOUNTAIN (GF)', 'Cucumber, avocado, salmon, spicy mayo', 14.00, true, 2),
   ('a2000001-0000-0000-0000-000000000007', 'c2000001-0000-0000-0000-000000000005', 'SUSHI MORIAWASE (GF)', 'Nigiri, sashimi, maki combo', 21.00, false, 1);
 
--- Roll options for items with has_roll_options
 INSERT INTO menu_item_options (menu_item_id, menu_option_id)
 SELECT mi.id, mo.id
 FROM menu_items mi
 CROSS JOIN menu_options mo
 WHERE mi.has_roll_options = true;
 
--- Labels
 INSERT INTO menu_item_labels (menu_item_id, label_id) VALUES
   ('a1000001-0000-0000-0000-000000000004', '22222222-2222-2222-2222-222222222201'),
   ('a1000001-0000-0000-0000-000000000005', '22222222-2222-2222-2222-222222222201'),
@@ -94,7 +52,6 @@ INSERT INTO menu_item_labels (menu_item_id, label_id) VALUES
   ('a1000001-0000-0000-0000-000000000012', '22222222-2222-2222-2222-222222222203'),
   ('a1000001-0000-0000-0000-000000000012', '22222222-2222-2222-2222-222222222204');
 
--- Featured items (5)
 INSERT INTO featured_items (menu_item_id, sort_order) VALUES
   ('a1000001-0000-0000-0000-000000000010', 1),
   ('a1000001-0000-0000-0000-000000000011', 2),

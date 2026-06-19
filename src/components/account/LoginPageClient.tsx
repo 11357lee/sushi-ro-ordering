@@ -41,7 +41,8 @@ export function LoginPageClient() {
     <div className="mx-auto max-w-md px-4 py-12">
       <h1 className="text-2xl font-bold text-stone-900">Login</h1>
       <p className="mt-2 text-stone-600">
-        Sign in with your first name and phone number to reorder and view your order history.
+        Sign in with the first name and phone number from a previous order. You must have placed
+        at least one order before.
       </p>
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-4">

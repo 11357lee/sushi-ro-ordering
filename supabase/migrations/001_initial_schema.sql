@@ -154,7 +154,12 @@ CREATE INDEX idx_order_items_order ON order_items(order_id);
 CREATE INDEX idx_customers_phone ON customers(phone);
 
 -- Realtime for orders (admin notifications)
-ALTER PUBLICATION supabase_realtime ADD TABLE orders;
+DO $$
+BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE orders;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Updated_at trigger
 CREATE OR REPLACE FUNCTION update_updated_at()

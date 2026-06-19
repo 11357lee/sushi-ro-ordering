@@ -4,14 +4,15 @@ import { useState } from "react";
 import type { MenuItem, SelectedOption } from "@/types";
 import { LABEL_COLORS } from "@/types";
 import { buildCartItemFromMenu, useCartStore } from "@/lib/cart-store";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, toDisplayName } from "@/lib/utils";
 
 interface MenuItemCardProps {
   item: MenuItem;
   featured?: boolean;
+  soldOut?: boolean;
 }
 
-export function MenuItemCard({ item, featured }: MenuItemCardProps) {
+export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
   const addItem = useCartStore((s) => s.addItem);
   const [quantity, setQuantity] = useState(1);
   const [selectedOptions, setSelectedOptions] = useState<SelectedOption[]>([]);
@@ -30,6 +31,7 @@ export function MenuItemCard({ item, featured }: MenuItemCardProps) {
   };
 
   const handleAdd = () => {
+    if (soldOut) return;
     addItem(
       buildCartItemFromMenu(
         item.id,
@@ -59,10 +61,15 @@ export function MenuItemCard({ item, featured }: MenuItemCardProps) {
     >
       <div className="flex items-start justify-between gap-2">
         <div>
-          <h3 className="font-semibold text-stone-900">{item.name}</h3>
+          <h3 className="font-semibold text-stone-900">{toDisplayName(item.name)}</h3>
           {isGlutenFree && (
             <span className="mt-1 inline-block text-xs font-medium text-teal-700">
-              Gluten Free
+              Gluten free
+            </span>
+          )}
+          {soldOut && (
+            <span className="mt-1 inline-block rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+              Sold out
             </span>
           )}
         </div>
@@ -142,11 +149,18 @@ export function MenuItemCard({ item, featured }: MenuItemCardProps) {
         <button
           type="button"
           onClick={handleAdd}
-          className={`rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors ${
-            added ? "bg-emerald-600" : isGlutenFree ? "bg-teal-600 hover:bg-teal-700" : "bg-stone-900 hover:bg-stone-800"
+          disabled={soldOut}
+          className={`rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+            added
+              ? "bg-emerald-600"
+              : soldOut
+                ? "bg-stone-400"
+                : isGlutenFree
+                  ? "bg-teal-600 hover:bg-teal-700"
+                  : "bg-stone-900 hover:bg-stone-800"
           }`}
         >
-          {added ? "Added!" : `Add · ${formatPrice(lineTotal)}`}
+          {soldOut ? "Sold out" : added ? "Added!" : `Add · ${formatPrice(lineTotal)}`}
         </button>
       </div>
     </article>

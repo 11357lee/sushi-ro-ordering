@@ -1,22 +1,54 @@
 "use client";
 
 import Link from "next/link";
-import { useCartStore } from "@/lib/cart-store";
-import { calcLineTotal, formatPrice } from "@/lib/utils";
+import { useEffect, useState } from "react";
+import { TAX_RATE } from "@/lib/constants";
+import { toggleCondimentExtra, useCartStore } from "@/lib/cart-store";
+import {
+  calcLineTotal,
+  formatPrice,
+  generateScheduledPickupSlots,
+  toDisplayName,
+} from "@/lib/utils";
 
 export function CartPageClient() {
-  const { items, extras, updateQuantity, removeItem, setExtras, subtotal } = useCartStore();
+  const {
+    items,
+    extras,
+    pickupType,
+    pickupTime,
+    updateQuantity,
+    removeItem,
+    setExtras,
+    setPickup,
+    clearCart,
+    subtotal,
+    tax,
+    total,
+  } = useCartStore();
 
-  const toggleExtra = (key: keyof typeof extras, value?: boolean) => {
-    if (key === "cutlery") {
-      setExtras({ cutlery: value ?? !extras.cutlery });
-    } else if (key === "cutleryQuantity") {
-      return;
-    } else if (key === "specialInstructions") {
-      return;
-    } else {
-      setExtras({ [key]: value ?? !extras[key] });
-    }
+  const [pickupSlots, setPickupSlots] = useState<{ value: string; label: string }[]>([]);
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((r) => r.json())
+      .then((data) => {
+        setPickupSlots(
+          generateScheduledPickupSlots(data.settings?.closing_time ?? "21:00:00")
+        );
+      });
+  }, []);
+
+  const handleCondiment = (
+    key:
+      | "extraWasabi"
+      | "extraGinger"
+      | "extraSoySauce"
+      | "noWasabi"
+      | "noGinger"
+      | "noSoySauce"
+  ) => {
+    setExtras(toggleCondimentExtra(extras, key));
   };
 
   if (items.length === 0) {
@@ -28,15 +60,30 @@ export function CartPageClient() {
           href="/"
           className="mt-6 inline-block rounded-lg bg-stone-900 px-6 py-3 font-semibold text-white hover:bg-stone-800"
         >
-          Browse Menu
+          Browse menu
         </Link>
       </div>
     );
   }
 
+  const condimentRows = [
+    { extra: "extraWasabi" as const, no: "noWasabi" as const, label: "Wasabi" },
+    { extra: "extraGinger" as const, no: "noGinger" as const, label: "Ginger" },
+    { extra: "extraSoySauce" as const, no: "noSoySauce" as const, label: "Soy sauce" },
+  ];
+
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8">
-      <h1 className="text-2xl font-bold text-stone-900">Your Cart</h1>
+    <div className="mx-auto max-w-2xl px-4 py-6 sm:py-8">
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold text-stone-900">Your cart</h1>
+        <button
+          type="button"
+          onClick={clearCart}
+          className="text-sm font-medium text-red-600 hover:text-red-700"
+        >
+          Clear cart
+        </button>
+      </div>
 
       <div className="mt-6 space-y-4">
         {items.map((item) => {
@@ -44,17 +91,19 @@ export function CartPageClient() {
           return (
             <div
               key={item.cartId}
-              className={`rounded-xl border p-4 ${isGF ? "border-teal-300 bg-teal-50/30" : "border-stone-200 bg-white"}`}
+              className={`rounded-xl border p-4 ${
+                isGF ? "border-teal-300 bg-teal-50/40" : "border-stone-200 bg-white"
+              }`}
             >
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <h3 className="font-semibold text-stone-900">{item.name}</h3>
+                  <h3 className="font-semibold text-stone-900">{toDisplayName(item.name)}</h3>
                   {isGF && (
-                    <span className="text-xs font-medium text-teal-700">Gluten Free</span>
+                    <span className="text-xs font-medium text-teal-700">Gluten free</span>
                   )}
                   {item.selectedOptions.length > 0 && (
                     <p className="mt-1 text-sm text-stone-600">
-                      {item.selectedOptions.map((o) => o.name).join(", ")}
+                      {item.selectedOptions.map((o) => toDisplayName(o.name)).join(", ")}
                     </p>
                   )}
                   {item.specialRequest && (
@@ -96,7 +145,50 @@ export function CartPageClient() {
         })}
       </div>
 
-      <section className="mt-8 rounded-xl border border-stone-200 bg-white p-4">
+      <section className="mt-6 rounded-xl border border-stone-200 bg-white p-4">
+        <h2 className="font-semibold text-stone-900">Pickup time</h2>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setPickup("asap", null)}
+            className={`rounded-lg px-4 py-2 text-sm font-medium ${
+              pickupType === "asap"
+                ? "bg-stone-900 text-white"
+                : "bg-stone-100 text-stone-700 hover:bg-stone-200"
+            }`}
+          >
+            ASAP
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              setPickup("scheduled", pickupTime ?? pickupSlots[0]?.value ?? null)
+            }
+            className={`rounded-lg px-4 py-2 text-sm font-medium ${
+              pickupType === "scheduled"
+                ? "bg-stone-900 text-white"
+                : "bg-stone-100 text-stone-700 hover:bg-stone-200"
+            }`}
+          >
+            Later
+          </button>
+        </div>
+        {pickupType === "scheduled" && (
+          <select
+            value={pickupTime ?? ""}
+            onChange={(e) => setPickup("scheduled", e.target.value)}
+            className="mt-3 w-full rounded-lg border border-stone-200 px-3 py-2.5 text-sm focus:border-teal-500 focus:outline-none"
+          >
+            {pickupSlots.map((slot) => (
+              <option key={slot.value} value={slot.value}>
+                {slot.label}
+              </option>
+            ))}
+          </select>
+        )}
+      </section>
+
+      <section className="mt-4 rounded-xl border border-stone-200 bg-white p-4">
         <h2 className="font-semibold text-stone-900">Cutlery</h2>
         <div className="mt-3 flex flex-wrap gap-2">
           <button
@@ -110,7 +202,9 @@ export function CartPageClient() {
           </button>
           <button
             type="button"
-            onClick={() => setExtras({ cutlery: true, cutleryQuantity: extras.cutleryQuantity || 1 })}
+            onClick={() =>
+              setExtras({ cutlery: true, cutleryQuantity: extras.cutleryQuantity || 1 })
+            }
             className={`rounded-lg px-4 py-2 text-sm font-medium ${
               extras.cutlery ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-700"
             }`}
@@ -143,33 +237,39 @@ export function CartPageClient() {
 
       <section className="mt-4 rounded-xl border border-stone-200 bg-white p-4">
         <h2 className="font-semibold text-stone-900">Extras</h2>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {(
-            [
-              ["extraWasabi", "Extra Wasabi"],
-              ["extraGinger", "Extra Ginger"],
-              ["extraSoySauce", "Extra Soy Sauce"],
-              ["noWasabi", "No Wasabi"],
-              ["noGinger", "No Ginger"],
-              ["noSoySauce", "No Soy Sauce"],
-            ] as const
-          ).map(([key, label]) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => toggleExtra(key)}
-              className={`rounded-lg px-3 py-2 text-sm font-medium ${
-                extras[key] ? "bg-teal-600 text-white" : "bg-stone-100 text-stone-700 hover:bg-stone-200"
-              }`}
-            >
-              {label}
-            </button>
+        <div className="mt-3 space-y-3">
+          {condimentRows.map(({ extra, no, label }) => (
+            <div key={label} className="flex flex-wrap items-center gap-2">
+              <span className="w-20 text-sm text-stone-600">{label}</span>
+              <button
+                type="button"
+                onClick={() => handleCondiment(extra)}
+                className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
+                  extras[extra]
+                    ? "bg-teal-600 text-white"
+                    : "bg-stone-100 text-stone-700 hover:bg-stone-200"
+                }`}
+              >
+                Extra
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCondiment(no)}
+                className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
+                  extras[no]
+                    ? "bg-stone-700 text-white"
+                    : "bg-stone-100 text-stone-700 hover:bg-stone-200"
+                }`}
+              >
+                No
+              </button>
+            </div>
           ))}
         </div>
       </section>
 
       <section className="mt-4 rounded-xl border border-stone-200 bg-white p-4">
-        <h2 className="font-semibold text-stone-900">General Special Instructions</h2>
+        <h2 className="font-semibold text-stone-900">Special instructions</h2>
         <textarea
           value={extras.specialInstructions}
           onChange={(e) => setExtras({ specialInstructions: e.target.value })}
@@ -179,16 +279,26 @@ export function CartPageClient() {
         />
       </section>
 
-      <div className="mt-6 flex items-center justify-between border-t border-stone-200 pt-6">
-        <span className="text-lg font-semibold">Subtotal</span>
-        <span className="text-xl font-bold">{formatPrice(subtotal())}</span>
+      <div className="mt-6 space-y-2 border-t border-stone-200 pt-6 text-sm sm:text-base">
+        <div className="flex justify-between">
+          <span className="text-stone-600">Subtotal</span>
+          <span>{formatPrice(subtotal())}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-stone-600">Tax ({Math.round(TAX_RATE * 100)}%)</span>
+          <span>{formatPrice(tax())}</span>
+        </div>
+        <div className="flex justify-between text-lg font-bold text-stone-900">
+          <span>Total</span>
+          <span>{formatPrice(total())}</span>
+        </div>
       </div>
 
       <Link
         href="/checkout"
         className="mt-6 block w-full rounded-xl bg-stone-900 py-4 text-center text-lg font-semibold text-white hover:bg-stone-800"
       >
-        Continue to Checkout
+        Continue to checkout
       </Link>
     </div>
   );

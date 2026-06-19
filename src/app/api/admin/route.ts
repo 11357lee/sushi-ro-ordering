@@ -1,21 +1,28 @@
 import { NextResponse } from "next/server";
+import { addMinutes, setHours, setMinutes, setSeconds } from "date-fns";
 import {
+  dismissAllDemoOrders,
   getDemoWaitingTimeMinutes,
   isDemoMode,
-  listDemoPendingOrders,
-  setDemoIsOpen,
+  listDemoAdminOrders,
+  setDemoPauseUntil,
+  setDemoSoldOutIds,
   setDemoWaitingTimeMinutes,
   updateDemoOrderStatus,
 } from "@/lib/data/demo-store";
-import { sendOrderConfirmationEmail } from "@/lib/email";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { fetchOrderById, fetchPendingOrders } from "@/lib/data/queries";
+import { fetchAdminOrders } from "@/lib/data/queries";
 import type { OrderStatus } from "@/types";
-import { addMinutes } from "date-fns";
 
 function verifyAdmin(request: Request): boolean {
   const key = request.headers.get("x-admin-key");
   return key === process.env.ADMIN_API_KEY && Boolean(process.env.ADMIN_API_KEY);
+}
+
+function closingTimeToday(closingTime = "21:00:00"): Date {
+  const now = new Date();
+  const [h, m] = closingTime.split(":").map(Number);
+  return setSeconds(setMinutes(setHours(now, h), m), 0);
 }
 
 export async function GET(request: Request) {
@@ -23,7 +30,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const orders = isDemoMode() ? listDemoPendingOrders() : await fetchPendingOrders();
+  const orders = isDemoMode() ? listDemoAdminOrders() : await fetchAdminOrders();
   return NextResponse.json({ orders });
 }
 
@@ -33,45 +40,95 @@ export async function PATCH(request: Request) {
   }
 
   const body = await request.json();
-  const { action, orderId, status, pickupTime, waitingMinutes, isOpen } = body;
+  const {
+    action,
+    orderId,
+    status,
+    pickupTime,
+    waitingMinutes,
+    pauseDuration,
+    soldOutItemIds,
+    closingTime,
+  } = body;
 
   if (action === "update_waiting_time" && waitingMinutes) {
     if (isDemoMode()) {
-      setDemoWaitingTimeMinutes(waitingMinutes);
-      return NextResponse.json({ waitingMinutes });
+      setDemoWaitingTimeMinutes(Number(waitingMinutes));
+      return NextResponse.json({ waitingMinutes: Number(waitingMinutes) });
     }
     const supabase = createAdminClient();
-    await supabase.from("waiting_time").insert({ minutes: waitingMinutes });
-    return NextResponse.json({ waitingMinutes });
+    await supabase.from("waiting_time").insert({ minutes: Number(waitingMinutes) });
+    return NextResponse.json({ waitingMinutes: Number(waitingMinutes) });
   }
 
-  if (action === "update_open_status" && typeof isOpen === "boolean") {
+  if (action === "pause_service" && pauseDuration) {
+    let pauseUntil: string | null = null;
+    const now = new Date();
+
+    if (pauseDuration === "rest_of_day") {
+      pauseUntil = closingTimeToday(closingTime ?? "21:00:00").toISOString();
+    } else if (pauseDuration === "30") {
+      pauseUntil = addMinutes(now, 30).toISOString();
+    } else if (pauseDuration === "60") {
+      pauseUntil = addMinutes(now, 60).toISOString();
+    } else if (pauseDuration === "120") {
+      pauseUntil = addMinutes(now, 120).toISOString();
+    } else if (pauseDuration === "clear") {
+      pauseUntil = null;
+    }
+
     if (isDemoMode()) {
-      setDemoIsOpen(isOpen);
-      return NextResponse.json({ isOpen });
+      setDemoPauseUntil(pauseUntil);
+      return NextResponse.json({ pauseUntil });
+    }
+
+    const supabase = createAdminClient();
+    await supabase
+      .from("restaurant_settings")
+      .update({ pause_until: pauseUntil })
+      .neq("id", "00000000-0000-0000-0000-000000000000");
+
+    return NextResponse.json({ pauseUntil });
+  }
+
+  if (action === "update_sold_out" && Array.isArray(soldOutItemIds)) {
+    if (isDemoMode()) {
+      setDemoSoldOutIds(soldOutItemIds);
+      return NextResponse.json({ soldOutItemIds });
     }
     const supabase = createAdminClient();
-    await supabase.from("restaurant_settings").update({ is_open: isOpen }).neq("id", "00000000-0000-0000-0000-000000000000");
-    return NextResponse.json({ isOpen });
+    await supabase
+      .from("restaurant_settings")
+      .update({ sold_out_item_ids: soldOutItemIds })
+      .neq("id", "00000000-0000-0000-0000-000000000000");
+    return NextResponse.json({ soldOutItemIds });
+  }
+
+  if (action === "dismiss_orders") {
+    if (isDemoMode()) {
+      dismissAllDemoOrders();
+      return NextResponse.json({ success: true });
+    }
+    const supabase = createAdminClient();
+    await supabase
+      .from("orders")
+      .update({ admin_dismissed: true })
+      .eq("admin_dismissed", false);
+    return NextResponse.json({ success: true });
   }
 
   if (action === "update_order" && orderId && status) {
     const orderStatus = status as OrderStatus;
 
     if (isDemoMode()) {
-      const waitingMinutes = getDemoWaitingTimeMinutes();
+      const waitMinutes = getDemoWaitingTimeMinutes();
       let finalPickupTime = pickupTime;
 
       if (orderStatus === "accepted" && !finalPickupTime) {
-        finalPickupTime = addMinutes(new Date(), waitingMinutes).toISOString();
+        finalPickupTime = addMinutes(new Date(), waitMinutes).toISOString();
       }
 
       const updated = updateDemoOrderStatus(orderId, orderStatus, finalPickupTime);
-
-      if (updated && orderStatus === "accepted") {
-        await sendOrderConfirmationEmail(updated);
-      }
-
       return NextResponse.json({ order: updated });
     }
 
@@ -81,6 +138,20 @@ export async function PATCH(request: Request) {
     if (orderStatus === "accepted") {
       updates.confirmed_at = new Date().toISOString();
 
+      if (pickupTime) {
+        updates.pickup_time = pickupTime;
+      } else {
+        const { data: waitingRow } = await supabase
+          .from("waiting_time")
+          .select("minutes")
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .single();
+
+        const waitMinutes = waitingRow?.minutes ?? 15;
+        updates.pickup_time = addMinutes(new Date(), waitMinutes).toISOString();
+      }
+
       const { data: waitingRow } = await supabase
         .from("waiting_time")
         .select("minutes")
@@ -88,11 +159,7 @@ export async function PATCH(request: Request) {
         .limit(1)
         .single();
 
-      const waitMinutes = waitingRow?.minutes ?? 15;
-      const computedPickup = pickupTime ?? addMinutes(new Date(), waitMinutes).toISOString();
-      updates.pickup_time = computedPickup;
-
-      if (waitMinutes > 60) {
+      if ((waitingRow?.minutes ?? 15) > 60) {
         updates.cancel_window_expires_at = addMinutes(new Date(), 1).toISOString();
       }
     }
@@ -106,10 +173,6 @@ export async function PATCH(request: Request) {
 
     if (error) {
       return NextResponse.json({ error: "Failed to update order" }, { status: 500 });
-    }
-
-    if (orderStatus === "accepted" && updated) {
-      await sendOrderConfirmationEmail(updated);
     }
 
     return NextResponse.json({ order: updated });

@@ -65,6 +65,10 @@ export interface RestaurantSettings {
   closing_time: string;
   timezone: string;
   business_email: string;
+  phone?: string | null;
+  tax_rate?: number;
+  pause_until?: string | null;
+  sold_out_item_ids?: string[];
 }
 
 export interface WaitingTime {
@@ -78,7 +82,6 @@ export interface Customer {
   first_name: string;
   last_name: string | null;
   phone: string;
-  email: string | null;
 }
 
 export interface SelectedOption {
@@ -143,6 +146,9 @@ export interface Order {
   special_instructions: string | null;
   allergy_notes: string | null;
   subtotal: number;
+  tax: number;
+  total: number;
+  admin_dismissed?: boolean;
   confirmed_at: string | null;
   cancel_window_expires_at: string | null;
   created_at: string;
@@ -162,7 +168,6 @@ export interface MenuData {
 export interface CreateOrderPayload {
   firstName: string;
   lastName: string;
-  email: string;
   phone: string;
   pickupType: PickupType;
   pickupTime: string | null;

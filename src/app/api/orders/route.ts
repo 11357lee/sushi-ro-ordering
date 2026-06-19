@@ -1,30 +1,43 @@
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { createDemoOrder, isDemoMode } from "@/lib/data/demo-store";
-import { sendOrderConfirmationEmail } from "@/lib/email";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { CreateOrderPayload, Order } from "@/types";
-import { calcLineTotal, calcCartSubtotal, normalizePhone } from "@/lib/utils";
+import {
+  calcLineTotal,
+  calcCartSubtotal,
+  calcTax,
+  calcTotal,
+  normalizePhone,
+} from "@/lib/utils";
 
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as CreateOrderPayload;
 
-    if (!body.firstName?.trim() || !body.phone?.trim() || !body.items?.length) {
+    if (
+      !body.firstName?.trim() ||
+      !body.lastName?.trim() ||
+      !body.phone?.trim() ||
+      !body.items?.length
+    ) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
     const subtotal = calcCartSubtotal(body.items);
+    const tax = calcTax(subtotal);
+    const total = calcTotal(subtotal);
     const phone = normalizePhone(body.phone);
     const pickupType = body.pickupType;
     const pickupTime = pickupType === "asap" ? null : body.pickupTime;
 
     if (isDemoMode()) {
       const orderId = uuidv4();
+      const customerId = uuidv4();
       const order: Order = {
         id: orderId,
         order_number: 0,
-        customer_id: uuidv4(),
+        customer_id: customerId,
         status: pickupType === "asap" ? "pending" : "accepted",
         pickup_type: pickupType,
         pickup_time: pickupTime,
@@ -39,16 +52,18 @@ export async function POST(request: Request) {
         special_instructions: body.extras.specialInstructions || null,
         allergy_notes: body.allergyNotes || null,
         subtotal,
+        tax,
+        total,
+        admin_dismissed: false,
         confirmed_at: pickupType === "scheduled" ? new Date().toISOString() : null,
         cancel_window_expires_at: null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         customer: {
-          id: uuidv4(),
+          id: customerId,
           first_name: body.firstName.trim(),
-          last_name: body.lastName?.trim() || null,
+          last_name: body.lastName.trim(),
           phone,
-          email: body.email?.trim() || null,
         },
         order_items: body.items.map((item) => ({
           id: uuidv4(),
@@ -66,10 +81,6 @@ export async function POST(request: Request) {
 
       const saved = createDemoOrder(order);
 
-      if (pickupType === "scheduled") {
-        await sendOrderConfirmationEmail(saved);
-      }
-
       return NextResponse.json({
         order: saved,
         redirectTo:
@@ -85,6 +96,7 @@ export async function POST(request: Request) {
       .from("customers")
       .select("*")
       .eq("phone", phone)
+      .ilike("first_name", body.firstName.trim())
       .maybeSingle();
 
     let customerId = existingCustomer?.id;
@@ -94,8 +106,7 @@ export async function POST(request: Request) {
         .from("customers")
         .update({
           first_name: body.firstName.trim(),
-          last_name: body.lastName?.trim() || null,
-          email: body.email?.trim() || null,
+          last_name: body.lastName.trim(),
         })
         .eq("id", customerId);
     } else {
@@ -103,9 +114,8 @@ export async function POST(request: Request) {
         .from("customers")
         .insert({
           first_name: body.firstName.trim(),
-          last_name: body.lastName?.trim() || null,
+          last_name: body.lastName.trim(),
           phone,
-          email: body.email?.trim() || null,
         })
         .select()
         .single();
@@ -136,6 +146,8 @@ export async function POST(request: Request) {
         special_instructions: body.extras.specialInstructions || null,
         allergy_notes: body.allergyNotes || null,
         subtotal,
+        tax,
+        total,
         confirmed_at: pickupType === "scheduled" ? new Date().toISOString() : null,
       })
       .select()
@@ -164,10 +176,6 @@ export async function POST(request: Request) {
       .select("*, order_items(*), customer:customers(*)")
       .eq("id", order.id)
       .single();
-
-    if (pickupType === "scheduled" && fullOrder) {
-      await sendOrderConfirmationEmail(fullOrder as Order);
-    }
 
     return NextResponse.json({
       order: fullOrder,

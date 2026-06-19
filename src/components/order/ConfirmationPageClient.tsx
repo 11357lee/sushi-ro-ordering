@@ -109,10 +109,7 @@ export function ConfirmationPageClient({
               {formatPickupTime(order.pickup_time)}
             </p>
           </div>
-          <p className="mt-4 text-sm text-stone-600">
-            A confirmation email has been sent.
-          </p>
-          <p className="mt-1 text-sm text-stone-500">Pay in store when collecting your order.</p>
+          <p className="mt-4 text-sm text-stone-500">Pay in store when collecting your order.</p>
         </>
       )}
 

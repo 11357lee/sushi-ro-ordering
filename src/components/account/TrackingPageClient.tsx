@@ -1,23 +1,36 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Order } from "@/types";
-import { formatPickupTime, formatPrice } from "@/lib/utils";
+import {
+  canCustomerCancelOrder,
+  formatOrderDate,
+  formatPickupTime,
+  formatPrice,
+  toDisplayName,
+} from "@/lib/utils";
 
 export function TrackingPageClient() {
-  const router = useRouter();
   const [phone, setPhone] = useState("");
   const [orders, setOrders] = useState<Order[]>([]);
+  const [waitingMinutes, setWaitingMinutes] = useState(15);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [cancelling, setCancelling] = useState<string | null>(null);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((r) => r.json())
+      .then((data) => setWaitingMinutes(data.waitingTime?.minutes ?? 15));
+  }, []);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setSearched(true);
+    setCancelError(null);
 
     try {
       const res = await fetch(`/api/orders/track?phone=${encodeURIComponent(phone)}`);
@@ -30,24 +43,30 @@ export function TrackingPageClient() {
 
   const handleCancel = async (orderId: string) => {
     setCancelling(orderId);
+    setCancelError(null);
     try {
       const res = await fetch(`/api/orders/${orderId}/cancel`, { method: "POST" });
-      if (res.ok) {
-        setOrders((prev) =>
-          prev.map((o) => (o.id === orderId ? { ...o, status: "cancelled" } : o))
-        );
+      const data = await res.json();
+      if (!res.ok) {
+        setCancelError(data.error ?? "Could not cancel order");
+        return;
       }
+      setOrders((prev) =>
+        prev.map((o) => (o.id === orderId ? { ...o, status: "cancelled" } : o))
+      );
     } finally {
       setCancelling(null);
     }
   };
 
   return (
-    <div className="mx-auto max-w-lg px-4 py-12">
-      <h1 className="text-2xl font-bold text-stone-900">Track Your Order</h1>
-      <p className="mt-2 text-stone-600">Enter your phone number to see pickup time and status.</p>
+    <div className="mx-auto max-w-lg px-4 py-8 sm:py-12">
+      <h1 className="text-2xl font-bold text-stone-900">Track your order</h1>
+      <p className="mt-2 text-sm text-stone-600 sm:text-base">
+        Enter your phone number to see today&apos;s orders.
+      </p>
 
-      <form onSubmit={handleSearch} className="mt-6 flex gap-2">
+      <form onSubmit={handleSearch} className="mt-6 flex flex-col gap-2 sm:flex-row">
         <input
           type="tel"
           value={phone}
@@ -65,45 +84,57 @@ export function TrackingPageClient() {
         </button>
       </form>
 
+      {cancelError && <p className="mt-4 text-sm text-red-600">{cancelError}</p>}
+
       {searched && orders.length === 0 && (
-        <p className="mt-8 text-center text-stone-500">No orders found for this phone number.</p>
+        <p className="mt-8 text-center text-stone-500">No orders found for today.</p>
       )}
 
       <div className="mt-8 space-y-4">
-        {orders.map((order) => (
-          <div key={order.id} className="rounded-xl border border-stone-200 bg-white p-4">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="font-semibold text-stone-900">Order #{order.order_number}</p>
-                <p className="mt-1 text-sm capitalize text-stone-600">{order.status}</p>
+        {orders.map((order) => {
+          const canCancel = canCustomerCancelOrder(order, waitingMinutes);
+          return (
+            <div key={order.id} className="rounded-xl border border-stone-200 bg-white p-4">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="font-semibold text-stone-900">
+                    {order.customer?.first_name
+                      ? `${toDisplayName(order.customer.first_name)} ${order.customer.last_name ? toDisplayName(order.customer.last_name) : ""}`.trim()
+                      : "Your order"}
+                  </p>
+                  <p className="mt-1 text-sm text-stone-500">
+                    {formatOrderDate(order.created_at)}
+                  </p>
+                  <p className="mt-1 text-sm capitalize text-stone-600">{order.status}</p>
+                </div>
+                <span className="font-semibold">{formatPrice(order.total ?? order.subtotal)}</span>
               </div>
-              <span className="font-semibold">{formatPrice(order.subtotal)}</span>
-            </div>
-            {order.pickup_time && (
-              <p className="mt-2 text-sm text-stone-600">
-                Pickup: {formatPickupTime(order.pickup_time)}
-              </p>
-            )}
-            <div className="mt-3 flex gap-2">
-              <Link
-                href={`/order/${order.id}/confirmation`}
-                className="text-sm font-medium text-teal-600 hover:underline"
-              >
-                View details
-              </Link>
-              {(order.status === "accepted" || order.status === "pending") && (
-                <button
-                  type="button"
-                  onClick={() => handleCancel(order.id)}
-                  disabled={cancelling === order.id}
-                  className="text-sm font-medium text-red-600 hover:underline disabled:opacity-50"
-                >
-                  {cancelling === order.id ? "Cancelling..." : "Cancel"}
-                </button>
+              {order.pickup_time && (
+                <p className="mt-2 text-sm text-stone-600">
+                  Pickup: {formatPickupTime(order.pickup_time)}
+                </p>
               )}
+              <div className="mt-3 flex flex-wrap gap-3">
+                <Link
+                  href={`/order/${order.id}/confirmation`}
+                  className="text-sm font-medium text-teal-600 hover:underline"
+                >
+                  View details
+                </Link>
+                {canCancel && (
+                  <button
+                    type="button"
+                    onClick={() => handleCancel(order.id)}
+                    disabled={cancelling === order.id}
+                    className="text-sm font-medium text-red-600 hover:underline disabled:opacity-50"
+                  >
+                    {cancelling === order.id ? "Cancelling..." : "Cancel order"}
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

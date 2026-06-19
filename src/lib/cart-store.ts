@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { CartExtras, CartItem, SelectedOption } from "@/types";
-import { calcCartSubtotal, cartItemKey } from "@/lib/utils";
+import type { CartExtras, CartItem, PickupType, SelectedOption } from "@/types";
+import { calcCartSubtotal, calcTax, calcTotal, cartItemKey } from "@/lib/utils";
 
 const defaultExtras: CartExtras = {
   cutlery: false,
@@ -18,13 +18,19 @@ const defaultExtras: CartExtras = {
 interface CartState {
   items: CartItem[];
   extras: CartExtras;
+  pickupType: PickupType;
+  pickupTime: string | null;
   addItem: (item: Omit<CartItem, "cartId">) => void;
+  addItems: (items: Omit<CartItem, "cartId">[]) => void;
   updateQuantity: (cartId: string, quantity: number) => void;
   removeItem: (cartId: string) => void;
   setExtras: (extras: Partial<CartExtras>) => void;
+  setPickup: (pickupType: PickupType, pickupTime: string | null) => void;
   clearCart: () => void;
   itemCount: () => number;
   subtotal: () => number;
+  tax: () => number;
+  total: () => number;
 }
 
 export const useCartStore = create<CartState>()(
@@ -32,6 +38,8 @@ export const useCartStore = create<CartState>()(
     (set, get) => ({
       items: [],
       extras: defaultExtras,
+      pickupType: "asap",
+      pickupTime: null,
 
       addItem: (item) => {
         const key = cartItemKey(
@@ -54,6 +62,10 @@ export const useCartStore = create<CartState>()(
             items: [...state.items, { ...item, cartId: key }],
           };
         });
+      },
+
+      addItems: (items) => {
+        items.forEach((item) => get().addItem(item));
       },
 
       updateQuantity: (cartId, quantity) => {
@@ -80,12 +92,26 @@ export const useCartStore = create<CartState>()(
         }));
       },
 
-      clearCart: () => set({ items: [], extras: defaultExtras }),
+      setPickup: (pickupType, pickupTime) => {
+        set({ pickupType, pickupTime });
+      },
+
+      clearCart: () =>
+        set({
+          items: [],
+          extras: defaultExtras,
+          pickupType: "asap",
+          pickupTime: null,
+        }),
 
       itemCount: () =>
         get().items.reduce((sum, item) => sum + item.quantity, 0),
 
       subtotal: () => calcCartSubtotal(get().items),
+
+      tax: () => calcTax(get().subtotal()),
+
+      total: () => calcTotal(get().subtotal()),
     }),
     { name: "sushi-ro-cart" }
   )
@@ -113,4 +139,30 @@ export function buildCartItemFromMenu(
     selectedOptions,
     specialRequest,
   };
+}
+
+export function toggleCondimentExtra(
+  extras: CartExtras,
+  key:
+    | "extraWasabi"
+    | "extraGinger"
+    | "extraSoySauce"
+    | "noWasabi"
+    | "noGinger"
+    | "noSoySauce"
+): Partial<CartExtras> {
+  const pairs: Record<string, string> = {
+    extraWasabi: "noWasabi",
+    noWasabi: "extraWasabi",
+    extraGinger: "noGinger",
+    noGinger: "extraGinger",
+    extraSoySauce: "noSoySauce",
+    noSoySauce: "extraSoySauce",
+  };
+  const opposite = pairs[key] as keyof CartExtras;
+  const next = !extras[key];
+  return {
+    [key]: next,
+    [opposite]: next ? false : extras[opposite as keyof CartExtras],
+  } as Partial<CartExtras>;
 }

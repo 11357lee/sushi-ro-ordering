@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
-  getDemoIsOpen,
+  getDemoPauseUntil,
+  getDemoSoldOutIds,
   getDemoWaitingTimeMinutes,
   isDemoMode,
 } from "@/lib/data/demo-store";
@@ -10,7 +11,11 @@ import { fetchRestaurantSettings, fetchWaitingTime } from "@/lib/data/queries";
 export async function GET() {
   if (isDemoMode()) {
     return NextResponse.json({
-      settings: { ...MOCK_SETTINGS, is_open: getDemoIsOpen() },
+      settings: {
+        ...MOCK_SETTINGS,
+        pause_until: getDemoPauseUntil(),
+        sold_out_item_ids: getDemoSoldOutIds(),
+      },
       waitingTime: { ...MOCK_WAITING_TIME, minutes: getDemoWaitingTimeMinutes() },
     });
   }

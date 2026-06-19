@@ -1,8 +1,12 @@
 import type { Order, OrderStatus } from "@/types";
+import { isOrderFromToday } from "@/lib/utils";
 
 const globalStore = globalThis as unknown as {
   demoOrders?: Map<string, Order>;
   demoOrderCounter?: number;
+  demoWaitingMinutes?: number;
+  demoPauseUntil?: string | null;
+  demoSoldOutIds?: Set<string>;
 };
 
 function getStore() {
@@ -45,17 +49,32 @@ export function updateDemoOrder(id: string, updates: Partial<Order>): Order | un
 export function listDemoOrdersByPhone(phone: string): Order[] {
   const normalized = phone.replace(/\D/g, "");
   return Array.from(getStore().orders.values())
-    .filter((o) => o.customer?.phone === normalized)
+    .filter(
+      (o) =>
+        o.customer?.phone === normalized &&
+        isOrderFromToday(o.created_at) &&
+        !o.admin_dismissed
+    )
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 }
 
-export function listDemoPendingOrders(): Order[] {
+export function listDemoAdminOrders(): Order[] {
   return Array.from(getStore().orders.values())
-    .filter((o) => o.status === "pending" || o.status === "accepted")
+    .filter((o) => !o.admin_dismissed)
     .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 }
 
-export function updateDemoOrderStatus(id: string, status: OrderStatus, pickupTime?: string | null): Order | undefined {
+export function dismissAllDemoOrders(): void {
+  for (const order of getStore().orders.values()) {
+    order.admin_dismissed = true;
+  }
+}
+
+export function updateDemoOrderStatus(
+  id: string,
+  status: OrderStatus,
+  pickupTime?: string | null
+): Order | undefined {
   const updates: Partial<Order> = {
     status,
     updated_at: new Date().toISOString(),
@@ -73,17 +92,37 @@ export function updateDemoOrderStatus(id: string, status: OrderStatus, pickupTim
 }
 
 export function getDemoWaitingTimeMinutes(): number {
-  return (globalThis as unknown as { demoWaitingMinutes?: number }).demoWaitingMinutes ?? 15;
+  return globalStore.demoWaitingMinutes ?? 15;
 }
 
 export function setDemoWaitingTimeMinutes(minutes: number): void {
-  (globalThis as unknown as { demoWaitingMinutes?: number }).demoWaitingMinutes = minutes;
+  globalStore.demoWaitingMinutes = minutes;
 }
 
-export function getDemoIsOpen(): boolean {
-  return (globalThis as unknown as { demoIsOpen?: boolean }).demoIsOpen ?? true;
+export function getDemoPauseUntil(): string | null {
+  return globalStore.demoPauseUntil ?? null;
 }
 
-export function setDemoIsOpen(isOpen: boolean): void {
-  (globalThis as unknown as { demoIsOpen?: boolean }).demoIsOpen = isOpen;
+export function setDemoPauseUntil(until: string | null): void {
+  globalStore.demoPauseUntil = until;
+}
+
+export function getDemoSoldOutIds(): string[] {
+  if (!globalStore.demoSoldOutIds) globalStore.demoSoldOutIds = new Set();
+  return Array.from(globalStore.demoSoldOutIds);
+}
+
+export function setDemoSoldOutIds(ids: string[]): void {
+  globalStore.demoSoldOutIds = new Set(ids);
+}
+
+export function findDemoCustomer(firstName: string, phone: string) {
+  const normalized = phone.replace(/\D/g, "");
+  const orders = Array.from(getStore().orders.values()).filter(
+    (o) =>
+      o.customer?.phone === normalized &&
+      o.customer.first_name.toLowerCase() === firstName.trim().toLowerCase()
+  );
+  if (!orders.length) return null;
+  return orders[0].customer ?? null;
 }

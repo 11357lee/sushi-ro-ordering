@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
-import { getDemoOrder, isDemoMode, updateDemoOrder } from "@/lib/data/demo-store";
+import {
+  getDemoOrder,
+  getDemoWaitingTimeMinutes,
+  isDemoMode,
+  updateDemoOrder,
+} from "@/lib/data/demo-store";
+import { fetchWaitingTime } from "@/lib/data/queries";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { canCustomerCancelOrder } from "@/lib/utils";
 
 export async function POST(
   _request: Request,
@@ -8,12 +15,16 @@ export async function POST(
 ) {
   const { id } = await params;
 
+  const waitingMinutes = isDemoMode()
+    ? getDemoWaitingTimeMinutes()
+    : (await fetchWaitingTime()).minutes;
+
   if (isDemoMode()) {
     const order = getDemoOrder(id);
     if (!order) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
-    if (order.status !== "accepted" && order.status !== "pending") {
+    if (!canCustomerCancelOrder(order, waitingMinutes)) {
       return NextResponse.json({ error: "Order cannot be cancelled" }, { status: 400 });
     }
     const updated = updateDemoOrder(id, { status: "cancelled" });
@@ -21,19 +32,18 @@ export async function POST(
   }
 
   const supabase = createAdminClient();
-  const { data: order } = await supabase.from("orders").select("*").eq("id", id).single();
+  const { data: order } = await supabase
+    .from("orders")
+    .select("*, customer:customers(*)")
+    .eq("id", id)
+    .single();
 
   if (!order) {
     return NextResponse.json({ error: "Order not found" }, { status: 404 });
   }
 
-  const now = new Date();
-  const cancelExpires = order.cancel_window_expires_at
-    ? new Date(order.cancel_window_expires_at)
-    : null;
-
-  if (cancelExpires && now > cancelExpires) {
-    return NextResponse.json({ error: "Cancel window has expired" }, { status: 400 });
+  if (!canCustomerCancelOrder(order as Parameters<typeof canCustomerCancelOrder>[0], waitingMinutes)) {
+    return NextResponse.json({ error: "Order cannot be cancelled" }, { status: 400 });
   }
 
   const { data: updated, error } = await supabase

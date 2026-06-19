@@ -15,16 +15,10 @@ export async function POST(request: Request) {
     const normalized = normalizePhone(phone);
 
     if (isDemoMode()) {
-      return NextResponse.json({
-        customer: {
-          id: "demo-customer",
-          first_name: firstName.trim(),
-          last_name: null,
-          phone: normalized,
-          email: null,
-        },
-        orders: [],
-      });
+      return NextResponse.json(
+        { error: "No account found with that name and phone number." },
+        { status: 404 }
+      );
     }
 
     const supabase = createAdminClient();
@@ -32,28 +26,25 @@ export async function POST(request: Request) {
       .from("customers")
       .select("*")
       .eq("phone", normalized)
-      .eq("first_name", firstName.trim())
+      .ilike("first_name", firstName.trim())
       .maybeSingle();
 
-    if (existing) {
-      const orders = await fetchCustomerOrders(existing.id);
-      return NextResponse.json({ customer: existing, orders });
+    if (!existing) {
+      return NextResponse.json(
+        { error: "No account found with that name and phone number." },
+        { status: 404 }
+      );
     }
 
-    const { data: customer, error } = await supabase
-      .from("customers")
-      .insert({
-        first_name: firstName.trim(),
-        phone: normalized,
-      })
-      .select()
-      .single();
-
-    if (error || !customer) {
-      return NextResponse.json({ error: "Login failed" }, { status: 500 });
+    const orders = await fetchCustomerOrders(existing.id);
+    if (!orders.length) {
+      return NextResponse.json(
+        { error: "No order history found for this account." },
+        { status: 404 }
+      );
     }
 
-    return NextResponse.json({ customer, orders: [] });
+    return NextResponse.json({ customer: existing, orders });
   } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }

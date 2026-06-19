@@ -5,6 +5,7 @@ import {
 } from "@/lib/data/menu-mock";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
+import { isOrderFromToday } from "@/lib/utils";
 import type {
   MenuData,
   MenuItem,
@@ -12,6 +13,23 @@ import type {
   RestaurantSettings,
   WaitingTime,
 } from "@/types";
+
+function mapOrder(order: Record<string, unknown>): Order {
+  return {
+    ...(order as unknown as Order),
+    subtotal: Number(order.subtotal),
+    tax: Number(order.tax ?? 0),
+    total: Number(order.total ?? order.subtotal),
+    customer: Array.isArray(order.customer)
+      ? (order.customer[0] as Order["customer"])
+      : (order.customer as Order["customer"]),
+    order_items: ((order.order_items as Record<string, unknown>[]) ?? []).map((item) => ({
+      ...item,
+      unit_price: Number(item.unit_price),
+      line_total: Number(item.line_total),
+    })) as Order["order_items"],
+  };
+}
 
 export async function fetchMenuData(): Promise<MenuData> {
   if (!isSupabaseConfigured()) {
@@ -120,17 +138,7 @@ export async function fetchOrderById(id: string): Promise<Order | null> {
     .single();
 
   if (!data) return null;
-
-  return {
-    ...data,
-    subtotal: Number(data.subtotal),
-    customer: Array.isArray(data.customer) ? data.customer[0] : data.customer,
-    order_items: (data.order_items ?? []).map((item: Record<string, unknown>) => ({
-      ...item,
-      unit_price: Number(item.unit_price),
-      line_total: Number(item.line_total),
-    })),
-  } as Order;
+  return mapOrder(data as Record<string, unknown>);
 }
 
 export async function fetchOrdersByPhone(phone: string): Promise<Order[]> {
@@ -138,6 +146,8 @@ export async function fetchOrdersByPhone(phone: string): Promise<Order[]> {
 
   const supabase = createAdminClient();
   const normalized = phone.replace(/\D/g, "");
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
 
   const { data: customers } = await supabase
     .from("customers")
@@ -151,14 +161,13 @@ export async function fetchOrdersByPhone(phone: string): Promise<Order[]> {
     .from("orders")
     .select("*, order_items(*), customer:customers(*)")
     .in("customer_id", customerIds)
-    .order("created_at", { ascending: false })
-    .limit(20);
+    .gte("created_at", startOfToday.toISOString())
+    .eq("admin_dismissed", false)
+    .order("created_at", { ascending: false });
 
-  return (data ?? []).map((order) => ({
-    ...order,
-    subtotal: Number(order.subtotal),
-    customer: Array.isArray(order.customer) ? order.customer[0] : order.customer,
-  })) as Order[];
+  return (data ?? [])
+    .map((order) => mapOrder(order as Record<string, unknown>))
+    .filter((order) => isOrderFromToday(order.created_at));
 }
 
 export async function fetchCustomerOrders(customerId: string): Promise<Order[]> {
@@ -167,30 +176,27 @@ export async function fetchCustomerOrders(customerId: string): Promise<Order[]> 
   const supabase = createAdminClient();
   const { data } = await supabase
     .from("orders")
-    .select("*, order_items(*)")
+    .select("*, order_items(*), customer:customers(*)")
     .eq("customer_id", customerId)
     .order("created_at", { ascending: false })
     .limit(50);
 
-  return (data ?? []).map((order) => ({
-    ...order,
-    subtotal: Number(order.subtotal),
-  })) as Order[];
+  return (data ?? []).map((order) => mapOrder(order as Record<string, unknown>));
 }
 
-export async function fetchPendingOrders(): Promise<Order[]> {
+export async function fetchAdminOrders(): Promise<Order[]> {
   if (!isSupabaseConfigured()) return [];
 
   const supabase = createAdminClient();
   const { data } = await supabase
     .from("orders")
     .select("*, order_items(*), customer:customers(*)")
-    .in("status", ["pending", "accepted"])
+    .eq("admin_dismissed", false)
     .order("created_at", { ascending: true });
 
-  return (data ?? []).map((order) => ({
-    ...order,
-    subtotal: Number(order.subtotal),
-    customer: Array.isArray(order.customer) ? order.customer[0] : order.customer,
-  })) as Order[];
+  return (data ?? []).map((order) => mapOrder(order as Record<string, unknown>));
+}
+
+export async function fetchPendingOrders(): Promise<Order[]> {
+  return fetchAdminOrders();
 }

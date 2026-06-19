@@ -1,12 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { MenuData, RestaurantSettings, WaitingTime } from "@/types";
 import { CategoryNav, SectionTabs } from "@/components/menu/CategoryNav";
-import { FeaturedItems } from "@/components/menu/FeaturedItems";
 import { MenuItemCard } from "@/components/menu/MenuItemCard";
 import { MenuSearch } from "@/components/menu/MenuSearch";
 import { RestaurantBanner } from "@/components/menu/RestaurantBanner";
+import { toDisplayName } from "@/lib/utils";
 
 interface MenuPageClientProps {
   menu: MenuData;
@@ -18,6 +18,20 @@ export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientPr
   const [activeSection, setActiveSection] = useState("menu");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [soldOutIds, setSoldOutIds] = useState<string[]>(settings.sold_out_item_ids ?? []);
+
+  useEffect(() => {
+    const refresh = async () => {
+      const res = await fetch("/api/settings");
+      const data = await res.json();
+      if (data.settings?.sold_out_item_ids) {
+        setSoldOutIds(data.settings.sold_out_item_ids);
+      }
+    };
+    refresh();
+    const interval = setInterval(refresh, 15000);
+    return () => clearInterval(interval);
+  }, []);
 
   const sectionCategories = useMemo(
     () =>
@@ -56,15 +70,6 @@ export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientPr
     return items.sort((a, b) => a.sort_order - b.sort_order);
   }, [menu, activeSection, activeCategory, search]);
 
-  const featuredItems = useMemo(
-    () =>
-      menu.featured
-        .sort((a, b) => a.sort_order - b.sort_order)
-        .map((f) => menu.items.find((i) => i.id === f.menu_item_id))
-        .filter(Boolean) as typeof menu.items,
-    [menu.featured, menu.items]
-  );
-
   const groupedByCategory = useMemo(() => {
     if (activeCategory || search.trim()) return null;
 
@@ -78,9 +83,7 @@ export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientPr
 
   return (
     <>
-      <RestaurantBanner settings={settings} waitingTime={waitingTime} />
-
-      {!search && activeSection === "menu" && <FeaturedItems items={featuredItems.slice(0, 5)} />}
+      <RestaurantBanner initialSettings={settings} initialWaitingTime={waitingTime} />
 
       <MenuSearch value={search} onChange={setSearch} />
 
@@ -99,14 +102,20 @@ export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientPr
         onChange={setActiveCategory}
       />
 
-      <div className="mx-auto max-w-6xl px-4 py-8">
+      <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8">
         {groupedByCategory ? (
           groupedByCategory.map(({ category, items }) => (
             <section key={category.id} id={category.slug} className="mb-10">
-              <h2 className="mb-4 text-xl font-semibold text-stone-900">{category.name}</h2>
+              <h2 className="mb-4 text-xl font-semibold text-stone-900">
+                {toDisplayName(category.name)}
+              </h2>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {items.map((item) => (
-                  <MenuItemCard key={item.id} item={item} />
+                  <MenuItemCard
+                    key={item.id}
+                    item={item}
+                    soldOut={soldOutIds.includes(item.id)}
+                  />
                 ))}
               </div>
             </section>
@@ -114,7 +123,11 @@ export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientPr
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {filteredItems.map((item) => (
-              <MenuItemCard key={item.id} item={item} />
+              <MenuItemCard
+                key={item.id}
+                item={item}
+                soldOut={soldOutIds.includes(item.id)}
+              />
             ))}
           </div>
         )}

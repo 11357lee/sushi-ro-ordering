@@ -7,7 +7,9 @@ import { toggleCondimentExtra, useCartStore } from "@/lib/cart-store";
 import {
   calcLineTotal,
   formatPrice,
-  generateScheduledPickupSlots,
+  generateBusinessPickupSlots,
+  isPauseActive,
+  isRestaurantOpen,
   toDisplayName,
 } from "@/lib/utils";
 
@@ -28,16 +30,31 @@ export function CartPageClient() {
   } = useCartStore();
 
   const [pickupSlots, setPickupSlots] = useState<{ value: string; label: string }[]>([]);
+  const [canAsap, setCanAsap] = useState(true);
+  const [pickupNotice, setPickupNotice] = useState("");
 
   useEffect(() => {
     fetch("/api/settings")
       .then((r) => r.json())
       .then((data) => {
-        setPickupSlots(
-          generateScheduledPickupSlots(data.settings?.closing_time ?? "21:00:00")
+        const settings = data.settings;
+        const openNow = settings ? isRestaurantOpen(settings) : true;
+        const paused = isPauseActive(settings?.pause_until);
+        const nextSlots = generateBusinessPickupSlots({
+          closingTime: settings?.closing_time ?? "21:00:00",
+        });
+        setPickupSlots(nextSlots);
+        setCanAsap(openNow && !paused);
+        setPickupNotice(
+          openNow && !paused
+            ? ""
+            : "ASAP is unavailable while service is paused or outside business hours. Please choose Later."
         );
+        if ((!openNow || paused) && pickupType === "asap" && nextSlots[0]) {
+          setPickup("scheduled", nextSlots[0].value);
+        }
       });
-  }, []);
+  }, [pickupType, setPickup]);
 
   const handleCondiment = (
     key:
@@ -73,7 +90,7 @@ export function CartPageClient() {
   ];
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-6 sm:py-8">
+    <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-stone-900">Your cart</h1>
         <button
@@ -85,7 +102,7 @@ export function CartPageClient() {
         </button>
       </div>
 
-      <div className="mt-6 space-y-4">
+      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((item) => {
           const isGF = item.sectionSlug === "gluten-free";
           return (
@@ -151,10 +168,11 @@ export function CartPageClient() {
           <button
             type="button"
             onClick={() => setPickup("asap", null)}
+            disabled={!canAsap}
             className={`rounded-lg px-4 py-2 text-sm font-medium ${
               pickupType === "asap"
                 ? "bg-stone-900 text-white"
-                : "bg-stone-100 text-stone-700 hover:bg-stone-200"
+                : "bg-stone-100 text-stone-700 hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-50"
             }`}
           >
             ASAP
@@ -173,6 +191,7 @@ export function CartPageClient() {
             Later
           </button>
         </div>
+        {pickupNotice && <p className="mt-2 text-sm text-amber-700">{pickupNotice}</p>}
         {pickupType === "scheduled" && (
           <select
             value={pickupTime ?? ""}

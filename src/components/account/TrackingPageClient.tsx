@@ -1,10 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { Order } from "@/types";
 import {
   canCustomerCancelOrder,
+  formatPhoneInput,
   formatOrderDate,
   formatPickupTime,
   formatPrice,
@@ -19,6 +19,7 @@ export function TrackingPageClient() {
   const [searched, setSearched] = useState(false);
   const [cancelling, setCancelling] = useState<string | null>(null);
   const [cancelError, setCancelError] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/settings")
@@ -70,8 +71,9 @@ export function TrackingPageClient() {
         <input
           type="tel"
           value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          placeholder="Phone number"
+          onChange={(e) => setPhone(formatPhoneInput(e.target.value))}
+          placeholder="+1 (613) 724-6088"
+          inputMode="tel"
           required
           className="flex-1 rounded-lg border border-stone-200 px-3 py-2.5 focus:border-teal-500 focus:outline-none"
         />
@@ -115,12 +117,13 @@ export function TrackingPageClient() {
                 </p>
               )}
               <div className="mt-3 flex flex-wrap gap-3">
-                <Link
-                  href={`/order/${order.id}/confirmation`}
+                <button
+                  type="button"
+                  onClick={() => setExpandedId(expandedId === order.id ? null : order.id)}
                   className="text-sm font-medium text-teal-600 hover:underline"
                 >
-                  View details
-                </Link>
+                  {expandedId === order.id ? "Hide details" : "View details"}
+                </button>
                 {canCancel && (
                   <button
                     type="button"
@@ -132,6 +135,28 @@ export function TrackingPageClient() {
                   </button>
                 )}
               </div>
+              {expandedId === order.id && (
+                <div className="mt-4 border-t border-stone-100 pt-4">
+                  <h2 className="text-sm font-semibold text-stone-900">Items ordered</h2>
+                  <ul className="mt-2 space-y-2 text-sm text-stone-700">
+                    {order.order_items?.map((item) => (
+                      <li key={item.id}>
+                        <span className="font-medium">
+                          {item.quantity}x {toDisplayName(item.name)}
+                        </span>
+                        {item.selected_options?.length > 0 && (
+                          <p className="text-stone-500">
+                            {item.selected_options.map((o) => toDisplayName(o.name)).join(", ")}
+                          </p>
+                        )}
+                        {item.special_request && (
+                          <p className="italic text-stone-500">{item.special_request}</p>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           );
         })}

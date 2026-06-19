@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { createDemoOrder, isDemoMode } from "@/lib/data/demo-store";
+import { fetchRestaurantSettings } from "@/lib/data/queries";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { CreateOrderPayload, Order } from "@/types";
 import {
@@ -8,6 +9,8 @@ import {
   calcCartSubtotal,
   calcTax,
   calcTotal,
+  isPauseActive,
+  isRestaurantOpen,
   normalizePhone,
 } from "@/lib/utils";
 
@@ -30,6 +33,14 @@ export async function POST(request: Request) {
     const phone = normalizePhone(body.phone);
     const pickupType = body.pickupType;
     const pickupTime = pickupType === "asap" ? null : body.pickupTime;
+    const settings = await fetchRestaurantSettings();
+
+    if (pickupType === "asap" && (!isRestaurantOpen(settings) || isPauseActive(settings.pause_until))) {
+      return NextResponse.json(
+        { error: "ASAP pickup is unavailable right now. Please choose Later." },
+        { status: 400 }
+      );
+    }
 
     if (isDemoMode()) {
       const orderId = uuidv4();

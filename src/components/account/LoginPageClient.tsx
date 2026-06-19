@@ -4,10 +4,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useCustomerStore } from "@/lib/customer-store";
+import { formatPhoneInput, toDisplayName } from "@/lib/utils";
 
 export function LoginPageClient() {
   const router = useRouter();
+  const customer = useCustomerStore((s) => s.customer);
   const setCustomer = useCustomerStore((s) => s.setCustomer);
+  const clearCustomer = useCustomerStore((s) => s.clearCustomer);
   const [firstName, setFirstName] = useState("");
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
@@ -40,6 +43,24 @@ export function LoginPageClient() {
   return (
     <div className="mx-auto max-w-md px-4 py-12">
       <h1 className="text-2xl font-bold text-stone-900">Login</h1>
+      {customer ? (
+        <div className="mt-6 rounded-xl border border-stone-200 bg-white p-4">
+          <p className="font-medium text-stone-900">
+            Logged in as {toDisplayName(customer.first_name)}
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              clearCustomer();
+              router.push("/");
+            }}
+            className="mt-4 w-full rounded-xl bg-stone-900 py-3 font-semibold text-white hover:bg-stone-800"
+          >
+            Logout
+          </button>
+        </div>
+      ) : (
+        <>
       <p className="mt-2 text-stone-600">
         Sign in with the first name and phone number from a previous order. You must have placed
         at least one order before.
@@ -61,7 +82,9 @@ export function LoginPageClient() {
           <input
             type="tel"
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            onChange={(e) => setPhone(formatPhoneInput(e.target.value))}
+            placeholder="+1 (613) 724-6088"
+            inputMode="tel"
             required
             className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2.5 focus:border-teal-500 focus:outline-none"
           />
@@ -77,6 +100,8 @@ export function LoginPageClient() {
           {loading ? "Signing in..." : "Sign In"}
         </button>
       </form>
+        </>
+      )}
 
       <p className="mt-6 text-center text-sm text-stone-500">
         <Link href="/" className="text-teal-600 hover:underline">

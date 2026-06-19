@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
 import type { Customer } from "@/types";
 
 interface CustomerState {
@@ -15,6 +15,9 @@ export const useCustomerStore = create<CustomerState>()(
       setCustomer: (customer) => set({ customer }),
       clearCustomer: () => set({ customer: null }),
     }),
-    { name: "sushi-ro-customer" }
+    {
+      name: "sushi-ro-customer",
+      storage: createJSONStorage(() => sessionStorage),
+    }
   )
 );

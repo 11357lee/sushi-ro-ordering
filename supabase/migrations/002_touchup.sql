@@ -1,7 +1,7 @@
 -- Touch-up migration (run once in Supabase SQL Editor)
 
 ALTER TABLE restaurant_settings
-  ADD COLUMN IF NOT EXISTS phone TEXT DEFAULT '(604) 279-0335',
+  ADD COLUMN IF NOT EXISTS phone TEXT DEFAULT '+1 (613) 724-6088',
   ADD COLUMN IF NOT EXISTS tax_rate DECIMAL(5, 4) NOT NULL DEFAULT 0.13,
   ADD COLUMN IF NOT EXISTS pause_until TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS sold_out_item_ids JSONB NOT NULL DEFAULT '[]'::jsonb;
@@ -12,3 +12,4 @@ ALTER TABLE orders
   ADD COLUMN IF NOT EXISTS admin_dismissed BOOLEAN NOT NULL DEFAULT FALSE;
 
 UPDATE restaurant_settings SET closing_time = '21:00:00' WHERE closing_time = '20:45:00';
+UPDATE restaurant_settings SET phone = '+1 (613) 724-6088';

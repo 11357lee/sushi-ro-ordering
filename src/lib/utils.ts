@@ -1,4 +1,5 @@
 import {
+  addDays,
   addMinutes,
   format,
   isSunday,
@@ -17,15 +18,24 @@ export function formatPrice(amount: number): string {
 }
 
 export function formatPhoneDisplay(phone: string): string {
-  const digits = phone.replace(/\D/g, "");
+  const digits = normalizePhone(phone);
   if (digits.length === 10) {
-    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+    return `+1 (${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
   }
   return phone;
 }
 
 export function normalizePhone(phone: string): string {
-  return phone.replace(/\D/g, "");
+  const digits = phone.replace(/\D/g, "");
+  return digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits;
+}
+
+export function formatPhoneInput(value: string): string {
+  const digits = normalizePhone(value).slice(0, 10);
+  if (!digits) return "";
+  if (digits.length <= 3) return `+1 (${digits}`;
+  if (digits.length <= 6) return `+1 (${digits.slice(0, 3)}) ${digits.slice(3)}`;
+  return `+1 (${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
 }
 
 export function toDisplayName(text: string): string {
@@ -122,22 +132,41 @@ export function generateScheduledPickupSlots(
   closingTime = "21:00:00",
   leadMinutes = 60
 ): { value: string; label: string }[] {
+  return generateBusinessPickupSlots({ closingTime, leadMinutes });
+}
+
+export function generateBusinessPickupSlots({
+  closingTime = "21:00:00",
+  leadMinutes = 60,
+  days = 3,
+}: {
+  closingTime?: string;
+  leadMinutes?: number;
+  days?: number;
+} = {}): { value: string; label: string }[] {
   const now = new Date();
-  const start = addMinutes(now, leadMinutes);
-  const roundedMinutes = Math.ceil(start.getMinutes() / 15) * 15;
-  let slot = setSeconds(setMinutes(setHours(start, start.getHours()), roundedMinutes), 0);
-
   const [closeHour, closeMinute] = closingTime.split(":").map(Number);
-  const closeToday = setSeconds(setMinutes(setHours(now, closeHour), closeMinute), 0);
-
   const slots: { value: string; label: string }[] = [];
 
-  while (slot <= closeToday) {
-    slots.push({
-      value: slot.toISOString(),
-      label: format(slot, "h:mm a"),
-    });
-    slot = addMinutes(slot, 15);
+  for (let dayOffset = 0; dayOffset < days; dayOffset += 1) {
+    const day = addDays(now, dayOffset);
+    const hours = isSunday(day) ? BUSINESS_HOURS.sunday : BUSINESS_HOURS.weekday;
+    const open = parseTimeOnDate(hours.open, day);
+    const close = setSeconds(setMinutes(setHours(day, closeHour), closeMinute), 0);
+    const earliest = dayOffset === 0 ? addMinutes(now, leadMinutes) : open;
+    const start = earliest > open ? earliest : open;
+    const roundedMinutes = Math.ceil(start.getMinutes() / 15) * 15;
+    let slot = setSeconds(setMinutes(setHours(start, start.getHours()), roundedMinutes), 0);
+
+    while (slot <= close) {
+      slots.push({
+        value: slot.toISOString(),
+        label: `${dayOffset === 0 ? "Today" : format(slot, "EEE")} ${format(slot, "h:mm a")}`,
+      });
+      slot = addMinutes(slot, 15);
+    }
+
+    if (slots.length >= 24) break;
   }
 
   return slots;

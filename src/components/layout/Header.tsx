@@ -2,11 +2,14 @@
 
 import Link from "next/link";
 import { useCartStore } from "@/lib/cart-store";
+import { useCustomerStore } from "@/lib/customer-store";
 import { formatPrice } from "@/lib/utils";
 
 export function Header() {
   const itemCount = useCartStore((s) => s.itemCount());
   const total = useCartStore((s) => s.total());
+  const customer = useCustomerStore((s) => s.customer);
+  const clearCustomer = useCustomerStore((s) => s.clearCustomer);
 
   return (
     <header className="sticky top-0 z-50 border-b border-stone-200 bg-white/95 backdrop-blur">
@@ -15,12 +18,22 @@ export function Header() {
           Sushi-Ro
         </Link>
         <nav className="flex items-center gap-1.5 sm:gap-3">
-          <Link
-            href="/login"
-            className="rounded-lg px-2 py-2 text-sm font-medium text-stone-700 hover:bg-stone-100 sm:px-3"
-          >
-            Login
-          </Link>
+          {customer ? (
+            <button
+              type="button"
+              onClick={clearCustomer}
+              className="rounded-lg px-2 py-2 text-sm font-medium text-stone-700 hover:bg-stone-100 sm:px-3"
+            >
+              Logout
+            </button>
+          ) : (
+            <Link
+              href="/login"
+              className="rounded-lg px-2 py-2 text-sm font-medium text-stone-700 hover:bg-stone-100 sm:px-3"
+            >
+              Login
+            </Link>
+          )}
           <Link
             href="/tracking"
             className="rounded-lg px-2 py-2 text-sm font-medium text-stone-700 hover:bg-stone-100 sm:px-3"

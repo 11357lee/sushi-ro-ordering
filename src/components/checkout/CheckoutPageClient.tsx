@@ -5,7 +5,7 @@ import { useState } from "react";
 import { TAX_RATE } from "@/lib/constants";
 import { useCartStore } from "@/lib/cart-store";
 import { useCustomerStore } from "@/lib/customer-store";
-import { formatPickupTime, formatPrice } from "@/lib/utils";
+import { formatPhoneInput, formatPickupTime, formatPrice } from "@/lib/utils";
 import type { CreateOrderPayload } from "@/types";
 
 export function CheckoutPageClient() {
@@ -17,7 +17,7 @@ export function CheckoutPageClient() {
 
   const [firstName, setFirstName] = useState(customer?.first_name ?? "");
   const [lastName, setLastName] = useState(customer?.last_name ?? "");
-  const [phone, setPhone] = useState(customer?.phone ?? "");
+  const [phone, setPhone] = useState(customer?.phone ? formatPhoneInput(customer.phone) : "");
   const [allergyNotes, setAllergyNotes] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -132,7 +132,9 @@ export function CheckoutPageClient() {
           <input
             type="tel"
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            onChange={(e) => setPhone(formatPhoneInput(e.target.value))}
+            placeholder="+1 (613) 724-6088"
+            inputMode="tel"
             required
             className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2.5 focus:border-teal-500 focus:outline-none"
           />

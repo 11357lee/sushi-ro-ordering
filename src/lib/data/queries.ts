@@ -5,7 +5,7 @@ import {
 } from "@/lib/data/menu-mock";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
-import { isOrderFromToday } from "@/lib/utils";
+import { isOrderFromToday, normalizePhone } from "@/lib/utils";
 import type {
   MenuData,
   MenuItem,
@@ -15,11 +15,14 @@ import type {
 } from "@/types";
 
 function mapOrder(order: Record<string, unknown>): Order {
+  const subtotal = Number(order.subtotal);
+  const tax = Number(order.tax ?? 0);
+  const savedTotal = Number(order.total ?? 0);
   return {
     ...(order as unknown as Order),
-    subtotal: Number(order.subtotal),
-    tax: Number(order.tax ?? 0),
-    total: Number(order.total ?? order.subtotal),
+    subtotal,
+    tax,
+    total: savedTotal > 0 ? savedTotal : subtotal + tax,
     customer: Array.isArray(order.customer)
       ? (order.customer[0] as Order["customer"])
       : (order.customer as Order["customer"]),
@@ -145,7 +148,7 @@ export async function fetchOrdersByPhone(phone: string): Promise<Order[]> {
   if (!isSupabaseConfigured()) return [];
 
   const supabase = createAdminClient();
-  const normalized = phone.replace(/\D/g, "");
+  const normalized = normalizePhone(phone);
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
 
@@ -192,7 +195,7 @@ export async function fetchAdminOrders(): Promise<Order[]> {
     .from("orders")
     .select("*, order_items(*), customer:customers(*)")
     .eq("admin_dismissed", false)
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: false });
 
   return (data ?? []).map((order) => mapOrder(order as Record<string, unknown>));
 }

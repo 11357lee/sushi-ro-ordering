@@ -109,6 +109,11 @@ export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientPr
               <h2 className="mb-4 text-xl font-semibold text-stone-900">
                 {toDisplayName(category.name)}
               </h2>
+              {category.description && (
+                <p className="-mt-2 mb-4 max-w-2xl text-sm text-stone-600">
+                  {category.description}
+                </p>
+              )}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {items.map((item) => (
                   <MenuItemCard

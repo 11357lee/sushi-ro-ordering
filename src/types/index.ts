@@ -33,6 +33,7 @@ export interface Category {
   section_id: string;
   name: string;
   slug: string;
+  description?: string | null;
   sort_order: number;
 }
 

@@ -61,6 +61,14 @@ export function RestaurantBanner({
         <p className="mt-1 text-xs text-stone-400 sm:text-sm">
           Mon–Sat 11:30am–9pm · Sun 12pm–9pm
         </p>
+        <div className="mt-4 max-w-3xl rounded-xl bg-amber-500/15 p-3 text-sm text-amber-50 ring-1 ring-amber-300/30">
+          Please place your order early when possible. For orders over $300 or catering
+          requests, call us at least one day in advance. For cancellations, please call{" "}
+          <a href={`tel:${RESTAURANT_PHONE_LINK}`} className="font-semibold underline">
+            {phone}
+          </a>
+          .
+        </div>
         <div className="mt-4 flex flex-wrap items-center gap-2 sm:mt-5 sm:gap-3">
           <span
             className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold sm:text-sm ${

@@ -31,6 +31,7 @@ export function CartPageClient() {
 
   const [pickupSlots, setPickupSlots] = useState<{ value: string; label: string }[]>([]);
   const [canAsap, setCanAsap] = useState(true);
+  const [orderingDisabled, setOrderingDisabled] = useState(false);
   const [pickupNotice, setPickupNotice] = useState("");
 
   useEffect(() => {
@@ -40,13 +41,17 @@ export function CartPageClient() {
         const settings = data.settings;
         const openNow = settings ? isRestaurantOpen(settings) : true;
         const paused = isPauseActive(settings?.pause_until);
+        const disabledNow = Boolean(data.orderingDisabled);
         const nextSlots = generateBusinessPickupSlots({
           closingTime: settings?.closing_time ?? "21:00:00",
         });
         setPickupSlots(nextSlots);
+        setOrderingDisabled(disabledNow);
         setCanAsap(openNow && !paused);
         setPickupNotice(
-          openNow && !paused
+          disabledNow
+            ? "Online ordering is closed from 8:45 PM to 6:00 AM. Please order again after 6:00 AM."
+            : openNow && !paused
             ? ""
             : "ASAP is unavailable while service is paused or outside business hours. Please choose Later."
         );
@@ -109,14 +114,14 @@ export function CartPageClient() {
             <div
               key={item.cartId}
               className={`rounded-xl border p-4 ${
-                isGF ? "border-teal-300 bg-teal-50/40" : "border-stone-200 bg-white"
+                isGF ? "border-purple-300 bg-purple-50/50" : "border-stone-200 bg-white"
               }`}
             >
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <h3 className="font-semibold text-stone-900">{toDisplayName(item.name)}</h3>
                   {isGF && (
-                    <span className="text-xs font-medium text-teal-700">Gluten free</span>
+                    <span className="text-xs font-medium text-purple-800">Gluten free</span>
                   )}
                   {item.selectedOptions.length > 0 && (
                     <p className="mt-1 text-sm text-stone-600">
@@ -182,10 +187,11 @@ export function CartPageClient() {
             onClick={() =>
               setPickup("scheduled", pickupTime ?? pickupSlots[0]?.value ?? null)
             }
+            disabled={orderingDisabled}
             className={`rounded-lg px-4 py-2 text-sm font-medium ${
               pickupType === "scheduled"
                 ? "bg-stone-900 text-white"
-                : "bg-stone-100 text-stone-700 hover:bg-stone-200"
+                : "bg-stone-100 text-stone-700 hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-50"
             }`}
           >
             Later
@@ -313,12 +319,22 @@ export function CartPageClient() {
         </div>
       </div>
 
-      <Link
-        href="/checkout"
-        className="mt-6 block w-full rounded-xl bg-stone-900 py-4 text-center text-lg font-semibold text-white hover:bg-stone-800"
-      >
-        Continue to checkout
-      </Link>
+      {orderingDisabled ? (
+        <button
+          type="button"
+          disabled
+          className="mt-6 block w-full rounded-xl bg-stone-400 py-4 text-center text-lg font-semibold text-white"
+        >
+          Ordering unavailable until 6:00 AM
+        </button>
+      ) : (
+        <Link
+          href="/checkout"
+          className="mt-6 block w-full rounded-xl bg-stone-900 py-4 text-center text-lg font-semibold text-white hover:bg-stone-800"
+        >
+          Continue to checkout
+        </Link>
+      )}
     </div>
   );
 }

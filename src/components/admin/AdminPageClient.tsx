@@ -72,16 +72,58 @@ function OrderExtras({ order }: { order: Order }) {
   if (order.no_wasabi) extras.push("No wasabi");
   if (order.no_ginger) extras.push("No ginger");
   if (order.no_soy_sauce) extras.push("No soy sauce");
-  if (order.special_instructions) extras.push(`Instructions: ${order.special_instructions}`);
-  if (order.allergy_notes) extras.push(`Allergy: ${order.allergy_notes}`);
 
   if (!extras.length) return null;
 
   return (
-    <ul className="mt-2 space-y-1 text-sm text-stone-600">
+    <ul className="flex flex-wrap gap-2 text-sm">
       {extras.map((line) => (
-        <li key={line}>{line}</li>
+        <li key={line} className="rounded-full bg-blue-50 px-3 py-1 font-medium text-blue-800">
+          {line}
+        </li>
       ))}
+    </ul>
+  );
+}
+
+function SpecialNotes({ order }: { order: Order }) {
+  const notes = [order.allergy_notes, order.special_instructions].filter(Boolean);
+  if (!notes.length) return null;
+
+  return (
+    <div className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
+      {notes.join(" · ")}
+    </div>
+  );
+}
+
+function OrderItems({ order }: { order: Order }) {
+  return (
+    <ul className="space-y-2 text-sm">
+      {order.order_items?.map((item) => {
+        const isGF = item.section_slug === "gluten-free";
+        return (
+          <li
+            key={item.id}
+            className={isGF ? "rounded-lg bg-purple-50 px-2 py-1 text-purple-950" : ""}
+          >
+            <span className="font-medium">
+              {item.quantity}x {toDisplayName(item.name)}
+            </span>
+            {isGF && (
+              <span className="ml-2 text-xs font-medium text-purple-800">Gluten free</span>
+            )}
+            {item.selected_options?.length > 0 && (
+              <p className="text-stone-600">
+                {item.selected_options.map((o) => toDisplayName(o.name)).join(", ")}
+              </p>
+            )}
+            {item.special_request && (
+              <p className="italic text-red-600">{item.special_request}</p>
+            )}
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -252,9 +294,10 @@ export function AdminPageClient() {
   const restaurantOpen = isRestaurantOpen({
     pause_until: pauseUntil,
     closing_time: closingTime,
-    timezone: "America/Vancouver",
+    timezone: "America/Toronto",
   });
   const paused = isPauseActive(pauseUntil);
+  const selectedOrder = expandedId ? orders.find((order) => order.id === expandedId) : null;
 
   if (!authenticated) {
     return (
@@ -350,22 +393,22 @@ export function AdminPageClient() {
             ) : (
               orders.map((order) => {
                 const expanded = expandedId === order.id;
-                const isGF = (item: { section_slug: string }) =>
-                  item.section_slug === "gluten-free";
+                const countdown = formatCountdown(order.pickup_time ?? pickupTimes[order.id] ?? null, now);
 
                 return (
                   <div key={order.id} className="rounded-xl border border-stone-200 bg-white p-4 sm:p-5">
+                    <SpecialNotes order={order} />
                     <button
                       type="button"
                       onClick={() => setExpandedId(expanded ? null : order.id)}
-                      className="flex w-full items-start justify-between gap-2 text-left"
+                      className="grid w-full gap-4 text-left md:grid-cols-[1.4fr_1fr_auto]"
                     >
                       <div>
                         <p className="text-lg font-bold text-stone-900">
                           {customerTitle(order)}
-                          {formatCountdown(order.pickup_time ?? pickupTimes[order.id] ?? null, now) && (
+                          {countdown && (
                             <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
-                              {formatCountdown(order.pickup_time ?? pickupTimes[order.id] ?? null, now)}
+                              {countdown}
                             </span>
                           )}
                         </p>
@@ -382,43 +425,19 @@ export function AdminPageClient() {
                           </p>
                         )}
                       </div>
-                      <p className="text-lg font-bold">{formatPrice(order.total ?? order.subtotal)}</p>
-                    </button>
-
-                    {expanded && (
-                      <div className="mt-4 border-t border-stone-100 pt-4">
-                        <ul className="space-y-2 text-sm">
-                          {order.order_items?.map((item) => (
-                            <li
-                              key={item.id}
-                              className={
-                                isGF(item) ? "rounded-lg bg-teal-50 px-2 py-1 text-teal-900" : ""
-                              }
-                            >
-                              <span className="font-medium">
-                                {item.quantity}x {toDisplayName(item.name)}
-                              </span>
-                              {isGF(item) && (
-                                <span className="ml-2 text-xs font-medium text-teal-700">
-                                  Gluten free
-                                </span>
-                              )}
-                              {item.selected_options?.length > 0 && (
-                                <p className="text-stone-600">
-                                  {item.selected_options
-                                    .map((o) => toDisplayName(o.name))
-                                    .join(", ")}
-                                </p>
-                              )}
-                              {item.special_request && (
-                                <p className="italic text-stone-500">{item.special_request}</p>
-                              )}
-                            </li>
-                          ))}
-                        </ul>
+                      <div>
+                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-400">
+                          Extras
+                        </p>
                         <OrderExtras order={order} />
                       </div>
-                    )}
+                      <div className="text-left md:text-right">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-stone-400">
+                          Total
+                        </p>
+                        <p className="text-lg font-bold">{formatPrice(order.total ?? order.subtotal)}</p>
+                      </div>
+                    </button>
 
                     {order.status === "pending" && (
                       <div className="mt-4 space-y-3 border-t border-stone-100 pt-4">
@@ -475,6 +494,44 @@ export function AdminPageClient() {
               })
             )}
           </div>
+
+          {selectedOrder && (
+            <div className="fixed inset-0 z-50 bg-stone-900/40 p-4">
+              <div className="mx-auto mt-10 max-h-[85vh] max-w-2xl overflow-auto rounded-2xl bg-white p-5 shadow-xl">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h2 className="text-xl font-bold text-stone-900">
+                      {customerTitle(selectedOrder)}
+                    </h2>
+                    <p className="text-sm text-stone-500">
+                      {formatOrderDate(selectedOrder.created_at)} ·{" "}
+                      <span className="capitalize">{selectedOrder.status}</span>
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setExpandedId(null)}
+                    className="rounded-lg bg-stone-100 px-3 py-1.5 text-sm font-medium text-stone-700 hover:bg-stone-200"
+                  >
+                    Close
+                  </button>
+                </div>
+                <SpecialNotes order={selectedOrder} />
+                <div className="mt-4">
+                  <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-stone-500">
+                    Items
+                  </h3>
+                  <OrderItems order={selectedOrder} />
+                </div>
+                <div className="mt-4 rounded-xl bg-stone-50 p-4">
+                  <OrderExtras order={selectedOrder} />
+                  <p className="mt-3 text-lg font-bold text-stone-900">
+                    Total: {formatPrice(selectedOrder.total ?? selectedOrder.subtotal)}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
 
@@ -522,9 +579,15 @@ export function AdminPageClient() {
               {menuItemsByCategory.map(({ category, section, items }) => {
                 const expanded = expandedSoldOutCategory === category.id;
                 const soldOutCount = items.filter((item) => soldOutIds.includes(item.id)).length;
+                const isGFCategory = section?.slug === "gluten-free";
 
                 return (
-                  <div key={category.id} className="rounded-xl border border-stone-200 bg-white">
+                  <div
+                    key={category.id}
+                    className={`rounded-xl border bg-white ${
+                      isGFCategory ? "border-purple-200 bg-purple-50/40" : "border-stone-200"
+                    }`}
+                  >
                     <button
                       type="button"
                       onClick={() =>
@@ -532,7 +595,7 @@ export function AdminPageClient() {
                       }
                       className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
                     >
-                      <span className="font-semibold text-stone-900">
+                      <span className={`font-semibold ${isGFCategory ? "text-purple-950" : "text-stone-900"}`}>
                         {toDisplayName(category.name)}
                       </span>
                       <span className="text-sm text-stone-500">
@@ -543,7 +606,6 @@ export function AdminPageClient() {
                     {expanded && (
                       <div className="flex flex-wrap gap-2 border-t border-stone-100 p-4">
                         {items.map((item: MenuItem) => {
-                          const isGF = section?.slug === "gluten-free";
                           const soldOut = soldOutIds.includes(item.id);
                           return (
                             <button
@@ -553,8 +615,8 @@ export function AdminPageClient() {
                               className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
                                 soldOut
                                   ? "bg-red-100 text-red-800 ring-1 ring-red-200"
-                                  : isGF
-                                    ? "bg-teal-50 text-teal-800 ring-1 ring-teal-200"
+                                  : isGFCategory
+                                    ? "bg-purple-100 text-purple-900 ring-1 ring-purple-300"
                                     : "bg-stone-100 text-stone-700"
                               }`}
                             >

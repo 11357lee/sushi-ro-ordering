@@ -16,11 +16,21 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
   const addItem = useCartStore((s) => s.addItem);
   const [quantity, setQuantity] = useState(1);
   const [selectedOptions, setSelectedOptions] = useState<SelectedOption[]>([]);
+  const [selectedBentoSide, setSelectedBentoSide] = useState<SelectedOption | null>(null);
   const [specialRequest, setSpecialRequest] = useState("");
   const [added, setAdded] = useState(false);
+  const [optionError, setOptionError] = useState("");
 
   const isGlutenFree = item.section?.slug === "gluten-free";
-  const accentColor = item.section?.accent_color ?? "#1a1a1a";
+  const isBento =
+    item.category?.slug.includes("bento") || item.category?.name.toLowerCase().includes("bento");
+  const accentColor = isGlutenFree ? "#7e22ce" : item.section?.accent_color ?? "#1a1a1a";
+  const bentoSides: SelectedOption[] = [
+    { id: "bento-side-maki", name: "Maki (3 California and 3 BBQ Salmon)", price_modifier: 0 },
+    { id: "bento-side-tempura", name: "Tempura (3 Vegetable and 1 Shrimp)", price_modifier: 0 },
+    { id: "bento-side-veggie-gyoza", name: "Veggie Gyoza", price_modifier: 0 },
+    { id: "bento-side-spring-roll", name: "Vegetable Spring Roll", price_modifier: 0 },
+  ];
 
   const toggleOption = (option: SelectedOption) => {
     setSelectedOptions((prev) => {
@@ -32,6 +42,13 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
 
   const handleAdd = () => {
     if (soldOut) return;
+    if (isBento && !selectedBentoSide) {
+      setOptionError("Please choose one bento side.");
+      return;
+    }
+    const finalOptions = selectedBentoSide
+      ? [...selectedOptions.filter((option) => !option.id.startsWith("bento-side-")), selectedBentoSide]
+      : selectedOptions;
     addItem(
       buildCartItemFromMenu(
         item.id,
@@ -41,10 +58,11 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
         item.section?.slug ?? "menu",
         item.section?.name ?? "Menu",
         accentColor,
-        selectedOptions,
+        finalOptions,
         specialRequest
       )
     );
+    setOptionError("");
     setAdded(true);
     setTimeout(() => setAdded(false), 1500);
   };
@@ -55,7 +73,7 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
   return (
     <article
       className={`flex flex-col rounded-2xl border bg-white p-4 shadow-sm transition-shadow hover:shadow-md ${
-        isGlutenFree ? "border-teal-300 bg-teal-50/30" : "border-stone-200"
+        isGlutenFree ? "border-purple-300 bg-purple-50/50" : "border-stone-200"
       } ${featured ? "ring-1 ring-stone-100" : ""}`}
       style={isGlutenFree ? { borderLeftWidth: 4, borderLeftColor: accentColor } : undefined}
     >
@@ -63,7 +81,7 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
         <div>
           <h3 className="font-semibold text-stone-900">{toDisplayName(item.name)}</h3>
           {isGlutenFree && (
-            <span className="mt-1 inline-block text-xs font-medium text-teal-700">
+            <span className="mt-1 inline-block text-xs font-medium text-purple-800">
               Gluten free
             </span>
           )}
@@ -118,6 +136,29 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
         </div>
       )}
 
+      {isBento && (
+        <div className="mt-3 space-y-1.5 rounded-xl border border-amber-200 bg-amber-50 p-3">
+          <p className="text-xs font-semibold text-amber-900">Choose one side *</p>
+          {bentoSides.map((side) => (
+            <label key={side.id} className="flex cursor-pointer items-center gap-2 text-sm">
+              <input
+                type="radio"
+                name={`bento-side-${item.id}`}
+                checked={selectedBentoSide?.id === side.id}
+                onChange={() => {
+                  setSelectedBentoSide(side);
+                  setOptionError("");
+                }}
+                className="border-stone-300 text-amber-600 focus:ring-amber-500"
+              />
+              <span>{side.name}</span>
+            </label>
+          ))}
+        </div>
+      )}
+
+      {optionError && <p className="mt-2 text-sm font-medium text-red-600">{optionError}</p>}
+
       <div className="mt-3">
         <input
           type="text"
@@ -156,7 +197,7 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
               : soldOut
                 ? "bg-stone-400"
                 : isGlutenFree
-                  ? "bg-teal-600 hover:bg-teal-700"
+                  ? "bg-purple-700 hover:bg-purple-800"
                   : "bg-stone-900 hover:bg-stone-800"
           }`}
         >

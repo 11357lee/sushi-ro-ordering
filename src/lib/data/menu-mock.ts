@@ -119,14 +119,14 @@ export function getMockMenuData(): MenuData {
   };
 }
 
-import { RESTAURANT_PHONE } from "@/lib/constants";
+import { RESTAURANT_PHONE, RESTAURANT_TIMEZONE } from "@/lib/constants";
 
 export const MOCK_SETTINGS = {
   id: "settings-1",
   is_open: true,
   banner_image_url: null,
   closing_time: "21:00:00",
-  timezone: "America/Vancouver",
+  timezone: RESTAURANT_TIMEZONE,
   business_email: "sushi-ro@sushi-ro.com",
   phone: RESTAURANT_PHONE,
   tax_rate: 0.13,

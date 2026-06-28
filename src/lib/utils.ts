@@ -11,7 +11,13 @@ import {
   startOfDay,
 } from "date-fns";
 import type { CartItem, Order, RestaurantSettings, SelectedOption } from "@/types";
-import { BUSINESS_HOURS, TAX_RATE } from "@/lib/constants";
+import {
+  BUSINESS_HOURS,
+  ORDERING_DISABLED_END,
+  ORDERING_DISABLED_START,
+  RESTAURANT_TIMEZONE,
+  TAX_RATE,
+} from "@/lib/constants";
 
 export function formatPrice(amount: number): string {
   return `$${amount.toFixed(2)}`;
@@ -20,7 +26,7 @@ export function formatPrice(amount: number): string {
 export function formatPhoneDisplay(phone: string): string {
   const digits = normalizePhone(phone);
   if (digits.length === 10) {
-    return `+1 (${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
   }
   return phone;
 }
@@ -33,9 +39,9 @@ export function normalizePhone(phone: string): string {
 export function formatPhoneInput(value: string): string {
   const digits = normalizePhone(value).slice(0, 10);
   if (!digits) return "";
-  if (digits.length <= 3) return `+1 (${digits}`;
-  if (digits.length <= 6) return `+1 (${digits.slice(0, 3)}) ${digits.slice(3)}`;
-  return `+1 (${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  if (digits.length <= 3) return `(${digits}`;
+  if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
 }
 
 export function toDisplayName(text: string): string {
@@ -83,7 +89,7 @@ export function calcTotal(subtotal: number, rate = TAX_RATE): number {
   return Math.round((subtotal + calcTax(subtotal, rate)) * 100) / 100;
 }
 
-export function formatPickupTime(iso: string | null, timezone = "America/Vancouver"): string {
+export function formatPickupTime(iso: string | null, timezone = RESTAURANT_TIMEZONE): string {
   if (!iso) return "As soon as possible";
   return new Intl.DateTimeFormat("en-US", {
     hour: "numeric",
@@ -92,7 +98,7 @@ export function formatPickupTime(iso: string | null, timezone = "America/Vancouv
   }).format(new Date(iso));
 }
 
-export function formatOrderDate(iso: string, timezone = "America/Vancouver"): string {
+export function formatOrderDate(iso: string, timezone = RESTAURANT_TIMEZONE): string {
   return new Intl.DateTimeFormat("en-US", {
     weekday: "short",
     month: "short",
@@ -108,11 +114,34 @@ function parseTimeOnDate(timeStr: string, ref: Date): Date {
   return setSeconds(setMinutes(setHours(ref, h), m), 0);
 }
 
+function restaurantWallClock(now = new Date()): Date {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: RESTAURANT_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(now);
+  const get = (type: string) => Number(parts.find((part) => part.type === type)?.value);
+  return new Date(
+    get("year"),
+    get("month") - 1,
+    get("day"),
+    get("hour"),
+    get("minute"),
+    get("second")
+  );
+}
+
 export function isWithinBusinessHours(now = new Date()): boolean {
-  const hours = isSunday(now) ? BUSINESS_HOURS.sunday : BUSINESS_HOURS.weekday;
-  const open = parseTimeOnDate(hours.open, now);
-  const close = parseTimeOnDate(hours.close, now);
-  return isWithinInterval(now, { start: open, end: close });
+  const localNow = restaurantWallClock(now);
+  const hours = isSunday(localNow) ? BUSINESS_HOURS.sunday : BUSINESS_HOURS.weekday;
+  const open = parseTimeOnDate(hours.open, localNow);
+  const close = parseTimeOnDate(hours.close, localNow);
+  return isWithinInterval(localNow, { start: open, end: close });
 }
 
 export function isPauseActive(pauseUntil: string | null | undefined): boolean {
@@ -126,6 +155,13 @@ export function isRestaurantOpen(
 ): boolean {
   if (isPauseActive(settings.pause_until)) return false;
   return isWithinBusinessHours(now);
+}
+
+export function isOrderingDisabled(now = new Date()): boolean {
+  const localNow = restaurantWallClock(now);
+  const start = parseTimeOnDate(ORDERING_DISABLED_START, localNow);
+  const end = parseTimeOnDate(ORDERING_DISABLED_END, localNow);
+  return localNow >= start || localNow < end;
 }
 
 export function generateScheduledPickupSlots(

@@ -9,6 +9,7 @@ import {
   calcCartSubtotal,
   calcTax,
   calcTotal,
+  isOrderingDisabled,
   isPauseActive,
   isRestaurantOpen,
   normalizePhone,
@@ -35,6 +36,13 @@ export async function POST(request: Request) {
     const pickupTime = pickupType === "asap" ? null : body.pickupTime;
     const settings = await fetchRestaurantSettings();
 
+    if (isOrderingDisabled()) {
+      return NextResponse.json(
+        { error: "Online ordering is closed from 8:45 PM to 6:00 AM." },
+        { status: 400 }
+      );
+    }
+
     if (pickupType === "asap" && (!isRestaurantOpen(settings) || isPauseActive(settings.pause_until))) {
       return NextResponse.json(
         { error: "ASAP pickup is unavailable right now. Please choose Later." },
@@ -49,7 +57,7 @@ export async function POST(request: Request) {
         id: orderId,
         order_number: 0,
         customer_id: customerId,
-        status: pickupType === "asap" ? "pending" : "accepted",
+        status: "pending",
         pickup_type: pickupType,
         pickup_time: pickupTime,
         cutlery: body.extras.cutlery,
@@ -66,7 +74,7 @@ export async function POST(request: Request) {
         tax,
         total,
         admin_dismissed: false,
-        confirmed_at: pickupType === "scheduled" ? new Date().toISOString() : null,
+        confirmed_at: null,
         cancel_window_expires_at: null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -94,10 +102,7 @@ export async function POST(request: Request) {
 
       return NextResponse.json({
         order: saved,
-        redirectTo:
-          pickupType === "asap"
-            ? `/order/${saved.id}/waiting`
-            : `/order/${saved.id}/confirmation`,
+        redirectTo: `/order/${saved.id}/waiting`,
       });
     }
 
@@ -137,7 +142,7 @@ export async function POST(request: Request) {
       customerId = newCustomer.id;
     }
 
-    const initialStatus = pickupType === "asap" ? "pending" : "accepted";
+    const initialStatus = "pending";
 
     const { data: order, error: orderError } = await supabase
       .from("orders")
@@ -159,7 +164,7 @@ export async function POST(request: Request) {
         subtotal,
         tax,
         total,
-        confirmed_at: pickupType === "scheduled" ? new Date().toISOString() : null,
+        confirmed_at: null,
       })
       .select()
       .single();
@@ -190,10 +195,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       order: fullOrder,
-      redirectTo:
-        pickupType === "asap"
-          ? `/order/${order.id}/waiting`
-          : `/order/${order.id}/confirmation`,
+      redirectTo: `/order/${order.id}/waiting`,
     });
   } catch (error) {
     console.error("Order creation error:", error);

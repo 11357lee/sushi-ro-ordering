@@ -20,9 +20,11 @@ export function SectionTabs({ sections, activeSection, onChange }: SectionTabsPr
           className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors sm:px-5 sm:py-2.5 ${
             activeSection === section.slug
               ? section.slug === "gluten-free"
-                ? "bg-teal-600 text-white"
+                ? "bg-purple-700 text-white"
                 : "bg-stone-900 text-white"
-              : "bg-stone-100 text-stone-700 hover:bg-stone-200"
+              : section.slug === "gluten-free"
+                ? "bg-purple-100 text-purple-900 hover:bg-purple-200"
+                : "bg-stone-100 text-stone-700 hover:bg-stone-200"
           }`}
         >
           {toDisplayName(section.name)}
@@ -35,20 +37,35 @@ export function SectionTabs({ sections, activeSection, onChange }: SectionTabsPr
 interface CategoryNavProps {
   categories: Category[];
   activeCategory: string | null;
+  variant?: "default" | "gluten-free";
   onChange: (slug: string) => void;
 }
 
-export function CategoryNav({ categories, activeCategory, onChange }: CategoryNavProps) {
+export function CategoryNav({
+  categories,
+  activeCategory,
+  variant = "default",
+  onChange,
+}: CategoryNavProps) {
+  const activeClass =
+    variant === "gluten-free"
+      ? "bg-purple-100 text-purple-900 ring-1 ring-purple-300"
+      : "bg-teal-50 text-teal-800 ring-1 ring-teal-200";
+
   return (
-    <div className="sticky top-[57px] z-40 border-b border-stone-200 bg-white">
+    <div
+      className={`sticky top-[57px] z-40 border-b ${
+        variant === "gluten-free"
+          ? "border-purple-200 bg-purple-50/95"
+          : "border-stone-200 bg-white"
+      }`}
+    >
       <div className="mx-auto flex max-w-6xl flex-wrap gap-2 px-4 py-3">
         <button
           type="button"
           onClick={() => onChange("")}
           className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
-            !activeCategory
-              ? "bg-teal-50 text-teal-800 ring-1 ring-teal-200"
-              : "text-stone-600 hover:bg-stone-100"
+            !activeCategory ? activeClass : "text-stone-600 hover:bg-stone-100"
           }`}
         >
           All
@@ -59,9 +76,7 @@ export function CategoryNav({ categories, activeCategory, onChange }: CategoryNa
             type="button"
             onClick={() => onChange(cat.slug)}
             className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
-              activeCategory === cat.slug
-                ? "bg-teal-50 text-teal-800 ring-1 ring-teal-200"
-                : "text-stone-600 hover:bg-stone-100"
+              activeCategory === cat.slug ? activeClass : "text-stone-600 hover:bg-stone-100"
             }`}
           >
             {toDisplayName(cat.name)}

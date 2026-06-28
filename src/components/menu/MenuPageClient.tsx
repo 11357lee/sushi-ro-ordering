@@ -6,6 +6,7 @@ import { CategoryNav, SectionTabs } from "@/components/menu/CategoryNav";
 import { MenuItemCard } from "@/components/menu/MenuItemCard";
 import { MenuSearch } from "@/components/menu/MenuSearch";
 import { RestaurantBanner } from "@/components/menu/RestaurantBanner";
+import { CATEGORY_DESCRIPTION_FALLBACKS } from "@/lib/constants";
 import { toDisplayName } from "@/lib/utils";
 
 interface MenuPageClientProps {
@@ -99,6 +100,7 @@ export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientPr
       <CategoryNav
         categories={sectionCategories}
         activeCategory={activeCategory}
+        variant={activeSection === "gluten-free" ? "gluten-free" : "default"}
         onChange={setActiveCategory}
       />
 
@@ -109,9 +111,9 @@ export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientPr
               <h2 className="mb-4 text-xl font-semibold text-stone-900">
                 {toDisplayName(category.name)}
               </h2>
-              {category.description && (
+              {(category.description || CATEGORY_DESCRIPTION_FALLBACKS[category.slug]) && (
                 <p className="-mt-2 mb-4 max-w-2xl text-sm text-stone-600">
-                  {category.description}
+                  {category.description || CATEGORY_DESCRIPTION_FALLBACKS[category.slug]}
                 </p>
               )}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

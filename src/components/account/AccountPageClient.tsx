@@ -20,7 +20,9 @@ export function AccountPageClient() {
   const clearCustomer = useCustomerStore((s) => s.clearCustomer);
   const addItems = useCartStore((s) => s.addItems);
   const setExtras = useCartStore((s) => s.setExtras);
+  const clearCart = useCartStore((s) => s.clearCart);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!customer?.id) return;
@@ -49,6 +51,17 @@ export function AccountPageClient() {
     router.push("/cart");
   };
 
+  const handleNewOrder = () => {
+    clearCart();
+    router.push("/");
+  };
+
+  const handleLogout = () => {
+    clearCustomer();
+    clearCart();
+    router.push("/");
+  };
+
   if (!customer) {
     return (
       <div className="mx-auto max-w-md px-4 py-16 text-center">
@@ -74,25 +87,28 @@ export function AccountPageClient() {
         </div>
         <button
           type="button"
-          onClick={clearCustomer}
+          onClick={handleLogout}
           className="text-sm text-stone-500 hover:text-stone-700"
         >
           Sign out
         </button>
       </div>
 
-      <Link
-        href="/"
+      <button
+        type="button"
+        onClick={handleNewOrder}
         className="mt-6 inline-block rounded-lg bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700"
       >
-        Order again
-      </Link>
+        New order
+      </button>
 
       <div className="mt-8 space-y-4">
         {orders.length === 0 ? (
           <p className="text-stone-500">No orders yet.</p>
         ) : (
-          orders.map((order) => (
+          orders.map((order) => {
+            const expanded = expandedId === order.id;
+            return (
             <div key={order.id} className="rounded-xl border border-stone-200 p-4">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
@@ -106,6 +122,35 @@ export function AccountPageClient() {
                 </div>
                 <span className="font-semibold">{formatPrice(order.total ?? order.subtotal)}</span>
               </div>
+              {expanded && (
+                <div className="mt-4 border-t border-stone-100 pt-4">
+                  <h2 className="text-sm font-semibold text-stone-900">Items ordered</h2>
+                  <ul className="mt-2 space-y-2 text-sm text-stone-700">
+                    {order.order_items?.map((item) => (
+                      <li key={item.id}>
+                        <span className="font-medium">
+                          {item.quantity}x {toDisplayName(item.name)}
+                        </span>
+                        {item.selected_options?.length > 0 && (
+                          <p className="text-stone-500">
+                            {item.selected_options.map((o) => toDisplayName(o.name)).join(", ")}
+                          </p>
+                        )}
+                        {item.special_request && (
+                          <p className="italic text-stone-500">{item.special_request}</p>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => setExpandedId(expanded ? null : order.id)}
+                className="mt-3 mr-2 rounded-lg border border-stone-300 px-4 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50"
+              >
+                {expanded ? "Hide order" : "View order"}
+              </button>
               <button
                 type="button"
                 onClick={() => handleReorder(order)}
@@ -114,7 +159,8 @@ export function AccountPageClient() {
                 Reorder
               </button>
             </div>
-          ))
+          );
+          })
         )}
       </div>
     </div>

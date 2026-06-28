@@ -13,3 +13,4 @@ ALTER TABLE orders
 
 UPDATE restaurant_settings SET closing_time = '21:00:00' WHERE closing_time = '20:45:00';
 UPDATE restaurant_settings SET phone = '+1 (613) 724-6088';
+UPDATE restaurant_settings SET timezone = 'America/Toronto';

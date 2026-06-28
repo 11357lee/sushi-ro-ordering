@@ -72,7 +72,7 @@ export function TrackingPageClient() {
           type="tel"
           value={phone}
           onChange={(e) => setPhone(formatPhoneInput(e.target.value))}
-          placeholder="+1 (613) 724-6088"
+          placeholder="(613) 724-6088"
           inputMode="tel"
           required
           className="flex-1 rounded-lg border border-stone-200 px-3 py-2.5 focus:border-teal-500 focus:outline-none"

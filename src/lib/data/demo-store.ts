@@ -73,10 +73,12 @@ export function dismissAllDemoOrders(): void {
 export function updateDemoOrderStatus(
   id: string,
   status: OrderStatus,
-  pickupTime?: string | null
+  pickupTime?: string | null,
+  statusReason?: string | null
 ): Order | undefined {
   const updates: Partial<Order> = {
     status,
+    status_reason: statusReason,
     updated_at: new Date().toISOString(),
   };
   if (status === "accepted") {

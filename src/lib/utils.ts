@@ -150,10 +150,16 @@ export function isPauseActive(pauseUntil: string | null | undefined): boolean {
 }
 
 export function isRestaurantOpen(
-  settings: Pick<RestaurantSettings, "pause_until" | "closing_time" | "timezone">,
+  settings: Pick<
+    RestaurantSettings,
+    "pause_until" | "closing_time" | "timezone" | "special_closed_dates"
+  >,
   now = new Date()
 ): boolean {
   if (isPauseActive(settings.pause_until)) return false;
+  const localNow = restaurantWallClock(now);
+  const dateKey = format(localNow, "yyyy-MM-dd");
+  if (settings.special_closed_dates?.includes(dateKey)) return false;
   return isWithinBusinessHours(now);
 }
 

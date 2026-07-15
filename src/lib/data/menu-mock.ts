@@ -132,6 +132,7 @@ export const MOCK_SETTINGS = {
   tax_rate: 0.13,
   pause_until: null,
   sold_out_item_ids: [],
+  special_closed_dates: [],
 };
 
 export const MOCK_WAITING_TIME = {

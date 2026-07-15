@@ -79,6 +79,17 @@ export function ConfirmationPageClient({
 
   const isRejected = order.status === "rejected";
   const isCancelled = order.status === "cancelled";
+  const prepMinutes =
+    order.pickup_time && order.confirmed_at
+      ? Math.max(
+          0,
+          Math.round(
+            (new Date(order.pickup_time).getTime() -
+              new Date(order.confirmed_at).getTime()) /
+              60000
+          )
+        )
+      : null;
 
   return (
     <div className="mx-auto max-w-lg px-4 py-12 text-center">
@@ -88,11 +99,21 @@ export function ConfirmationPageClient({
           <p className="mt-3 text-stone-600">
             Unfortunately the restaurant could not accept your order. Please call us or try again.
           </p>
+          {order.status_reason && (
+            <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm font-medium text-red-700">
+              {order.status_reason}
+            </p>
+          )}
         </>
       ) : isCancelled ? (
         <>
           <h1 className="text-2xl font-bold text-stone-900">Order Cancelled</h1>
           <p className="mt-3 text-stone-600">Your order has been cancelled.</p>
+          {order.status_reason && (
+            <p className="mt-3 rounded-lg bg-stone-100 p-3 text-sm font-medium text-stone-700">
+              {order.status_reason}
+            </p>
+          )}
         </>
       ) : (
         <>
@@ -104,7 +125,12 @@ export function ConfirmationPageClient({
           <h1 className="text-2xl font-bold text-stone-900">Thank you for your order!</h1>
           <p className="mt-2 text-stone-600">Order #{order.order_number}</p>
           <div className="mt-6 rounded-xl bg-stone-50 p-6">
-            <p className="text-sm font-medium text-stone-500">Your pickup time is</p>
+            {prepMinutes !== null && (
+              <p className="text-sm font-medium text-stone-500">
+                It will be ready in {prepMinutes} minutes.
+              </p>
+            )}
+            <p className="mt-1 text-sm font-medium text-stone-500">Pickup time</p>
             <p className="mt-1 text-3xl font-bold text-stone-900">
               {formatPickupTime(order.pickup_time)}
             </p>

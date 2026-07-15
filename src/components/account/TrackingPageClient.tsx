@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useCustomerStore } from "@/lib/customer-store";
 import type { Order } from "@/types";
 import {
   canCustomerCancelOrder,
@@ -11,7 +12,17 @@ import {
   toDisplayName,
 } from "@/lib/utils";
 
+function timeLeft(pickupTime: string | null): string | null {
+  if (!pickupTime) return null;
+  const minutes = Math.ceil((new Date(pickupTime).getTime() - Date.now()) / 60000);
+  if (minutes <= 0) return "Pickup time passed";
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return hours > 0 ? `${hours}h ${mins}m left` : `${minutes}m left`;
+}
+
 export function TrackingPageClient() {
+  const customer = useCustomerStore((s) => s.customer);
   const [phone, setPhone] = useState("");
   const [orders, setOrders] = useState<Order[]>([]);
   const [waitingMinutes, setWaitingMinutes] = useState(15);
@@ -26,6 +37,16 @@ export function TrackingPageClient() {
       .then((r) => r.json())
       .then((data) => setWaitingMinutes(data.waitingTime?.minutes ?? 15));
   }, []);
+
+  useEffect(() => {
+    if (!customer?.id) return;
+    setLoading(true);
+    setSearched(true);
+    fetch(`/api/customers/orders?customerId=${encodeURIComponent(customer.id)}`)
+      .then((r) => r.json())
+      .then((data) => setOrders(data.orders ?? []))
+      .finally(() => setLoading(false));
+  }, [customer?.id]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,9 +85,12 @@ export function TrackingPageClient() {
     <div className="mx-auto max-w-lg px-4 py-8 sm:py-12">
       <h1 className="text-2xl font-bold text-stone-900">Track your order</h1>
       <p className="mt-2 text-sm text-stone-600 sm:text-base">
-        Enter your phone number to see today&apos;s orders.
+        {customer
+          ? "You are logged in, so your recent orders are shown below."
+          : "Enter your phone number to see today&apos;s orders."}
       </p>
 
+      {!customer && (
       <form onSubmit={handleSearch} className="mt-6 flex flex-col gap-2 sm:flex-row">
         <input
           type="tel"
@@ -85,6 +109,7 @@ export function TrackingPageClient() {
           {loading ? "..." : "Track"}
         </button>
       </form>
+      )}
 
       {cancelError && <p className="mt-4 text-sm text-red-600">{cancelError}</p>}
 
@@ -114,6 +139,7 @@ export function TrackingPageClient() {
               {order.pickup_time && (
                 <p className="mt-2 text-sm text-stone-600">
                   Pickup: {formatPickupTime(order.pickup_time)}
+                  {timeLeft(order.pickup_time) ? ` · ${timeLeft(order.pickup_time)}` : ""}
                 </p>
               )}
               <div className="mt-3 flex flex-wrap gap-3">

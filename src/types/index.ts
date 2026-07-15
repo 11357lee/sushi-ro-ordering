@@ -70,6 +70,7 @@ export interface RestaurantSettings {
   tax_rate?: number;
   pause_until?: string | null;
   sold_out_item_ids?: string[];
+  special_closed_dates?: string[];
 }
 
 export interface WaitingTime {
@@ -150,6 +151,7 @@ export interface Order {
   tax: number;
   total: number;
   admin_dismissed?: boolean;
+  status_reason?: string | null;
   confirmed_at: string | null;
   cancel_window_expires_at: string | null;
   created_at: string;

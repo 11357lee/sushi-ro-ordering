@@ -45,9 +45,11 @@ export async function PATCH(request: Request) {
     orderId,
     status,
     pickupTime,
+    statusReason,
     waitingMinutes,
     pauseDuration,
     soldOutItemIds,
+    specialClosedDates,
     closingTime,
   } = body;
 
@@ -104,6 +106,18 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ soldOutItemIds });
   }
 
+  if (action === "update_special_closed_dates" && Array.isArray(specialClosedDates)) {
+    if (isDemoMode()) {
+      return NextResponse.json({ specialClosedDates });
+    }
+    const supabase = createAdminClient();
+    await supabase
+      .from("restaurant_settings")
+      .update({ special_closed_dates: specialClosedDates })
+      .neq("id", "00000000-0000-0000-0000-000000000000");
+    return NextResponse.json({ specialClosedDates });
+  }
+
   if (action === "dismiss_orders") {
     if (isDemoMode()) {
       dismissAllDemoOrders();
@@ -128,12 +142,15 @@ export async function PATCH(request: Request) {
         finalPickupTime = addMinutes(new Date(), waitMinutes).toISOString();
       }
 
-      const updated = updateDemoOrderStatus(orderId, orderStatus, finalPickupTime);
+      const updated = updateDemoOrderStatus(orderId, orderStatus, finalPickupTime, statusReason);
       return NextResponse.json({ order: updated });
     }
 
     const supabase = createAdminClient();
-    const updates: Record<string, unknown> = { status: orderStatus };
+    const updates: Record<string, unknown> = {
+      status: orderStatus,
+      status_reason: statusReason || null,
+    };
 
     if (orderStatus === "accepted") {
       updates.confirmed_at = new Date().toISOString();

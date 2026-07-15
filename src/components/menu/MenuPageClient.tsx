@@ -82,6 +82,11 @@ export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientPr
       .filter((g) => g.items.length > 0);
   }, [sectionCategories, filteredItems, activeCategory, search]);
 
+  const activeCategoryDetails = useMemo(
+    () => sectionCategories.find((cat) => cat.slug === activeCategory) ?? null,
+    [activeCategory, sectionCategories]
+  );
+
   return (
     <>
       <RestaurantBanner initialSettings={settings} initialWaitingTime={waitingTime} />
@@ -116,7 +121,7 @@ export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientPr
                   {category.description || CATEGORY_DESCRIPTION_FALLBACKS[category.slug]}
                 </p>
               )}
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
                 {items.map((item) => (
                   <MenuItemCard
                     key={item.id}
@@ -128,15 +133,31 @@ export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientPr
             </section>
           ))
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredItems.map((item) => (
-              <MenuItemCard
-                key={item.id}
-                item={item}
-                soldOut={soldOutIds.includes(item.id)}
-              />
-            ))}
-          </div>
+          <>
+            {activeCategoryDetails && (
+              <section className="mb-5">
+                <h2 className="mb-2 text-xl font-semibold text-stone-900">
+                  {toDisplayName(activeCategoryDetails.name)}
+                </h2>
+                {(activeCategoryDetails.description ||
+                  CATEGORY_DESCRIPTION_FALLBACKS[activeCategoryDetails.slug]) && (
+                  <p className="max-w-2xl text-sm text-stone-600">
+                    {activeCategoryDetails.description ||
+                      CATEGORY_DESCRIPTION_FALLBACKS[activeCategoryDetails.slug]}
+                  </p>
+                )}
+              </section>
+            )}
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
+              {filteredItems.map((item) => (
+                <MenuItemCard
+                  key={item.id}
+                  item={item}
+                  soldOut={soldOutIds.includes(item.id)}
+                />
+              ))}
+            </div>
+          </>
         )}
 
         {filteredItems.length === 0 && (

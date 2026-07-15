@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { addMinutes } from "date-fns";
 import type { MenuData, MenuItem, Order } from "@/types";
 import { WAITING_TIME_LABELS } from "@/types";
@@ -11,6 +11,7 @@ import {
   formatPrice,
   isPauseActive,
   isRestaurantOpen,
+  isWithinBusinessHours,
   toDisplayName,
 } from "@/lib/utils";
 
@@ -39,33 +40,14 @@ function formatCountdown(pickupTime: string | null, now: Date): string | null {
   return hours > 0 ? `${hours}h ${minutes}m left` : `${minutes}m left`;
 }
 
-function pickupInputFromIso(iso: string): string {
-  const date = new Date(iso);
-  return `${String(date.getHours()).padStart(2, "0")}${String(date.getMinutes()).padStart(2, "0")}`;
-}
-
-function pickupIsoFromInput(input: string): string | null {
-  const digits = input.replace(/\D/g, "");
-  if (digits.length < 3 || digits.length > 4) return null;
-  const hourDigits = digits.length === 3 ? digits.slice(0, 1) : digits.slice(0, 2);
-  const minuteDigits = digits.length === 3 ? digits.slice(1) : digits.slice(2);
-  let hour = Number(hourDigits);
-  const minute = Number(minuteDigits);
-  if (Number.isNaN(hour) || Number.isNaN(minute) || minute > 59) return null;
-  if (hour >= 1 && hour <= 9) hour += 12;
-  if (hour > 23) return null;
-
-  const pickup = new Date();
-  pickup.setHours(hour, minute, 0, 0);
-  if (pickup < new Date()) {
-    pickup.setDate(pickup.getDate() + 1);
-  }
-  return pickup.toISOString();
+function pickupIsoFromPrepMinutes(minutes: string): string {
+  const prepMinutes = Math.max(1, Number(minutes) || 15);
+  return addMinutes(new Date(), prepMinutes).toISOString();
 }
 
 function OrderExtras({ order }: { order: Order }) {
   const extras: string[] = [];
-  if (order.cutlery) extras.push(`Cutlery x${order.cutlery_quantity}`);
+  extras.push(order.cutlery ? `Cutlery x${order.cutlery_quantity}` : "No cutlery");
   if (order.extra_wasabi) extras.push("Extra wasabi");
   if (order.extra_ginger) extras.push("Extra ginger");
   if (order.extra_soy_sauce) extras.push("Extra soy sauce");
@@ -137,10 +119,15 @@ export function AdminPageClient() {
   const [waitingMinutes, setWaitingMinutes] = useState(15);
   const [soldOutIds, setSoldOutIds] = useState<string[]>([]);
   const [pauseUntil, setPauseUntil] = useState<string | null>(null);
+  const [specialClosedDates, setSpecialClosedDates] = useState<string[]>([]);
+  const [newClosedDate, setNewClosedDate] = useState("");
   const [closingTime, setClosingTime] = useState("21:00:00");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [pickupTimes, setPickupTimes] = useState<Record<string, string>>({});
   const [pickupInputs, setPickupInputs] = useState<Record<string, string>>({});
+  const [reasonInputs, setReasonInputs] = useState<Record<string, string>>({});
+  const [customReasonInputs, setCustomReasonInputs] = useState<Record<string, string>>({});
+  const audioContextRef = useRef<AudioContext | null>(null);
   const [expandedSoldOutCategory, setExpandedSoldOutCategory] = useState<string | null>(null);
   const [now, setNow] = useState(new Date());
   const [loading, setLoading] = useState(false);
@@ -174,6 +161,7 @@ export function AdminPageClient() {
     setWaitingMinutes(data.waitingTime?.minutes ?? 15);
     setSoldOutIds(data.settings?.sold_out_item_ids ?? []);
     setPauseUntil(data.settings?.pause_until ?? null);
+    setSpecialClosedDates(data.settings?.special_closed_dates ?? []);
     setClosingTime(data.settings?.closing_time ?? "21:00:00");
   }, []);
 
@@ -214,7 +202,7 @@ export function AdminPageClient() {
       const next = { ...prev };
       orders.forEach((order) => {
         if (!next[order.id]) {
-          next[order.id] = pickupInputFromIso(defaultPickupTime(order, waitingMinutes));
+          next[order.id] = String(waitingMinutes);
         }
       });
       return next;
@@ -228,11 +216,16 @@ export function AdminPageClient() {
     setLoading(false);
   };
 
-  const updateOrder = async (orderId: string, status: string, pickupTime?: string) => {
+  const updateOrder = async (
+    orderId: string,
+    status: string,
+    pickupTime?: string,
+    statusReason?: string
+  ) => {
     await fetch("/api/admin", {
       method: "PATCH",
       headers: headers(),
-      body: JSON.stringify({ action: "update_order", orderId, status, pickupTime }),
+      body: JSON.stringify({ action: "update_order", orderId, status, pickupTime, statusReason }),
     });
     fetchOrders();
   };
@@ -279,6 +272,15 @@ export function AdminPageClient() {
     setSoldOutIds(next);
   };
 
+  const updateSpecialClosedDates = async (dates: string[]) => {
+    await fetch("/api/admin", {
+      method: "PATCH",
+      headers: headers(),
+      body: JSON.stringify({ action: "update_special_closed_dates", specialClosedDates: dates }),
+    });
+    setSpecialClosedDates(dates);
+  };
+
   const menuItemsByCategory = useMemo(() => {
     if (!menu) return [];
     return menu.categories.map((category) => {
@@ -297,7 +299,36 @@ export function AdminPageClient() {
     timezone: "America/Toronto",
   });
   const paused = isPauseActive(pauseUntil);
-  const selectedOrder = expandedId ? orders.find((order) => order.id === expandedId) : null;
+  const withinBusinessHours = isWithinBusinessHours();
+
+  useEffect(() => {
+    if (!authenticated || !restaurantOpen) return;
+    const pendingOrders = orders.filter((order) => order.status === "pending");
+    if (!pendingOrders.length) return;
+
+    const playTone = () => {
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioCtx) return;
+      if (!audioContextRef.current) audioContextRef.current = new AudioCtx();
+      const ctx = audioContextRef.current;
+      const hasAsap = pendingOrders.some((order) => order.pickup_type === "asap");
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+      oscillator.frequency.value = hasAsap ? 880 : 520;
+      oscillator.type = hasAsap ? "square" : "sine";
+      gain.gain.value = 0.04;
+      oscillator.connect(gain);
+      gain.connect(ctx.destination);
+      oscillator.start();
+      oscillator.stop(ctx.currentTime + 0.18);
+    };
+
+    playTone();
+    const interval = setInterval(playTone, 5000);
+    return () => clearInterval(interval);
+  }, [authenticated, orders, restaurantOpen]);
 
   if (!authenticated) {
     return (
@@ -327,7 +358,7 @@ export function AdminPageClient() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-6 sm:py-8">
+    <div className="mx-auto max-w-5xl px-4 py-6 text-base sm:py-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-stone-900">Admin</h1>
@@ -401,10 +432,10 @@ export function AdminPageClient() {
                     <button
                       type="button"
                       onClick={() => setExpandedId(expanded ? null : order.id)}
-                      className="grid w-full gap-4 text-left md:grid-cols-[1.4fr_1fr_auto]"
+                      className="w-full space-y-4 text-left"
                     >
                       <div>
-                        <p className="text-lg font-bold text-stone-900">
+                        <p className="text-xl font-bold text-stone-900">
                           {customerTitle(order)}
                           {countdown && (
                             <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
@@ -412,7 +443,7 @@ export function AdminPageClient() {
                             </span>
                           )}
                         </p>
-                        <p className="text-sm text-stone-500">{formatOrderDate(order.created_at)}</p>
+                        <p className="text-base text-stone-500">{formatOrderDate(order.created_at)}</p>
                         <p className="mt-1 text-sm text-stone-600">
                           {order.customer?.phone ? formatPhoneDisplay(order.customer.phone) : ""} ·{" "}
                           <span className="capitalize">{order.status}</span>
@@ -431,48 +462,110 @@ export function AdminPageClient() {
                         </p>
                         <OrderExtras order={order} />
                       </div>
-                      <div className="text-left md:text-right">
+                      <div className="text-left">
                         <p className="text-xs font-semibold uppercase tracking-wide text-stone-400">
                           Total
                         </p>
-                        <p className="text-lg font-bold">{formatPrice(order.total ?? order.subtotal)}</p>
+                        <p className="text-xl font-bold">{formatPrice(order.total ?? order.subtotal)}</p>
+                        <p className="text-sm text-stone-500">
+                          Subtotal {formatPrice(order.subtotal)} · Tax {formatPrice(order.tax ?? 0)}
+                        </p>
                       </div>
                     </button>
+
+                    {expanded && (
+                      <div className="mt-4 border-t border-stone-100 pt-4">
+                        <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-stone-500">
+                          Items
+                        </h3>
+                        <OrderItems order={order} />
+                      </div>
+                    )}
 
                     {order.status === "pending" && (
                       <div className="mt-4 space-y-3 border-t border-stone-100 pt-4">
                         <div>
                           <label className="block text-sm font-medium text-stone-700">
-                            Pickup time
+                            Preparation time
                           </label>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {["10", "15", "20", "25", "30"].map((minutes) => (
+                              <button
+                                key={minutes}
+                                type="button"
+                                onClick={() => {
+                                  setPickupInputs((prev) => ({ ...prev, [order.id]: minutes }));
+                                  setPickupTimes((prev) => ({
+                                    ...prev,
+                                    [order.id]: pickupIsoFromPrepMinutes(minutes),
+                                  }));
+                                }}
+                                className={`rounded-lg px-3 py-2 text-sm font-semibold ${
+                                  pickupInputs[order.id] === minutes
+                                    ? "bg-stone-900 text-white"
+                                    : "bg-stone-100 text-stone-700"
+                                }`}
+                              >
+                                {minutes}
+                              </button>
+                            ))}
+                          </div>
                           <input
                             type="text"
                             inputMode="numeric"
                             pattern="[0-9]*"
                             value={pickupInputs[order.id] ?? ""}
                             onChange={(e) => {
-                              const value = e.target.value.replace(/\D/g, "").slice(0, 4);
-                              const iso = pickupIsoFromInput(value);
+                              const value = e.target.value.replace(/\D/g, "").slice(0, 3);
                               setPickupInputs((prev) => ({ ...prev, [order.id]: value }));
-                              if (iso) {
-                                setPickupTimes((prev) => ({ ...prev, [order.id]: iso }));
+                              if (value) {
+                                setPickupTimes((prev) => ({
+                                  ...prev,
+                                  [order.id]: pickupIsoFromPrepMinutes(value),
+                                }));
                               }
                             }}
-                            placeholder="630 or 1830"
+                            placeholder="Minutes"
                             className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2 text-sm"
                           />
-                          <p className="mt-1 text-xs text-stone-500">
-                            Type 630 for 6:30 PM, or 1830 for 6:30 PM.
-                          </p>
                         </div>
-                        <div className="flex flex-wrap gap-2">
+                        <div>
+                          <label className="block text-sm font-medium text-stone-700">
+                            Reject reason
+                          </label>
+                          <select
+                            value={reasonInputs[order.id] ?? "Out of items"}
+                            onChange={(e) =>
+                              setReasonInputs((prev) => ({ ...prev, [order.id]: e.target.value }))
+                            }
+                            className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2 text-sm"
+                          >
+                            <option>Out of items</option>
+                            <option>Restaurant too busy</option>
+                            <option>Custom message</option>
+                          </select>
+                          {reasonInputs[order.id] === "Custom message" && (
+                            <input
+                              type="text"
+                              placeholder="Custom reject message"
+                              onChange={(e) =>
+                                setCustomReasonInputs((prev) => ({
+                                  ...prev,
+                                  [order.id]: e.target.value,
+                                }))
+                              }
+                              className="mt-2 w-full rounded-lg border border-stone-200 px-3 py-2 text-sm"
+                            />
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-2 border-t border-stone-100 pt-3">
                           <button
                             type="button"
                             onClick={() =>
                               updateOrder(
                                 order.id,
                                 "accepted",
-                                pickupTimes[order.id] ?? defaultPickupTime(order, waitingMinutes)
+                                pickupTimes[order.id] ?? pickupIsoFromPrepMinutes(pickupInputs[order.id] ?? String(waitingMinutes))
                               )
                             }
                             className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
@@ -481,12 +574,66 @@ export function AdminPageClient() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => updateOrder(order.id, "rejected")}
+                            onClick={() =>
+                              updateOrder(
+                                order.id,
+                                "rejected",
+                                undefined,
+                                reasonInputs[order.id] === "Custom message"
+                                  ? customReasonInputs[order.id] || "Custom message"
+                                  : reasonInputs[order.id] ?? "Out of items"
+                              )
+                            }
                             className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
                           >
                             Reject
                           </button>
                         </div>
+                      </div>
+                    )}
+
+                    {order.status === "accepted" && (
+                      <div className="mt-4 space-y-3 border-t border-stone-100 pt-4">
+                        <label className="block text-sm font-medium text-stone-700">
+                          Cancel reason
+                        </label>
+                        <select
+                          value={reasonInputs[order.id] ?? "Customer cancellation"}
+                          onChange={(e) =>
+                            setReasonInputs((prev) => ({ ...prev, [order.id]: e.target.value }))
+                          }
+                          className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm"
+                        >
+                          <option>Customer cancellation</option>
+                          <option>Out of items</option>
+                          <option>Custom message</option>
+                        </select>
+                        {reasonInputs[order.id] === "Custom message" && (
+                          <input
+                            type="text"
+                            placeholder="Custom cancel message"
+                            onChange={(e) =>
+                              setCustomReasonInputs((prev) => ({ ...prev, [order.id]: e.target.value }))
+                            }
+                            className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm"
+                          />
+                        )}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateOrder(
+                              order.id,
+                              "cancelled",
+                              undefined,
+                              reasonInputs[order.id] === "Custom message"
+                                ? customReasonInputs[order.id] || "Custom message"
+                                : reasonInputs[order.id] ?? "Customer cancellation"
+                            )
+                          }
+                          className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+                        >
+                          Cancel order
+                        </button>
                       </div>
                     )}
                   </div>
@@ -495,43 +642,6 @@ export function AdminPageClient() {
             )}
           </div>
 
-          {selectedOrder && (
-            <div className="fixed inset-0 z-50 bg-stone-900/40 p-4">
-              <div className="mx-auto mt-10 max-h-[85vh] max-w-2xl overflow-auto rounded-2xl bg-white p-5 shadow-xl">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h2 className="text-xl font-bold text-stone-900">
-                      {customerTitle(selectedOrder)}
-                    </h2>
-                    <p className="text-sm text-stone-500">
-                      {formatOrderDate(selectedOrder.created_at)} ·{" "}
-                      <span className="capitalize">{selectedOrder.status}</span>
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setExpandedId(null)}
-                    className="rounded-lg bg-stone-100 px-3 py-1.5 text-sm font-medium text-stone-700 hover:bg-stone-200"
-                  >
-                    Close
-                  </button>
-                </div>
-                <SpecialNotes order={selectedOrder} />
-                <div className="mt-4">
-                  <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-stone-500">
-                    Items
-                  </h3>
-                  <OrderItems order={selectedOrder} />
-                </div>
-                <div className="mt-4 rounded-xl bg-stone-50 p-4">
-                  <OrderExtras order={selectedOrder} />
-                  <p className="mt-3 text-lg font-bold text-stone-900">
-                    Total: {formatPrice(selectedOrder.total ?? selectedOrder.subtotal)}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
         </>
       )}
 
@@ -558,8 +668,9 @@ export function AdminPageClient() {
                 <button
                   key={value}
                   type="button"
+                  disabled={!withinBusinessHours && value !== "clear"}
                   onClick={() => pauseService(value)}
-                  className="rounded-lg bg-stone-100 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-200"
+                  className="rounded-lg bg-stone-100 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {label}
                 </button>
@@ -568,6 +679,54 @@ export function AdminPageClient() {
             {settingsMessage && (
               <p className="mt-2 text-sm text-emerald-700">{settingsMessage}</p>
             )}
+            {!withinBusinessHours && (
+              <p className="mt-2 text-sm text-stone-500">
+                Pause buttons are available during business hours only.
+              </p>
+            )}
+          </section>
+
+          <section>
+            <h2 className="text-lg font-semibold text-stone-900">Special closed dates</h2>
+            <p className="mt-1 text-sm text-stone-600">
+              Add holidays or one-off closure dates.
+            </p>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+              <input
+                type="date"
+                value={newClosedDate}
+                onChange={(e) => setNewClosedDate(e.target.value)}
+                className="rounded-lg border border-stone-200 px-3 py-2 text-sm"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  if (!newClosedDate || specialClosedDates.includes(newClosedDate)) return;
+                  updateSpecialClosedDates([...specialClosedDates, newClosedDate].sort());
+                  setNewClosedDate("");
+                }}
+                className="rounded-lg bg-stone-900 px-4 py-2 text-sm font-semibold text-white"
+              >
+                Add closed date
+              </button>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {specialClosedDates.map((date) => (
+                <button
+                  key={date}
+                  type="button"
+                  onClick={() =>
+                    updateSpecialClosedDates(specialClosedDates.filter((d) => d !== date))
+                  }
+                  className="rounded-full bg-red-50 px-3 py-1 text-sm font-medium text-red-700"
+                >
+                  {date} ×
+                </button>
+              ))}
+              {!specialClosedDates.length && (
+                <p className="text-sm text-stone-500">No special closed dates.</p>
+              )}
+            </div>
           </section>
 
           <section>
@@ -575,8 +734,20 @@ export function AdminPageClient() {
             <p className="mt-1 text-sm text-stone-600">
               Mark items unavailable on the customer menu.
             </p>
-            <div className="mt-4 space-y-3">
-              {menuItemsByCategory.map(({ category, section, items }) => {
+            <div className="mt-4 space-y-6">
+              {menu?.sections.map((menuSection) => (
+                <div key={menuSection.id}>
+                  <h3
+                    className={`mb-3 text-base font-bold ${
+                      menuSection.slug === "gluten-free" ? "text-purple-900" : "text-stone-900"
+                    }`}
+                  >
+                    {toDisplayName(menuSection.name)}
+                  </h3>
+                  <div className="space-y-3">
+              {menuItemsByCategory
+                .filter(({ section }) => section?.id === menuSection.id)
+                .map(({ category, section, items }) => {
                 const expanded = expandedSoldOutCategory === category.id;
                 const soldOutCount = items.filter((item) => soldOutIds.includes(item.id)).length;
                 const isGFCategory = section?.slug === "gluten-free";
@@ -630,6 +801,9 @@ export function AdminPageClient() {
                   </div>
                 );
               })}
+                  </div>
+                </div>
+              ))}
             </div>
           </section>
         </div>

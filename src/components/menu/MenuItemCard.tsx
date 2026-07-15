@@ -72,14 +72,14 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
 
   return (
     <article
-      className={`flex flex-col rounded-2xl border bg-white p-4 shadow-sm transition-shadow hover:shadow-md ${
+      className={`flex flex-col rounded-2xl border bg-white p-3 shadow-sm transition-shadow hover:shadow-md sm:p-4 ${
         isGlutenFree ? "border-purple-300 bg-purple-50/50" : "border-stone-200"
       } ${featured ? "ring-1 ring-stone-100" : ""}`}
       style={isGlutenFree ? { borderLeftWidth: 4, borderLeftColor: accentColor } : undefined}
     >
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
         <div>
-          <h3 className="font-semibold text-stone-900">{toDisplayName(item.name)}</h3>
+          <h3 className="text-sm font-semibold text-stone-900 sm:text-base">{toDisplayName(item.name)}</h3>
           {isGlutenFree && (
             <span className="mt-1 inline-block text-xs font-medium text-purple-800">
               Gluten free
@@ -91,11 +91,13 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
             </span>
           )}
         </div>
-        <span className="shrink-0 font-semibold text-stone-900">{formatPrice(item.price)}</span>
+        <span className="shrink-0 text-sm font-semibold text-stone-900 sm:text-base">
+          {formatPrice(item.price)}
+        </span>
       </div>
 
       {item.description && (
-        <p className="mt-2 text-sm text-stone-600">{item.description}</p>
+        <p className="mt-2 text-xs text-stone-600 sm:text-sm">{item.description}</p>
       )}
 
       {item.labels && item.labels.length > 0 && (
@@ -162,14 +164,14 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
       <div className="mt-3">
         <input
           type="text"
-          placeholder="Special request — price may differ depending on your request."
+          placeholder="Special request"
           value={specialRequest}
           onChange={(e) => setSpecialRequest(e.target.value)}
           className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm placeholder:text-stone-400 focus:border-teal-500 focus:outline-none"
         />
       </div>
 
-      <div className="mt-auto flex items-center justify-between gap-3 pt-4">
+      <div className="mt-auto flex flex-col gap-2 pt-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
         <div className="flex items-center rounded-lg border border-stone-200">
           <button
             type="button"
@@ -191,7 +193,7 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
           type="button"
           onClick={handleAdd}
           disabled={soldOut}
-          className={`rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+          className={`rounded-lg px-3 py-2 text-xs font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50 sm:px-4 sm:text-sm ${
             added
               ? "bg-emerald-600"
               : soldOut

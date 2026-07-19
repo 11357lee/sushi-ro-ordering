@@ -59,7 +59,9 @@ export async function fetchMenuData(): Promise<MenuData> {
     supabase.from("menu_item_options").select("menu_item_id, menu_option_id"),
   ]);
 
-  const optionMap = new Map((options ?? []).map((o) => [o.id, o]));
+  const optionMap = new Map(
+    (options ?? []).map((o) => [o.id, { ...o, price_modifier: Number(o.price_modifier) }])
+  );
   const sectionMap = new Map((sections ?? []).map((s) => [s.id, s]));
   const categoryMap = new Map((categories ?? []).map((c) => [c.id, c]));
 
@@ -90,7 +92,7 @@ export async function fetchMenuData(): Promise<MenuData> {
       category,
       section,
       labels: labelsByItem.get(item.id) ?? [],
-      options: optionsByItem.get(item.id) ?? [],
+      options: (optionsByItem.get(item.id) ?? []).sort((a, b) => a.sort_order - b.sort_order),
     };
   });
 

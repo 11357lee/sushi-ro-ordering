@@ -16,6 +16,23 @@ import {
 } from "@/lib/utils";
 
 type AdminTab = "orders" | "settings";
+type NotificationSound = "classic" | "high" | "soft" | "double";
+
+const NOTIFICATION_SOUNDS: Record<
+  NotificationSound,
+  { label: string; frequency: number; type: OscillatorType; repeat?: boolean }
+> = {
+  classic: { label: "Classic beep", frequency: 880, type: "square" },
+  high: { label: "High chime", frequency: 1046, type: "triangle" },
+  soft: { label: "Soft bell", frequency: 660, type: "sine" },
+  double: { label: "Double beep", frequency: 780, type: "square", repeat: true },
+};
+
+function initialNotificationSound(key: string, fallback: NotificationSound): NotificationSound {
+  if (typeof window === "undefined") return fallback;
+  const saved = window.localStorage.getItem(key) as NotificationSound | null;
+  return saved && NOTIFICATION_SOUNDS[saved] ? saved : fallback;
+}
 
 function customerTitle(order: Order): string {
   const first = order.customer?.first_name ? toDisplayName(order.customer.first_name) : "Guest";
@@ -132,6 +149,12 @@ export function AdminPageClient() {
   const [now, setNow] = useState(new Date());
   const [loading, setLoading] = useState(false);
   const [settingsMessage, setSettingsMessage] = useState("");
+  const [asapSound, setAsapSound] = useState<NotificationSound>(() =>
+    initialNotificationSound("sushi-ro-admin-asap-sound", "classic")
+  );
+  const [scheduledSound, setScheduledSound] = useState<NotificationSound>(() =>
+    initialNotificationSound("sushi-ro-admin-scheduled-sound", "soft")
+  );
 
   const headers = useCallback(
     () => ({
@@ -175,9 +198,11 @@ export function AdminPageClient() {
   useEffect(() => {
     if (!authenticated) return;
 
-    fetchOrders();
-    fetchSettings();
-    fetchMenu();
+    const loadAdminData = async () => {
+      await Promise.all([fetchOrders(), fetchSettings(), fetchMenu()]);
+    };
+
+    void loadAdminData();
 
     const interval = setInterval(fetchOrders, 5000);
     return () => clearInterval(interval);
@@ -188,24 +213,36 @@ export function AdminPageClient() {
     return () => clearInterval(interval);
   }, []);
 
+  const updateAsapSound = (value: NotificationSound) => {
+    setAsapSound(value);
+    window.localStorage.setItem("sushi-ro-admin-asap-sound", value);
+  };
+
+  const updateScheduledSound = (value: NotificationSound) => {
+    setScheduledSound(value);
+    window.localStorage.setItem("sushi-ro-admin-scheduled-sound", value);
+  };
+
   useEffect(() => {
-    setPickupTimes((prev) => {
-      const next = { ...prev };
-      orders.forEach((order) => {
-        if (!next[order.id]) {
-          next[order.id] = defaultPickupTime(order, waitingMinutes);
-        }
+    queueMicrotask(() => {
+      setPickupTimes((prev) => {
+        const next = { ...prev };
+        orders.forEach((order) => {
+          if (!next[order.id]) {
+            next[order.id] = defaultPickupTime(order, waitingMinutes);
+          }
+        });
+        return next;
       });
-      return next;
-    });
-    setPickupInputs((prev) => {
-      const next = { ...prev };
-      orders.forEach((order) => {
-        if (!next[order.id]) {
-          next[order.id] = String(waitingMinutes);
-        }
+      setPickupInputs((prev) => {
+        const next = { ...prev };
+        orders.forEach((order) => {
+          if (!next[order.id]) {
+            next[order.id] = String(waitingMinutes);
+          }
+        });
+        return next;
       });
-      return next;
     });
   }, [orders, waitingMinutes]);
 
@@ -314,21 +351,28 @@ export function AdminPageClient() {
       if (!audioContextRef.current) audioContextRef.current = new AudioCtx();
       const ctx = audioContextRef.current;
       const hasAsap = pendingOrders.some((order) => order.pickup_type === "asap");
-      const oscillator = ctx.createOscillator();
-      const gain = ctx.createGain();
-      oscillator.frequency.value = hasAsap ? 880 : 520;
-      oscillator.type = hasAsap ? "square" : "sine";
-      gain.gain.value = 0.04;
-      oscillator.connect(gain);
-      gain.connect(ctx.destination);
-      oscillator.start();
-      oscillator.stop(ctx.currentTime + 0.18);
+      const sound = NOTIFICATION_SOUNDS[hasAsap ? asapSound : scheduledSound];
+
+      const startTone = (offset: number) => {
+        const oscillator = ctx.createOscillator();
+        const gain = ctx.createGain();
+        oscillator.frequency.value = sound.frequency;
+        oscillator.type = sound.type;
+        gain.gain.value = 0.045;
+        oscillator.connect(gain);
+        gain.connect(ctx.destination);
+        oscillator.start(ctx.currentTime + offset);
+        oscillator.stop(ctx.currentTime + offset + 0.18);
+      };
+
+      startTone(0);
+      if (sound.repeat) startTone(0.26);
     };
 
     playTone();
     const interval = setInterval(playTone, 5000);
     return () => clearInterval(interval);
-  }, [authenticated, orders, restaurantOpen]);
+  }, [authenticated, orders, restaurantOpen, asapSound, scheduledSound]);
 
   if (!authenticated) {
     return (
@@ -358,7 +402,7 @@ export function AdminPageClient() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6 text-base sm:py-8">
+    <div className="mx-auto max-w-6xl px-4 py-6 text-base sm:py-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-stone-900">Admin</h1>
@@ -418,6 +462,37 @@ export function AdminPageClient() {
             ))}
           </div>
 
+          <div className="mt-4 grid gap-3 rounded-xl border border-stone-200 bg-white p-4 sm:grid-cols-2">
+            <label className="text-sm font-medium text-stone-700">
+              ASAP notification sound
+              <select
+                value={asapSound}
+                onChange={(e) => updateAsapSound(e.target.value as NotificationSound)}
+                className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2 text-base"
+              >
+                {Object.entries(NOTIFICATION_SOUNDS).map(([value, sound]) => (
+                  <option key={value} value={value}>
+                    {sound.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-sm font-medium text-stone-700">
+              Later notification sound
+              <select
+                value={scheduledSound}
+                onChange={(e) => updateScheduledSound(e.target.value as NotificationSound)}
+                className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2 text-base"
+              >
+                {Object.entries(NOTIFICATION_SOUNDS).map(([value, sound]) => (
+                  <option key={value} value={value}>
+                    {sound.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
           <div className="mt-8 space-y-4">
             {orders.length === 0 ? (
               <p className="text-stone-500">No orders on screen.</p>
@@ -432,26 +507,26 @@ export function AdminPageClient() {
                     <button
                       type="button"
                       onClick={() => setExpandedId(expanded ? null : order.id)}
-                      className="w-full space-y-4 text-left"
+                      className="grid w-full gap-4 text-left md:grid-cols-[1.35fr_1fr_0.8fr]"
                     >
                       <div>
-                        <p className="text-xl font-bold text-stone-900">
+                        <p className="text-2xl font-bold text-stone-900">
                           {customerTitle(order)}
                           {countdown && (
-                            <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                            <span className="ml-2 rounded-full bg-amber-100 px-2.5 py-1 text-sm font-semibold text-amber-800">
                               {countdown}
                             </span>
                           )}
                         </p>
-                        <p className="text-base text-stone-500">{formatOrderDate(order.created_at)}</p>
-                        <p className="mt-1 text-sm text-stone-600">
+                        <p className="text-lg text-stone-500">{formatOrderDate(order.created_at)}</p>
+                        <p className="mt-1 text-base text-stone-600">
                           {order.customer?.phone ? formatPhoneDisplay(order.customer.phone) : ""} ·{" "}
                           <span className="capitalize">{order.status}</span>
                         </p>
                         {order.pickup_type === "asap" ? (
-                          <p className="text-sm text-amber-700">ASAP pickup</p>
+                          <p className="text-base font-semibold text-amber-700">ASAP pickup</p>
                         ) : (
-                          <p className="text-sm">
+                          <p className="text-base font-semibold text-stone-700">
                             Scheduled: {formatPickupTime(order.pickup_time)}
                           </p>
                         )}
@@ -466,8 +541,8 @@ export function AdminPageClient() {
                         <p className="text-xs font-semibold uppercase tracking-wide text-stone-400">
                           Total
                         </p>
-                        <p className="text-xl font-bold">{formatPrice(order.total ?? order.subtotal)}</p>
-                        <p className="text-sm text-stone-500">
+                        <p className="text-2xl font-bold">{formatPrice(order.total ?? order.subtotal)}</p>
+                        <p className="text-base text-stone-500">
                           Subtotal {formatPrice(order.subtotal)} · Tax {formatPrice(order.tax ?? 0)}
                         </p>
                       </div>
@@ -484,6 +559,7 @@ export function AdminPageClient() {
 
                     {order.status === "pending" && (
                       <div className="mt-4 space-y-3 border-t border-stone-100 pt-4">
+                        {order.pickup_type === "asap" && (
                         <div>
                           <label className="block text-sm font-medium text-stone-700">
                             Preparation time
@@ -529,6 +605,12 @@ export function AdminPageClient() {
                             className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2 text-sm"
                           />
                         </div>
+                        )}
+                        {order.pickup_type === "scheduled" && (
+                          <p className="rounded-lg bg-stone-50 px-3 py-2 text-base font-medium text-stone-700">
+                            Scheduled pickup: {formatPickupTime(order.pickup_time)}
+                          </p>
+                        )}
                         <div>
                           <label className="block text-sm font-medium text-stone-700">
                             Reject reason
@@ -565,10 +647,13 @@ export function AdminPageClient() {
                               updateOrder(
                                 order.id,
                                 "accepted",
-                                pickupTimes[order.id] ?? pickupIsoFromPrepMinutes(pickupInputs[order.id] ?? String(waitingMinutes))
+                                order.pickup_type === "scheduled"
+                                  ? order.pickup_time ?? undefined
+                                  : pickupTimes[order.id] ??
+                                    pickupIsoFromPrepMinutes(pickupInputs[order.id] ?? String(waitingMinutes))
                               )
                             }
-                            className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                            className="rounded-lg bg-emerald-600 px-5 py-2.5 text-base font-semibold text-white hover:bg-emerald-700"
                           >
                             Accept
                           </button>
@@ -584,7 +669,7 @@ export function AdminPageClient() {
                                   : reasonInputs[order.id] ?? "Out of items"
                               )
                             }
-                            className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+                            className="rounded-lg bg-red-600 px-5 py-2.5 text-base font-semibold text-white hover:bg-red-700"
                           >
                             Reject
                           </button>

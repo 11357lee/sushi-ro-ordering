@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { TAX_RATE } from "@/lib/constants";
+import { ORDERING_DISABLED_START, TAX_RATE } from "@/lib/constants";
 import { toggleCondimentExtra, useCartStore } from "@/lib/cart-store";
 import {
   calcLineTotal,
@@ -43,7 +43,8 @@ export function CartPageClient() {
         const paused = isPauseActive(settings?.pause_until);
         const disabledNow = Boolean(data.orderingDisabled);
         const nextSlots = generateBusinessPickupSlots({
-          closingTime: settings?.closing_time ?? "21:00:00",
+          closingTime: ORDERING_DISABLED_START,
+          days: 1,
         });
         setPickupSlots(nextSlots);
         setOrderingDisabled(disabledNow);
@@ -57,6 +58,8 @@ export function CartPageClient() {
         );
         if ((!openNow || paused) && pickupType === "asap" && nextSlots[0]) {
           setPickup("scheduled", nextSlots[0].value);
+        } else if (pickupType === "scheduled" && !nextSlots.length) {
+          setPickup("asap", null);
         }
       });
   }, [pickupType, setPickup]);
@@ -187,7 +190,7 @@ export function CartPageClient() {
             onClick={() =>
               setPickup("scheduled", pickupTime ?? pickupSlots[0]?.value ?? null)
             }
-            disabled={orderingDisabled}
+            disabled={orderingDisabled || pickupSlots.length === 0}
             className={`rounded-lg px-4 py-2 text-sm font-medium ${
               pickupType === "scheduled"
                 ? "bg-stone-900 text-white"
@@ -198,6 +201,11 @@ export function CartPageClient() {
           </button>
         </div>
         {pickupNotice && <p className="mt-2 text-sm text-amber-700">{pickupNotice}</p>}
+        {!orderingDisabled && pickupSlots.length === 0 && (
+          <p className="mt-2 text-sm text-amber-700">
+            Later pickup is not available for the rest of today.
+          </p>
+        )}
         {pickupType === "scheduled" && (
           <select
             value={pickupTime ?? ""}

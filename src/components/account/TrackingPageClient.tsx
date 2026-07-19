@@ -1,7 +1,9 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useCustomerStore } from "@/lib/customer-store";
+import { useCartStore } from "@/lib/cart-store";
 import type { Order } from "@/types";
 import {
   canCustomerCancelOrder,
@@ -9,6 +11,7 @@ import {
   formatOrderDate,
   formatPickupTime,
   formatPrice,
+  orderItemsToCartItems,
   toDisplayName,
 } from "@/lib/utils";
 
@@ -22,7 +25,10 @@ function timeLeft(pickupTime: string | null): string | null {
 }
 
 export function TrackingPageClient() {
+  const router = useRouter();
   const customer = useCustomerStore((s) => s.customer);
+  const clearCart = useCartStore((s) => s.clearCart);
+  const addItems = useCartStore((s) => s.addItems);
   const [phone, setPhone] = useState("");
   const [orders, setOrders] = useState<Order[]>([]);
   const [waitingMinutes, setWaitingMinutes] = useState(15);
@@ -40,12 +46,20 @@ export function TrackingPageClient() {
 
   useEffect(() => {
     if (!customer?.id) return;
-    setLoading(true);
-    setSearched(true);
-    fetch(`/api/customers/orders?customerId=${encodeURIComponent(customer.id)}`)
-      .then((r) => r.json())
-      .then((data) => setOrders(data.orders ?? []))
-      .finally(() => setLoading(false));
+
+    const loadCustomerOrders = async () => {
+      setLoading(true);
+      setSearched(true);
+      try {
+        const res = await fetch(`/api/customers/orders?customerId=${encodeURIComponent(customer.id)}`);
+        const data = await res.json();
+        setOrders(data.orders ?? []);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void loadCustomerOrders();
   }, [customer?.id]);
 
   const handleSearch = async (e: React.FormEvent) => {
@@ -81,13 +95,21 @@ export function TrackingPageClient() {
     }
   };
 
+  const handleReorder = (order: Order) => {
+    const items = orderItemsToCartItems(order.order_items);
+    if (!items.length) return;
+    clearCart();
+    addItems(items);
+    router.push("/cart");
+  };
+
   return (
     <div className="mx-auto max-w-lg px-4 py-8 sm:py-12">
       <h1 className="text-2xl font-bold text-stone-900">Track your order</h1>
       <p className="mt-2 text-sm text-stone-600 sm:text-base">
         {customer
           ? "You are logged in, so your recent orders are shown below."
-          : "Enter your phone number to see today&apos;s orders."}
+          : "Enter your phone number to see today's orders."}
       </p>
 
       {!customer && (
@@ -181,6 +203,14 @@ export function TrackingPageClient() {
                       </li>
                     ))}
                   </ul>
+                  <button
+                    type="button"
+                    onClick={() => handleReorder(order)}
+                    className="mt-4 w-full rounded-lg bg-stone-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-stone-800 disabled:opacity-50"
+                    disabled={!order.order_items?.length}
+                  >
+                    Reorder
+                  </button>
                 </div>
               )}
             </div>

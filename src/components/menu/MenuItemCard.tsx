@@ -12,10 +12,31 @@ interface MenuItemCardProps {
   soldOut?: boolean;
 }
 
+const BENTO_MEAT_NAMES = new Set([
+  "Chicken Teriyaki",
+  "Beef Teriyaki",
+  "Salmon Teriyaki",
+  "Shrimp Teriyaki",
+  "Chicken cutlet with spicy sauce",
+  "Pork cutlet with spicy sauce",
+  "Fish Cutlet with spicy sauce",
+  "Unagi",
+  "Grilled Mackerel",
+]);
+
+const BENTO_SIDE_NAMES = new Set([
+  "Maki (3 California and 3 BBQ Salmon)",
+  "Tempura (3 vegetables and 1 Shrimp)",
+  "Vegetable Gyoza",
+  "Vegetable Spring Roll",
+]);
+
 export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
   const addItem = useCartStore((s) => s.addItem);
   const [quantity, setQuantity] = useState(1);
   const [selectedOptions, setSelectedOptions] = useState<SelectedOption[]>([]);
+  const [selectedRequiredOption, setSelectedRequiredOption] = useState<SelectedOption | null>(null);
+  const [selectedBentoMeat, setSelectedBentoMeat] = useState<SelectedOption | null>(null);
   const [selectedBentoSide, setSelectedBentoSide] = useState<SelectedOption | null>(null);
   const [specialRequest, setSpecialRequest] = useState("");
   const [added, setAdded] = useState(false);
@@ -24,13 +45,28 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
   const isGlutenFree = item.section?.slug === "gluten-free";
   const isBento =
     item.category?.slug.includes("bento") || item.category?.name.toLowerCase().includes("bento");
+  const isVeggieBento = item.name.toLowerCase().includes("veggie bento");
+  const isNigiriSashimi = item.category?.slug.includes("nigiri-sashimi");
   const accentColor = isGlutenFree ? "#7e22ce" : item.section?.accent_color ?? "#1a1a1a";
-  const bentoSides: SelectedOption[] = [
+  const fallbackBentoSides: SelectedOption[] = [
     { id: "bento-side-maki", name: "Maki (3 California and 3 BBQ Salmon)", price_modifier: 0 },
-    { id: "bento-side-tempura", name: "Tempura (3 Vegetable and 1 Shrimp)", price_modifier: 0 },
-    { id: "bento-side-veggie-gyoza", name: "Veggie Gyoza", price_modifier: 0 },
+    { id: "bento-side-tempura", name: "Tempura (3 vegetables and 1 Shrimp)", price_modifier: 0 },
+    { id: "bento-side-veggie-gyoza", name: "Vegetable Gyoza", price_modifier: 0 },
     { id: "bento-side-spring-roll", name: "Vegetable Spring Roll", price_modifier: 0 },
   ];
+  const optionChoices = item.options ?? [];
+  const bentoMeats = optionChoices.filter((option) => BENTO_MEAT_NAMES.has(option.name));
+  const bentoSidesFromOptions = optionChoices.filter((option) => BENTO_SIDE_NAMES.has(option.name));
+  const bentoSides = bentoSidesFromOptions.length > 0 ? bentoSidesFromOptions : fallbackBentoSides;
+  const isBentoBuilder =
+    isBento && !isVeggieBento && (item.name.toLowerCase() === "bento box" || bentoMeats.length > 0);
+  const nigiriSashimiOptions = isNigiriSashimi ? optionChoices : [];
+  const optionalOptions = optionChoices.filter(
+    (option) =>
+      !BENTO_MEAT_NAMES.has(option.name) &&
+      !BENTO_SIDE_NAMES.has(option.name) &&
+      !(isNigiriSashimi && ["2 pcs Nigiri", "3 pcs Sashimi"].includes(option.name))
+  );
 
   const toggleOption = (option: SelectedOption) => {
     setSelectedOptions((prev) => {
@@ -42,13 +78,24 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
 
   const handleAdd = () => {
     if (soldOut) return;
-    if (isBento && !selectedBentoSide) {
+    if (isBentoBuilder && !selectedBentoMeat) {
+      setOptionError("Please choose one bento meat.");
+      return;
+    }
+    if ((isBentoBuilder || (isBento && !isVeggieBento)) && !selectedBentoSide) {
       setOptionError("Please choose one bento side.");
       return;
     }
-    const finalOptions = selectedBentoSide
-      ? [...selectedOptions.filter((option) => !option.id.startsWith("bento-side-")), selectedBentoSide]
-      : selectedOptions;
+    if (isNigiriSashimi && nigiriSashimiOptions.length > 0 && !selectedRequiredOption) {
+      setOptionError("Please choose nigiri or sashimi.");
+      return;
+    }
+    const finalOptions = [
+      ...selectedOptions,
+      ...(selectedRequiredOption ? [selectedRequiredOption] : []),
+      ...(selectedBentoMeat ? [selectedBentoMeat] : []),
+      ...(selectedBentoSide ? [selectedBentoSide] : []),
+    ];
     addItem(
       buildCartItemFromMenu(
         item.id,
@@ -67,8 +114,24 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
     setTimeout(() => setAdded(false), 1500);
   };
 
-  const optionTotal = selectedOptions.reduce((s, o) => s + o.price_modifier, 0);
+  const selectedChoiceOptions = [
+    ...selectedOptions,
+    ...(selectedRequiredOption ? [selectedRequiredOption] : []),
+    ...(selectedBentoMeat ? [selectedBentoMeat] : []),
+    ...(selectedBentoSide ? [selectedBentoSide] : []),
+  ];
+  const optionTotal = selectedChoiceOptions.reduce((s, o) => s + o.price_modifier, 0);
   const lineTotal = (item.price + optionTotal) * quantity;
+  const displayPrice =
+    isBentoBuilder && bentoMeats.length > 0
+      ? `From ${formatPrice(Math.min(...bentoMeats.map((option) => option.price_modifier)))}`
+      : formatPrice(item.price);
+  const addButtonLabel =
+    isBentoBuilder && !selectedBentoMeat
+      ? "Choose meat"
+      : isNigiriSashimi && nigiriSashimiOptions.length > 0 && !selectedRequiredOption
+        ? "Choose option"
+        : `Add · ${formatPrice(lineTotal)}`;
 
   return (
     <article
@@ -92,7 +155,7 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
           )}
         </div>
         <span className="shrink-0 text-sm font-semibold text-stone-900 sm:text-base">
-          {formatPrice(item.price)}
+          {displayPrice}
         </span>
       </div>
 
@@ -113,10 +176,10 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
         </div>
       )}
 
-      {item.has_roll_options && item.options && item.options.length > 0 && (
+      {optionalOptions.length > 0 && (
         <div className="mt-3 space-y-1.5">
           <p className="text-xs font-medium text-stone-500">Options</p>
-          {item.options.map((opt) => (
+          {optionalOptions.map((opt) => (
             <label key={opt.id} className="flex cursor-pointer items-center gap-2 text-sm">
               <input
                 type="checkbox"
@@ -138,7 +201,53 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
         </div>
       )}
 
-      {isBento && (
+      {isNigiriSashimi && nigiriSashimiOptions.length > 0 && (
+        <div className="mt-3 space-y-1.5 rounded-xl border border-stone-200 bg-stone-50 p-3">
+          <p className="text-xs font-semibold text-stone-900">Choose one *</p>
+          {nigiriSashimiOptions.map((option) => (
+            <label key={option.id} className="flex cursor-pointer items-center gap-2 text-sm">
+              <input
+                type="radio"
+                name={`nigiri-sashimi-${item.id}`}
+                checked={selectedRequiredOption?.id === option.id}
+                onChange={() => {
+                  setSelectedRequiredOption(option);
+                  setOptionError("");
+                }}
+                className="border-stone-300 text-teal-600 focus:ring-teal-500"
+              />
+              <span>
+                {option.name} - {formatPrice(item.price + option.price_modifier)}
+              </span>
+            </label>
+          ))}
+        </div>
+      )}
+
+      {isBentoBuilder && (
+        <div className="mt-3 space-y-1.5 rounded-xl border border-amber-200 bg-amber-50 p-3">
+          <p className="text-xs font-semibold text-amber-900">Choose one meat *</p>
+          {bentoMeats.map((meat) => (
+            <label key={meat.id} className="flex cursor-pointer items-center gap-2 text-sm">
+              <input
+                type="radio"
+                name={`bento-meat-${item.id}`}
+                checked={selectedBentoMeat?.id === meat.id}
+                onChange={() => {
+                  setSelectedBentoMeat(meat);
+                  setOptionError("");
+                }}
+                className="border-stone-300 text-amber-600 focus:ring-amber-500"
+              />
+              <span>
+                {meat.name} ({formatPrice(meat.price_modifier)})
+              </span>
+            </label>
+          ))}
+        </div>
+      )}
+
+      {(isBentoBuilder || (isBento && !isVeggieBento)) && (
         <div className="mt-3 space-y-1.5 rounded-xl border border-amber-200 bg-amber-50 p-3">
           <p className="text-xs font-semibold text-amber-900">Choose one side *</p>
           {bentoSides.map((side) => (
@@ -203,7 +312,7 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
                   : "bg-stone-900 hover:bg-stone-800"
           }`}
         >
-          {soldOut ? "Sold out" : added ? "Added!" : `Add · ${formatPrice(lineTotal)}`}
+          {soldOut ? "Sold out" : added ? "Added!" : addButtonLabel}
         </button>
       </div>
     </article>

@@ -13,8 +13,6 @@ export function WaitingPageClient({ orderId }: WaitingPageClientProps) {
   const [order, setOrder] = useState<Order | null>(null);
 
   useEffect(() => {
-    let interval: ReturnType<typeof setInterval>;
-
     const poll = async () => {
       const res = await fetch(`/api/orders/${orderId}`);
       const data = await res.json();
@@ -29,7 +27,7 @@ export function WaitingPageClient({ orderId }: WaitingPageClientProps) {
     };
 
     poll();
-    interval = setInterval(poll, 3000);
+    const interval = setInterval(poll, 3000);
 
     return () => clearInterval(interval);
   }, [orderId, router]);

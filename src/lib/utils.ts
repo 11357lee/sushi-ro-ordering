@@ -8,7 +8,6 @@ import {
   setHours,
   setMinutes,
   setSeconds,
-  startOfDay,
 } from "date-fns";
 import type { CartItem, Order, RestaurantSettings, SelectedOption } from "@/types";
 import {

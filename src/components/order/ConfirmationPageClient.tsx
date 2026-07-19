@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { Order } from "@/types";
 import { formatPickupTime } from "@/lib/utils";
@@ -17,7 +16,6 @@ export function ConfirmationPageClient({
   initialOrder,
   waitingMinutes,
 }: ConfirmationPageClientProps) {
-  const router = useRouter();
   const [order, setOrder] = useState<Order | null>(initialOrder);
   const [cancelCountdown, setCancelCountdown] = useState<number | null>(null);
   const [cancelling, setCancelling] = useState(false);

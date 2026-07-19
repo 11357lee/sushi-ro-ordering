@@ -15,6 +15,24 @@ interface MenuPageClientProps {
   waitingTime: WaitingTime;
 }
 
+const SINGLE_COLUMN_CATEGORY_SLUGS = new Set([
+  "moriawase-tray",
+  "moriawase",
+  "tray",
+  "ramen",
+  "sushi-pizza",
+  "fusion-roll",
+  "bento-box",
+  "gf-moriawase",
+  "gf-fusion-roll",
+]);
+
+function itemGridClass(categorySlug?: string | null): string {
+  return SINGLE_COLUMN_CATEGORY_SLUGS.has(categorySlug ?? "")
+    ? "grid grid-cols-1 gap-3 sm:gap-4"
+    : "grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3";
+}
+
 export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientProps) {
   const [activeSection, setActiveSection] = useState("menu");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
@@ -121,7 +139,7 @@ export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientPr
                   {category.description || CATEGORY_DESCRIPTION_FALLBACKS[category.slug]}
                 </p>
               )}
-              <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
+              <div className={itemGridClass(category.slug)}>
                 {items.map((item) => (
                   <MenuItemCard
                     key={item.id}
@@ -148,7 +166,7 @@ export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientPr
                 )}
               </section>
             )}
-            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
+            <div className={itemGridClass(activeCategoryDetails?.slug)}>
               {filteredItems.map((item) => (
                 <MenuItemCard
                   key={item.id}

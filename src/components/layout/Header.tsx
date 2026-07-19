@@ -17,7 +17,7 @@ export function Header() {
   const clearCustomer = useCustomerStore((s) => s.clearCustomer);
 
   useEffect(() => {
-    setMounted(true);
+    queueMicrotask(() => setMounted(true));
   }, []);
 
   const logout = () => {

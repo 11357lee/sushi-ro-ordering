@@ -179,7 +179,7 @@ export async function PATCH(request: Request) {
       const prepMinutes = Math.round(
         (new Date(finalPickupTime).getTime() - confirmedAt.getTime()) / 60000
       );
-      if (existingOrder?.pickup_type === "asap" && prepMinutes > 60) {
+      if (existingOrder?.pickup_type === "asap" && prepMinutes >= 60) {
         updates.cancel_window_expires_at = addMinutes(confirmedAt, 2).toISOString();
       } else {
         updates.cancel_window_expires_at = null;

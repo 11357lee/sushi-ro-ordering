@@ -148,7 +148,9 @@ export function AdminPageClient() {
   const [reasonInputs, setReasonInputs] = useState<Record<string, string>>({});
   const [customReasonInputs, setCustomReasonInputs] = useState<Record<string, string>>({});
   const audioContextRef = useRef<AudioContext | null>(null);
-  const [soundEnabled, setSoundEnabled] = useState(false);
+  const cancellationAlertedIdsRef = useRef<Set<string>>(new Set());
+  const cancellationAlertsReadyRef = useRef(false);
+  const [soundEnabled, setSoundEnabled] = useState(true);
   const [expandedSoldOutCategory, setExpandedSoldOutCategory] = useState<string | null>(null);
   const [now, setNow] = useState(new Date());
   const [loading, setLoading] = useState(false);
@@ -383,20 +385,39 @@ export function AdminPageClient() {
   const withinBusinessHours = isWithinBusinessHours();
 
   useEffect(() => {
-    if (!authenticated || !soundEnabled) return;
+    if (!authenticated) {
+      cancellationAlertsReadyRef.current = false;
+      return;
+    }
+
     const customerCancelledOrders = orders.filter(
-      (order) => order.status === "cancelled" && order.status_reason === CUSTOMER_CANCELLED_REASON
+      (order) =>
+        order.status === "cancelled" &&
+        order.status_reason === CUSTOMER_CANCELLED_REASON
     );
+    const customerCancelledIds = customerCancelledOrders.map((order) => order.id);
+
+    if (!cancellationAlertsReadyRef.current) {
+      customerCancelledIds.forEach((id) => cancellationAlertedIdsRef.current.add(id));
+      cancellationAlertsReadyRef.current = true;
+    } else {
+      const newCustomerCancelledIds = customerCancelledIds.filter(
+        (id) => !cancellationAlertedIdsRef.current.has(id)
+      );
+      if (newCustomerCancelledIds.length > 0) {
+        newCustomerCancelledIds.forEach((id) => cancellationAlertedIdsRef.current.add(id));
+        if (soundEnabled) playNotificationSound("customer-cancelled");
+      }
+    }
+
+    if (!soundEnabled) return;
+
     const pendingOrders = restaurantOpen
       ? orders.filter((order) => order.status === "pending")
       : [];
-    if (!pendingOrders.length && !customerCancelledOrders.length) return;
+    if (!pendingOrders.length) return;
 
     const playTone = () => {
-      if (customerCancelledOrders.length > 0) {
-        playNotificationSound("customer-cancelled");
-        return;
-      }
       const hasAsap = pendingOrders.some((order) => order.pickup_type === "asap");
       playNotificationSound(hasAsap ? "asap" : "scheduled");
     };
@@ -506,8 +527,10 @@ export function AdminPageClient() {
             ) : (
               orders.map((order) => {
                 const expanded = expandedId === order.id;
+                const cancelled = order.status === "cancelled";
+                const rejected = order.status === "rejected";
                 const customerCancelled =
-                  order.status === "cancelled" && order.status_reason === CUSTOMER_CANCELLED_REASON;
+                  cancelled && order.status_reason === CUSTOMER_CANCELLED_REASON;
                 const countdown =
                   order.status === "accepted"
                     ? formatCountdown(order.pickup_time ?? null, now)
@@ -517,7 +540,7 @@ export function AdminPageClient() {
                   <div
                     key={order.id}
                     className={`rounded-2xl border-2 bg-white p-4 shadow-sm sm:p-5 ${
-                      customerCancelled
+                      cancelled || rejected
                         ? "border-red-500 ring-2 ring-red-100"
                         : order.status === "pending"
                           ? "border-amber-300"
@@ -552,7 +575,7 @@ export function AdminPageClient() {
                         {order.pickup_type === "asap" ? (
                           <p className="text-lg font-bold text-amber-700">ASAP pickup</p>
                         ) : (
-                          <p className="text-lg font-bold text-stone-700">
+                          <p className="text-lg font-bold text-sky-700">
                             Scheduled: {formatPickupTime(order.pickup_time)}
                           </p>
                         )}
@@ -766,8 +789,8 @@ export function AdminPageClient() {
           <section>
             <h2 className="text-lg font-semibold text-stone-900">Notification sounds</h2>
             <p className="mt-1 text-sm text-stone-600">
-              Choose separate tones for ASAP and later orders. On iPad, tap Enable sound once after
-              opening the admin page.
+              Sounds are on by default. Some browsers and iPads still require one tap after opening
+              the admin page, so use the test button if you do not hear alerts.
             </p>
             <div className="mt-4 grid gap-3 rounded-xl border border-stone-200 bg-white p-4 sm:grid-cols-2">
               <label className="text-sm font-medium text-stone-700">
@@ -804,7 +827,7 @@ export function AdminPageClient() {
                   onClick={enableSound}
                   className="rounded-lg bg-stone-900 px-4 py-2 text-sm font-semibold text-white hover:bg-stone-800"
                 >
-                  {soundEnabled ? "Sound enabled" : "Enable sound"}
+                  Test / unlock sound
                 </button>
                 <button
                   type="button"

@@ -27,9 +27,14 @@ export async function POST(
     if (!canCustomerCancelOrder(order, waitingMinutes)) {
       return NextResponse.json({ error: "Order cannot be cancelled" }, { status: 400 });
     }
+    const immediatePrepCancel =
+      order.cancel_window_expires_at &&
+      new Date(order.cancel_window_expires_at).getTime() > Date.now();
     const updated = updateDemoOrder(id, {
       status: "cancelled",
-      status_reason: "Customer cancelled online",
+      status_reason: immediatePrepCancel
+        ? "Customer cancelled online"
+        : "Customer cancellation",
     });
     return NextResponse.json({ order: updated });
   }
@@ -49,9 +54,17 @@ export async function POST(
     return NextResponse.json({ error: "Order cannot be cancelled" }, { status: 400 });
   }
 
+  const immediatePrepCancel =
+    order.cancel_window_expires_at &&
+    new Date(order.cancel_window_expires_at).getTime() > Date.now();
   const { data: updated, error } = await supabase
     .from("orders")
-    .update({ status: "cancelled", status_reason: "Customer cancelled online" })
+    .update({
+      status: "cancelled",
+      status_reason: immediatePrepCancel
+        ? "Customer cancelled online"
+        : "Customer cancellation",
+    })
     .eq("id", id)
     .select()
     .single();

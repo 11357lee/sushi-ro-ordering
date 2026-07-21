@@ -89,7 +89,7 @@ export function updateDemoOrderStatus(
     const prepMinutes = pickupTime
       ? Math.round((new Date(pickupTime).getTime() - Date.now()) / 60000)
       : getDemoWaitingTimeMinutes();
-    if (existing?.pickup_type === "asap" && prepMinutes > 60) {
+    if (existing?.pickup_type === "asap" && prepMinutes >= 60) {
       updates.cancel_window_expires_at = new Date(Date.now() + 120_000).toISOString();
     } else {
       updates.cancel_window_expires_at = null;

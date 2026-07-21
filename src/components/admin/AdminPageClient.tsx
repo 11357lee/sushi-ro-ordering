@@ -16,18 +16,20 @@ import {
 } from "@/lib/utils";
 
 type AdminTab = "orders" | "settings";
-type NotificationSound = "classic" | "high" | "soft" | "double";
+type NotificationSound = "classic" | "high" | "soft" | "double" | "order";
 
 const NOTIFICATION_SOUNDS: Record<
   NotificationSound,
-  { label: string; frequency: number; type: OscillatorType; repeat?: boolean }
+  { label: string; frequencies: number[]; type: OscillatorType }
 > = {
-  classic: { label: "Classic beep", frequency: 880, type: "square" },
-  high: { label: "High chime", frequency: 1046, type: "triangle" },
-  soft: { label: "Soft bell", frequency: 660, type: "sine" },
-  double: { label: "Double beep", frequency: 780, type: "square", repeat: true },
+  classic: { label: "Classic beep", frequencies: [880], type: "square" },
+  high: { label: "High chime", frequencies: [1046, 1318], type: "triangle" },
+  soft: { label: "Soft bell", frequencies: [660, 880], type: "sine" },
+  double: { label: "Double beep", frequencies: [780, 780], type: "square" },
+  order: { label: "Order chime", frequencies: [659, 784, 988, 784], type: "triangle" },
 };
-const PREP_MINUTE_OPTIONS = ["10", "15", "20", "25", "30", "40", "45", "50", "60", "70", "80", "90", "100", "120"];
+const CUSTOMER_CANCELLED_REASON = "Customer cancelled online";
+const PREP_MINUTE_OPTIONS = ["10", "15", "20", "25", "30", "35", "40", "45", "50", "60", "70", "80", "90", "100", "120"];
 
 function initialNotificationSound(key: string, fallback: NotificationSound): NotificationSound {
   if (typeof window === "undefined") return fallback;
@@ -152,7 +154,7 @@ export function AdminPageClient() {
   const [loading, setLoading] = useState(false);
   const [settingsMessage, setSettingsMessage] = useState("");
   const [asapSound, setAsapSound] = useState<NotificationSound>(() =>
-    initialNotificationSound("sushi-ro-admin-asap-sound", "classic")
+    initialNotificationSound("sushi-ro-admin-asap-sound", "order")
   );
   const [scheduledSound, setScheduledSound] = useState<NotificationSound>(() =>
     initialNotificationSound("sushi-ro-admin-scheduled-sound", "soft")
@@ -226,7 +228,7 @@ export function AdminPageClient() {
   };
 
   const playNotificationSound = useCallback(
-    (kind: "asap" | "scheduled") => {
+    (kind: "asap" | "scheduled" | "customer-cancelled") => {
       const AudioCtx =
         window.AudioContext ||
         (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
@@ -234,22 +236,26 @@ export function AdminPageClient() {
       if (!audioContextRef.current) audioContextRef.current = new AudioCtx();
       const ctx = audioContextRef.current;
       void ctx.resume();
-      const sound = NOTIFICATION_SOUNDS[kind === "asap" ? asapSound : scheduledSound];
+      const sound =
+        kind === "customer-cancelled"
+          ? { frequencies: [988, 740, 554], type: "sawtooth" as OscillatorType }
+          : NOTIFICATION_SOUNDS[kind === "asap" ? asapSound : scheduledSound];
 
-      const startTone = (offset: number) => {
+      const startTone = (frequency: number, offset: number) => {
         const oscillator = ctx.createOscillator();
         const gain = ctx.createGain();
-        oscillator.frequency.value = sound.frequency;
+        oscillator.frequency.value = frequency;
         oscillator.type = sound.type;
-        gain.gain.value = 0.045;
+        gain.gain.setValueAtTime(0.0001, ctx.currentTime + offset);
+        gain.gain.exponentialRampToValueAtTime(0.06, ctx.currentTime + offset + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + offset + 0.22);
         oscillator.connect(gain);
         gain.connect(ctx.destination);
         oscillator.start(ctx.currentTime + offset);
-        oscillator.stop(ctx.currentTime + offset + 0.18);
+        oscillator.stop(ctx.currentTime + offset + 0.24);
       };
 
-      startTone(0);
-      if (sound.repeat) startTone(0.26);
+      sound.frequencies.forEach((frequency, index) => startTone(frequency, index * 0.16));
     },
     [asapSound, scheduledSound]
   );
@@ -377,11 +383,20 @@ export function AdminPageClient() {
   const withinBusinessHours = isWithinBusinessHours();
 
   useEffect(() => {
-    if (!authenticated || !restaurantOpen || !soundEnabled) return;
-    const pendingOrders = orders.filter((order) => order.status === "pending");
-    if (!pendingOrders.length) return;
+    if (!authenticated || !soundEnabled) return;
+    const customerCancelledOrders = orders.filter(
+      (order) => order.status === "cancelled" && order.status_reason === CUSTOMER_CANCELLED_REASON
+    );
+    const pendingOrders = restaurantOpen
+      ? orders.filter((order) => order.status === "pending")
+      : [];
+    if (!pendingOrders.length && !customerCancelledOrders.length) return;
 
     const playTone = () => {
+      if (customerCancelledOrders.length > 0) {
+        playNotificationSound("customer-cancelled");
+        return;
+      }
       const hasAsap = pendingOrders.some((order) => order.pickup_type === "asap");
       playNotificationSound(hasAsap ? "asap" : "scheduled");
     };
@@ -491,13 +506,24 @@ export function AdminPageClient() {
             ) : (
               orders.map((order) => {
                 const expanded = expandedId === order.id;
+                const customerCancelled =
+                  order.status === "cancelled" && order.status_reason === CUSTOMER_CANCELLED_REASON;
                 const countdown =
-                  order.status === "cancelled" || order.status === "rejected"
-                    ? null
-                    : formatCountdown(order.pickup_time ?? pickupTimes[order.id] ?? null, now);
+                  order.status === "accepted"
+                    ? formatCountdown(order.pickup_time ?? null, now)
+                    : null;
 
                 return (
-                  <div key={order.id} className="rounded-xl border border-stone-200 bg-white p-4 sm:p-5">
+                  <div
+                    key={order.id}
+                    className={`rounded-2xl border-2 bg-white p-4 shadow-sm sm:p-5 ${
+                      customerCancelled
+                        ? "border-red-500 ring-2 ring-red-100"
+                        : order.status === "pending"
+                          ? "border-amber-300"
+                          : "border-stone-200"
+                    }`}
+                  >
                     <SpecialNotes order={order} />
                     <div className="grid w-full gap-4 text-left md:grid-cols-[1.35fr_1fr_0.8fr]">
                       <button
@@ -505,23 +531,28 @@ export function AdminPageClient() {
                         onClick={() => setExpandedId(expanded ? null : order.id)}
                         className="text-left"
                       >
-                        <p className="text-2xl font-bold text-stone-900">
+                        {customerCancelled && (
+                          <p className="mb-2 rounded-lg bg-red-50 px-3 py-2 text-base font-bold text-red-700">
+                            Customer cancelled online
+                          </p>
+                        )}
+                        <p className="text-3xl font-extrabold tracking-tight text-stone-950">
                           {customerTitle(order)}
                           {countdown && (
-                            <span className="ml-2 rounded-full bg-amber-100 px-2.5 py-1 text-sm font-semibold text-amber-800">
+                            <span className="ml-2 rounded-full bg-amber-100 px-3 py-1 text-base font-bold text-amber-800">
                               {countdown}
                             </span>
                           )}
                         </p>
-                        <p className="text-lg text-stone-500">{formatOrderDate(order.created_at)}</p>
-                        <p className="mt-1 text-base text-stone-600">
+                        <p className="text-lg font-semibold text-stone-600">{formatOrderDate(order.created_at)}</p>
+                        <p className="mt-1 text-lg font-semibold text-stone-700">
                           {order.customer?.phone ? formatPhoneDisplay(order.customer.phone) : ""} ·{" "}
                           <span className="capitalize">{order.status}</span>
                         </p>
                         {order.pickup_type === "asap" ? (
-                          <p className="text-base font-semibold text-amber-700">ASAP pickup</p>
+                          <p className="text-lg font-bold text-amber-700">ASAP pickup</p>
                         ) : (
-                          <p className="text-base font-semibold text-stone-700">
+                          <p className="text-lg font-bold text-stone-700">
                             Scheduled: {formatPickupTime(order.pickup_time)}
                           </p>
                         )}
@@ -540,8 +571,10 @@ export function AdminPageClient() {
                         <p className="text-xs font-semibold uppercase tracking-wide text-stone-400">
                           Total
                         </p>
-                        <p className="text-2xl font-bold">{formatPrice(order.total ?? order.subtotal)}</p>
-                        <p className="text-base text-stone-500">
+                        <p className="text-3xl font-extrabold text-stone-950">
+                          {formatPrice(order.total ?? order.subtotal)}
+                        </p>
+                        <p className="text-base font-semibold text-stone-600">
                           Subtotal {formatPrice(order.subtotal)} · Tax {formatPrice(order.tax ?? 0)}
                         </p>
                         {order.status === "accepted" && (

@@ -27,7 +27,10 @@ export async function POST(
     if (!canCustomerCancelOrder(order, waitingMinutes)) {
       return NextResponse.json({ error: "Order cannot be cancelled" }, { status: 400 });
     }
-    const updated = updateDemoOrder(id, { status: "cancelled" });
+    const updated = updateDemoOrder(id, {
+      status: "cancelled",
+      status_reason: "Customer cancelled online",
+    });
     return NextResponse.json({ order: updated });
   }
 
@@ -48,7 +51,7 @@ export async function POST(
 
   const { data: updated, error } = await supabase
     .from("orders")
-    .update({ status: "cancelled" })
+    .update({ status: "cancelled", status_reason: "Customer cancelled online" })
     .eq("id", id)
     .select()
     .single();

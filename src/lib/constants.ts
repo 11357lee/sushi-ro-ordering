@@ -11,8 +11,8 @@ export const BUSINESS_HOURS = {
 export const RESTAURANT_TIMEZONE = "America/Toronto";
 export const ORDERING_DISABLED_START = "20:45";
 export const ORDERING_DISABLED_END = "06:00";
-export const CUSTOMER_SESSION_TIMEOUT_MS = 8 * 60 * 60 * 1000;
-export const CART_TIMEOUT_MS = 8 * 60 * 60 * 1000;
+export const CUSTOMER_SESSION_TIMEOUT_MS = 60 * 60 * 1000;
+export const CART_TIMEOUT_MS = 60 * 60 * 1000;
 
 export const CATEGORY_DESCRIPTION_FALLBACKS: Record<string, string> = {
   ramen: "Warm noodle bowls served with rich broth and fresh toppings.",

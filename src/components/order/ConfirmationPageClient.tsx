@@ -14,13 +14,12 @@ interface ConfirmationPageClientProps {
 export function ConfirmationPageClient({
   orderId,
   initialOrder,
-  waitingMinutes,
 }: ConfirmationPageClientProps) {
   const [order, setOrder] = useState<Order | null>(initialOrder);
   const [cancelCountdown, setCancelCountdown] = useState<number | null>(null);
   const [cancelling, setCancelling] = useState(false);
 
-  const showCancel = waitingMinutes > 60 && order?.cancel_window_expires_at;
+  const showCancel = Boolean(order?.cancel_window_expires_at);
 
   useEffect(() => {
     const refresh = async () => {

@@ -230,6 +230,9 @@ export function canCustomerCancelOrder(
   waitingMinutes: number
 ): boolean {
   if (order.status !== "accepted" && order.status !== "pending") return false;
+  if (order.cancel_window_expires_at) {
+    return new Date(order.cancel_window_expires_at) > new Date();
+  }
   if (waitingMinutes <= 60) return false;
   if (!order.pickup_time) return true;
   const pickup = new Date(order.pickup_time);

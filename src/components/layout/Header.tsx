@@ -13,12 +13,18 @@ export function Header() {
   const itemCount = useCartStore((s) => s.itemCount());
   const total = useCartStore((s) => s.total());
   const clearCart = useCartStore((s) => s.clearCart);
+  const clearExpiredCart = useCartStore((s) => s.clearExpiredCart);
   const customer = useCustomerStore((s) => s.customer);
   const clearCustomer = useCustomerStore((s) => s.clearCustomer);
+  const clearExpiredCustomer = useCustomerStore((s) => s.clearExpiredCustomer);
 
   useEffect(() => {
-    queueMicrotask(() => setMounted(true));
-  }, []);
+    queueMicrotask(() => {
+      clearExpiredCustomer();
+      clearExpiredCart();
+      setMounted(true);
+    });
+  }, [clearExpiredCart, clearExpiredCustomer]);
 
   const logout = () => {
     clearCustomer();

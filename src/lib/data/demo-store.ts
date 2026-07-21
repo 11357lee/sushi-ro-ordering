@@ -85,9 +85,14 @@ export function updateDemoOrderStatus(
     updates.confirmed_at = new Date().toISOString();
     if (pickupTime) updates.pickup_time = pickupTime;
 
-    const waitMinutes = getDemoWaitingTimeMinutes();
-    if (waitMinutes > 60) {
-      updates.cancel_window_expires_at = new Date(Date.now() + 60_000).toISOString();
+    const existing = getDemoOrder(id);
+    const prepMinutes = pickupTime
+      ? Math.round((new Date(pickupTime).getTime() - Date.now()) / 60000)
+      : getDemoWaitingTimeMinutes();
+    if (existing?.pickup_type === "asap" && prepMinutes > 60) {
+      updates.cancel_window_expires_at = new Date(Date.now() + 120_000).toISOString();
+    } else {
+      updates.cancel_window_expires_at = null;
     }
   }
   return updateDemoOrder(id, updates);

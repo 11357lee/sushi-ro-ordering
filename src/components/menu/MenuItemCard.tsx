@@ -216,9 +216,7 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
                 }}
                 className="border-stone-300 text-teal-600 focus:ring-teal-500"
               />
-              <span>
-                {option.name} - {formatPrice(item.price + option.price_modifier)}
-              </span>
+              <span>{option.name}</span>
             </label>
           ))}
         </div>

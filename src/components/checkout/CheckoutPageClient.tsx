@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { TAX_RATE } from "@/lib/constants";
@@ -19,6 +20,7 @@ export function CheckoutPageClient() {
   const [lastName, setLastName] = useState(customer?.last_name ?? "");
   const [phone, setPhone] = useState(customer?.phone ? formatPhoneInput(customer.phone) : "");
   const [allergyNotes, setAllergyNotes] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -152,6 +154,23 @@ export function CheckoutPageClient() {
             className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2.5 text-sm focus:border-teal-500 focus:outline-none"
           />
         </div>
+
+        <label className="flex items-start gap-2 rounded-lg bg-stone-50 p-3 text-sm text-stone-600">
+          <input
+            type="checkbox"
+            checked={acceptedTerms}
+            onChange={(e) => setAcceptedTerms(e.target.checked)}
+            required
+            className="mt-1 rounded border-stone-300 text-teal-600 focus:ring-teal-500"
+          />
+          <span>
+            I agree to Sushi-Ro&apos;s{" "}
+            <Link href="/privacy" className="font-medium text-teal-700 underline">
+              Privacy Policy and Terms
+            </Link>
+            .
+          </span>
+        </label>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
 

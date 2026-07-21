@@ -13,6 +13,7 @@ export function LoginPageClient() {
   const clearCustomer = useCustomerStore((s) => s.clearCustomer);
   const [firstName, setFirstName] = useState("");
   const [phone, setPhone] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -65,6 +66,10 @@ export function LoginPageClient() {
         Sign in with the first name and phone number from a previous order. You must have placed
         at least one order before.
       </p>
+      <p className="mt-2 text-sm text-stone-500">
+        We use your name and phone number only to find your order history and contact you about
+        pickup orders.
+      </p>
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-4">
         <div>
@@ -89,6 +94,23 @@ export function LoginPageClient() {
             className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2.5 focus:border-teal-500 focus:outline-none"
           />
         </div>
+
+        <label className="flex items-start gap-2 rounded-lg bg-stone-50 p-3 text-sm text-stone-600">
+          <input
+            type="checkbox"
+            checked={acceptedTerms}
+            onChange={(e) => setAcceptedTerms(e.target.checked)}
+            required
+            className="mt-1 rounded border-stone-300 text-teal-600 focus:ring-teal-500"
+          />
+          <span>
+            I agree to Sushi-Ro&apos;s{" "}
+            <Link href="/privacy" className="font-medium text-teal-700 underline">
+              Privacy Policy and Terms
+            </Link>
+            .
+          </span>
+        </label>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
 

@@ -16,7 +16,7 @@ import type { OrderStatus } from "@/types";
 
 function verifyAdmin(request: Request): boolean {
   const key = request.headers.get("x-admin-key");
-  return key === process.env.ADMIN_API_KEY && Boolean(process.env.ADMIN_API_KEY);
+  return key?.trim() === process.env.ADMIN_API_KEY?.trim() && Boolean(process.env.ADMIN_API_KEY);
 }
 
 function closingTimeToday(closingTime = "21:00:00"): Date {
@@ -147,17 +147,22 @@ export async function PATCH(request: Request) {
     }
 
     const supabase = createAdminClient();
+    const { data: existingOrder } = await supabase
+      .from("orders")
+      .select("pickup_type")
+      .eq("id", orderId)
+      .single();
+    const confirmedAt = new Date();
     const updates: Record<string, unknown> = {
       status: orderStatus,
       status_reason: statusReason || null,
     };
 
     if (orderStatus === "accepted") {
-      updates.confirmed_at = new Date().toISOString();
+      updates.confirmed_at = confirmedAt.toISOString();
+      let finalPickupTime = pickupTime;
 
-      if (pickupTime) {
-        updates.pickup_time = pickupTime;
-      } else {
+      if (!finalPickupTime) {
         const { data: waitingRow } = await supabase
           .from("waiting_time")
           .select("minutes")
@@ -166,18 +171,18 @@ export async function PATCH(request: Request) {
           .single();
 
         const waitMinutes = waitingRow?.minutes ?? 15;
-        updates.pickup_time = addMinutes(new Date(), waitMinutes).toISOString();
+        finalPickupTime = addMinutes(confirmedAt, waitMinutes).toISOString();
       }
 
-      const { data: waitingRow } = await supabase
-        .from("waiting_time")
-        .select("minutes")
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .single();
+      updates.pickup_time = finalPickupTime;
 
-      if ((waitingRow?.minutes ?? 15) > 60) {
-        updates.cancel_window_expires_at = addMinutes(new Date(), 1).toISOString();
+      const prepMinutes = Math.round(
+        (new Date(finalPickupTime).getTime() - confirmedAt.getTime()) / 60000
+      );
+      if (existingOrder?.pickup_type === "asap" && prepMinutes > 60) {
+        updates.cancel_window_expires_at = addMinutes(confirmedAt, 2).toISOString();
+      } else {
+        updates.cancel_window_expires_at = null;
       }
     }
 

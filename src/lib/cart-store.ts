@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { CartExtras, CartItem, PickupType, SelectedOption } from "@/types";
+import { CART_TIMEOUT_MS } from "@/lib/constants";
 import { calcCartSubtotal, calcTax, calcTotal, cartItemKey } from "@/lib/utils";
 
 const defaultExtras: CartExtras = {
@@ -20,6 +21,7 @@ interface CartState {
   extras: CartExtras;
   pickupType: PickupType;
   pickupTime: string | null;
+  updatedAt: number | null;
   addItem: (item: Omit<CartItem, "cartId">) => void;
   addItems: (items: Omit<CartItem, "cartId">[]) => void;
   updateQuantity: (cartId: string, quantity: number) => void;
@@ -27,6 +29,7 @@ interface CartState {
   setExtras: (extras: Partial<CartExtras>) => void;
   setPickup: (pickupType: PickupType, pickupTime: string | null) => void;
   clearCart: () => void;
+  clearExpiredCart: () => boolean;
   itemCount: () => number;
   subtotal: () => number;
   tax: () => number;
@@ -40,6 +43,7 @@ export const useCartStore = create<CartState>()(
       extras: defaultExtras,
       pickupType: "asap",
       pickupTime: null,
+      updatedAt: null,
 
       addItem: (item) => {
         const key = cartItemKey(
@@ -56,10 +60,12 @@ export const useCartStore = create<CartState>()(
                   ? { ...i, quantity: i.quantity + item.quantity }
                   : i
               ),
+              updatedAt: Date.now(),
             };
           }
           return {
             items: [...state.items, { ...item, cartId: key }],
+            updatedAt: Date.now(),
           };
         });
       },
@@ -77,23 +83,26 @@ export const useCartStore = create<CartState>()(
           items: state.items.map((i) =>
             i.cartId === cartId ? { ...i, quantity } : i
           ),
+          updatedAt: Date.now(),
         }));
       },
 
       removeItem: (cartId) => {
         set((state) => ({
           items: state.items.filter((i) => i.cartId !== cartId),
+          updatedAt: Date.now(),
         }));
       },
 
       setExtras: (extras) => {
         set((state) => ({
           extras: { ...state.extras, ...extras },
+          updatedAt: Date.now(),
         }));
       },
 
       setPickup: (pickupType, pickupTime) => {
-        set({ pickupType, pickupTime });
+        set({ pickupType, pickupTime, updatedAt: Date.now() });
       },
 
       clearCart: () =>
@@ -102,7 +111,17 @@ export const useCartStore = create<CartState>()(
           extras: defaultExtras,
           pickupType: "asap",
           pickupTime: null,
+          updatedAt: null,
         }),
+
+      clearExpiredCart: () => {
+        const updatedAt = get().updatedAt;
+        if (updatedAt && Date.now() - updatedAt > CART_TIMEOUT_MS) {
+          get().clearCart();
+          return true;
+        }
+        return false;
+      },
 
       itemCount: () =>
         get().items.reduce((sum, item) => sum + item.quantity, 0),

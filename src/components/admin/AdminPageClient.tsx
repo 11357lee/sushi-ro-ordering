@@ -27,6 +27,7 @@ const NOTIFICATION_SOUNDS: Record<
   soft: { label: "Soft bell", frequency: 660, type: "sine" },
   double: { label: "Double beep", frequency: 780, type: "square", repeat: true },
 };
+const PREP_MINUTE_OPTIONS = ["10", "15", "20", "25", "30", "40", "45", "50", "60", "70", "80", "90", "100", "120"];
 
 function initialNotificationSound(key: string, fallback: NotificationSound): NotificationSound {
   if (typeof window === "undefined") return fallback;
@@ -145,6 +146,7 @@ export function AdminPageClient() {
   const [reasonInputs, setReasonInputs] = useState<Record<string, string>>({});
   const [customReasonInputs, setCustomReasonInputs] = useState<Record<string, string>>({});
   const audioContextRef = useRef<AudioContext | null>(null);
+  const [soundEnabled, setSoundEnabled] = useState(false);
   const [expandedSoldOutCategory, setExpandedSoldOutCategory] = useState<string | null>(null);
   const [now, setNow] = useState(new Date());
   const [loading, setLoading] = useState(false);
@@ -223,6 +225,40 @@ export function AdminPageClient() {
     window.localStorage.setItem("sushi-ro-admin-scheduled-sound", value);
   };
 
+  const playNotificationSound = useCallback(
+    (kind: "asap" | "scheduled") => {
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioCtx) return;
+      if (!audioContextRef.current) audioContextRef.current = new AudioCtx();
+      const ctx = audioContextRef.current;
+      void ctx.resume();
+      const sound = NOTIFICATION_SOUNDS[kind === "asap" ? asapSound : scheduledSound];
+
+      const startTone = (offset: number) => {
+        const oscillator = ctx.createOscillator();
+        const gain = ctx.createGain();
+        oscillator.frequency.value = sound.frequency;
+        oscillator.type = sound.type;
+        gain.gain.value = 0.045;
+        oscillator.connect(gain);
+        gain.connect(ctx.destination);
+        oscillator.start(ctx.currentTime + offset);
+        oscillator.stop(ctx.currentTime + offset + 0.18);
+      };
+
+      startTone(0);
+      if (sound.repeat) startTone(0.26);
+    },
+    [asapSound, scheduledSound]
+  );
+
+  const enableSound = () => {
+    setSoundEnabled(true);
+    playNotificationSound("asap");
+  };
+
   useEffect(() => {
     queueMicrotask(() => {
       setPickupTimes((prev) => {
@@ -268,6 +304,7 @@ export function AdminPageClient() {
   };
 
   const updateWaitingTime = async (minutes: number) => {
+    if (!restaurantOpen) return;
     await fetch("/api/admin", {
       method: "PATCH",
       headers: headers(),
@@ -334,45 +371,25 @@ export function AdminPageClient() {
     pause_until: pauseUntil,
     closing_time: closingTime,
     timezone: "America/Toronto",
+    special_closed_dates: specialClosedDates,
   });
   const paused = isPauseActive(pauseUntil);
   const withinBusinessHours = isWithinBusinessHours();
 
   useEffect(() => {
-    if (!authenticated || !restaurantOpen) return;
+    if (!authenticated || !restaurantOpen || !soundEnabled) return;
     const pendingOrders = orders.filter((order) => order.status === "pending");
     if (!pendingOrders.length) return;
 
     const playTone = () => {
-      const AudioCtx =
-        window.AudioContext ||
-        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-      if (!AudioCtx) return;
-      if (!audioContextRef.current) audioContextRef.current = new AudioCtx();
-      const ctx = audioContextRef.current;
       const hasAsap = pendingOrders.some((order) => order.pickup_type === "asap");
-      const sound = NOTIFICATION_SOUNDS[hasAsap ? asapSound : scheduledSound];
-
-      const startTone = (offset: number) => {
-        const oscillator = ctx.createOscillator();
-        const gain = ctx.createGain();
-        oscillator.frequency.value = sound.frequency;
-        oscillator.type = sound.type;
-        gain.gain.value = 0.045;
-        oscillator.connect(gain);
-        gain.connect(ctx.destination);
-        oscillator.start(ctx.currentTime + offset);
-        oscillator.stop(ctx.currentTime + offset + 0.18);
-      };
-
-      startTone(0);
-      if (sound.repeat) startTone(0.26);
+      playNotificationSound(hasAsap ? "asap" : "scheduled");
     };
 
     playTone();
     const interval = setInterval(playTone, 5000);
     return () => clearInterval(interval);
-  }, [authenticated, orders, restaurantOpen, asapSound, scheduledSound]);
+  }, [authenticated, orders, restaurantOpen, soundEnabled, playNotificationSound]);
 
   if (!authenticated) {
     return (
@@ -385,7 +402,7 @@ export function AdminPageClient() {
           <input
             type="password"
             value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
+            onChange={(e) => setApiKey(e.target.value.trim())}
             placeholder="Admin API key"
             className="w-full rounded-lg border border-stone-200 px-3 py-2.5"
           />
@@ -446,6 +463,7 @@ export function AdminPageClient() {
               <button
                 key={m}
                 type="button"
+                disabled={!restaurantOpen}
                 onClick={() => updateWaitingTime(m)}
                 className={`rounded-lg px-3 py-2 text-sm font-medium ${
                   waitingMinutes === m
@@ -454,44 +472,18 @@ export function AdminPageClient() {
                       : m === 30
                         ? "bg-amber-400 text-stone-900"
                         : "bg-red-600 text-white"
-                    : "bg-stone-100 text-stone-700"
+                    : "bg-stone-100 text-stone-700 disabled:cursor-not-allowed disabled:opacity-50"
                 }`}
               >
                 {WAITING_TIME_LABELS[m]}
               </button>
             ))}
           </div>
-
-          <div className="mt-4 grid gap-3 rounded-xl border border-stone-200 bg-white p-4 sm:grid-cols-2">
-            <label className="text-sm font-medium text-stone-700">
-              ASAP notification sound
-              <select
-                value={asapSound}
-                onChange={(e) => updateAsapSound(e.target.value as NotificationSound)}
-                className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2 text-base"
-              >
-                {Object.entries(NOTIFICATION_SOUNDS).map(([value, sound]) => (
-                  <option key={value} value={value}>
-                    {sound.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="text-sm font-medium text-stone-700">
-              Later notification sound
-              <select
-                value={scheduledSound}
-                onChange={(e) => updateScheduledSound(e.target.value as NotificationSound)}
-                className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2 text-base"
-              >
-                {Object.entries(NOTIFICATION_SOUNDS).map(([value, sound]) => (
-                  <option key={value} value={value}>
-                    {sound.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
+          {!restaurantOpen && (
+            <p className="mt-2 text-sm text-stone-500">
+              Waiting time controls are disabled while the restaurant is closed or paused.
+            </p>
+          )}
 
           <div className="mt-8 space-y-4">
             {orders.length === 0 ? (
@@ -499,17 +491,20 @@ export function AdminPageClient() {
             ) : (
               orders.map((order) => {
                 const expanded = expandedId === order.id;
-                const countdown = formatCountdown(order.pickup_time ?? pickupTimes[order.id] ?? null, now);
+                const countdown =
+                  order.status === "cancelled" || order.status === "rejected"
+                    ? null
+                    : formatCountdown(order.pickup_time ?? pickupTimes[order.id] ?? null, now);
 
                 return (
                   <div key={order.id} className="rounded-xl border border-stone-200 bg-white p-4 sm:p-5">
                     <SpecialNotes order={order} />
-                    <button
-                      type="button"
-                      onClick={() => setExpandedId(expanded ? null : order.id)}
-                      className="grid w-full gap-4 text-left md:grid-cols-[1.35fr_1fr_0.8fr]"
-                    >
-                      <div>
+                    <div className="grid w-full gap-4 text-left md:grid-cols-[1.35fr_1fr_0.8fr]">
+                      <button
+                        type="button"
+                        onClick={() => setExpandedId(expanded ? null : order.id)}
+                        className="text-left"
+                      >
                         <p className="text-2xl font-bold text-stone-900">
                           {customerTitle(order)}
                           {countdown && (
@@ -530,13 +525,17 @@ export function AdminPageClient() {
                             Scheduled: {formatPickupTime(order.pickup_time)}
                           </p>
                         )}
-                      </div>
-                      <div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setExpandedId(expanded ? null : order.id)}
+                        className="text-left"
+                      >
                         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-400">
                           Extras
                         </p>
                         <OrderExtras order={order} />
-                      </div>
+                      </button>
                       <div className="text-left">
                         <p className="text-xs font-semibold uppercase tracking-wide text-stone-400">
                           Total
@@ -545,8 +544,52 @@ export function AdminPageClient() {
                         <p className="text-base text-stone-500">
                           Subtotal {formatPrice(order.subtotal)} · Tax {formatPrice(order.tax ?? 0)}
                         </p>
+                        {order.status === "accepted" && (
+                          <div className="mt-3 space-y-2" onClick={(e) => e.stopPropagation()}>
+                            <select
+                              value={reasonInputs[order.id] ?? "Customer cancellation"}
+                              onChange={(e) =>
+                                setReasonInputs((prev) => ({ ...prev, [order.id]: e.target.value }))
+                              }
+                              className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm"
+                            >
+                              <option>Customer cancellation</option>
+                              <option>Out of items</option>
+                              <option>Custom message</option>
+                            </select>
+                            {reasonInputs[order.id] === "Custom message" && (
+                              <input
+                                type="text"
+                                placeholder="Custom cancel message"
+                                onChange={(e) =>
+                                  setCustomReasonInputs((prev) => ({
+                                    ...prev,
+                                    [order.id]: e.target.value,
+                                  }))
+                                }
+                                className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm"
+                              />
+                            )}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateOrder(
+                                  order.id,
+                                  "cancelled",
+                                  undefined,
+                                  reasonInputs[order.id] === "Custom message"
+                                    ? customReasonInputs[order.id] || "Custom message"
+                                    : reasonInputs[order.id] ?? "Customer cancellation"
+                                )
+                              }
+                              className="w-full rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+                            >
+                              Cancel order
+                            </button>
+                          </div>
+                        )}
                       </div>
-                    </button>
+                    </div>
 
                     {expanded && (
                       <div className="mt-4 border-t border-stone-100 pt-4">
@@ -565,7 +608,7 @@ export function AdminPageClient() {
                             Preparation time
                           </label>
                           <div className="mt-2 flex flex-wrap gap-2">
-                            {["10", "15", "20", "25", "30"].map((minutes) => (
+                            {PREP_MINUTE_OPTIONS.map((minutes) => (
                               <button
                                 key={minutes}
                                 type="button"
@@ -676,51 +719,6 @@ export function AdminPageClient() {
                         </div>
                       </div>
                     )}
-
-                    {order.status === "accepted" && (
-                      <div className="mt-4 space-y-3 border-t border-stone-100 pt-4">
-                        <label className="block text-sm font-medium text-stone-700">
-                          Cancel reason
-                        </label>
-                        <select
-                          value={reasonInputs[order.id] ?? "Customer cancellation"}
-                          onChange={(e) =>
-                            setReasonInputs((prev) => ({ ...prev, [order.id]: e.target.value }))
-                          }
-                          className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm"
-                        >
-                          <option>Customer cancellation</option>
-                          <option>Out of items</option>
-                          <option>Custom message</option>
-                        </select>
-                        {reasonInputs[order.id] === "Custom message" && (
-                          <input
-                            type="text"
-                            placeholder="Custom cancel message"
-                            onChange={(e) =>
-                              setCustomReasonInputs((prev) => ({ ...prev, [order.id]: e.target.value }))
-                            }
-                            className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm"
-                          />
-                        )}
-                        <button
-                          type="button"
-                          onClick={() =>
-                            updateOrder(
-                              order.id,
-                              "cancelled",
-                              undefined,
-                              reasonInputs[order.id] === "Custom message"
-                                ? customReasonInputs[order.id] || "Custom message"
-                                : reasonInputs[order.id] ?? "Customer cancellation"
-                            )
-                          }
-                          className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
-                        >
-                          Cancel order
-                        </button>
-                      </div>
-                    )}
                   </div>
                 );
               })
@@ -732,6 +730,60 @@ export function AdminPageClient() {
 
       {tab === "settings" && (
         <div className="mt-6 space-y-8">
+          <section>
+            <h2 className="text-lg font-semibold text-stone-900">Notification sounds</h2>
+            <p className="mt-1 text-sm text-stone-600">
+              Choose separate tones for ASAP and later orders. On iPad, tap Enable sound once after
+              opening the admin page.
+            </p>
+            <div className="mt-4 grid gap-3 rounded-xl border border-stone-200 bg-white p-4 sm:grid-cols-2">
+              <label className="text-sm font-medium text-stone-700">
+                ASAP notification sound
+                <select
+                  value={asapSound}
+                  onChange={(e) => updateAsapSound(e.target.value as NotificationSound)}
+                  className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2 text-base"
+                >
+                  {Object.entries(NOTIFICATION_SOUNDS).map(([value, sound]) => (
+                    <option key={value} value={value}>
+                      {sound.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-sm font-medium text-stone-700">
+                Later notification sound
+                <select
+                  value={scheduledSound}
+                  onChange={(e) => updateScheduledSound(e.target.value as NotificationSound)}
+                  className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2 text-base"
+                >
+                  {Object.entries(NOTIFICATION_SOUNDS).map(([value, sound]) => (
+                    <option key={value} value={value}>
+                      {sound.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="flex flex-wrap gap-2 sm:col-span-2">
+                <button
+                  type="button"
+                  onClick={enableSound}
+                  className="rounded-lg bg-stone-900 px-4 py-2 text-sm font-semibold text-white hover:bg-stone-800"
+                >
+                  {soundEnabled ? "Sound enabled" : "Enable sound"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => playNotificationSound("scheduled")}
+                  className="rounded-lg border border-stone-300 px-4 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50"
+                >
+                  Test later sound
+                </button>
+              </div>
+            </div>
+          </section>
+
           <section>
             <h2 className="text-lg font-semibold text-stone-900">Pause service</h2>
             <p className="mt-1 text-sm text-stone-600">

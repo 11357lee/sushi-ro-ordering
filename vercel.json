@@ -1,4 +1,10 @@
 {
   "framework": "nextjs",
-  "regions": ["pdx1"]
+  "regions": ["pdx1"],
+  "crons": [
+    {
+      "path": "/api/cron/purge-guest-data",
+      "schedule": "5 4 * * *"
+    }
+  ]
 }

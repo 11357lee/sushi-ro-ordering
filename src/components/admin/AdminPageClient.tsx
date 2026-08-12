@@ -29,7 +29,27 @@ const NOTIFICATION_SOUNDS: Record<
   order: { label: "Order chime", frequencies: [659, 784, 988, 784], type: "triangle" },
 };
 const CUSTOMER_CANCELLED_REASON = "Customer cancelled online";
-const PREP_MINUTE_OPTIONS = ["10", "15", "20", "25", "30", "35", "40", "45", "50", "60", "70", "80", "90", "100", "120"];
+const PREP_MINUTE_OPTIONS_PRIMARY = ["5", "10", "15", "20", "25", "30", "35", "40", "45", "50"];
+const PREP_MINUTE_OPTIONS_EXTENDED = ["60", "70", "80", "90", "100", "120"];
+const CANCEL_ALERT_STORAGE_KEY = "sushi-ro-admin-cancel-alerts";
+const REMEMBER_DEVICE_KEY = "sushi-ro-admin-remembered-key";
+
+function loadCancelAlertedIds(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = window.sessionStorage.getItem(CANCEL_ALERT_STORAGE_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw) as string[];
+    return new Set(Array.isArray(parsed) ? parsed : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function persistCancelAlertedIds(ids: Set<string>) {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.setItem(CANCEL_ALERT_STORAGE_KEY, JSON.stringify([...ids]));
+}
 
 function initialNotificationSound(key: string, fallback: NotificationSound): NotificationSound {
   if (typeof window === "undefined") return fallback;
@@ -132,7 +152,9 @@ function OrderItems({ order }: { order: Order }) {
 
 export function AdminPageClient() {
   const [apiKey, setApiKey] = useState("");
+  const [rememberDevice, setRememberDevice] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
+  const [loginError, setLoginError] = useState("");
   const [tab, setTab] = useState<AdminTab>("orders");
   const [orders, setOrders] = useState<Order[]>([]);
   const [menu, setMenu] = useState<MenuData | null>(null);
@@ -150,7 +172,9 @@ export function AdminPageClient() {
   const audioContextRef = useRef<AudioContext | null>(null);
   const cancellationAlertedIdsRef = useRef<Set<string>>(new Set());
   const cancellationAlertsReadyRef = useRef(false);
+  const ordersReadyRef = useRef(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [soundUnlocked, setSoundUnlocked] = useState(false);
   const [expandedSoldOutCategory, setExpandedSoldOutCategory] = useState<string | null>(null);
   const [now, setNow] = useState(new Date());
   const [loading, setLoading] = useState(false);
@@ -170,7 +194,27 @@ export function AdminPageClient() {
     [apiKey]
   );
 
+  const authenticateWithKey = useCallback(async (key: string) => {
+    const trimmed = key.trim();
+    if (!trimmed) return false;
+    const res = await fetch("/api/admin", { headers: { "x-admin-key": trimmed } });
+    if (!res.ok) return false;
+    const data = await res.json();
+    setApiKey(trimmed);
+    setOrders(
+      (data.orders ?? []).sort(
+        (a: Order, b: Order) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      )
+    );
+    ordersReadyRef.current = true;
+    setAuthenticated(true);
+    setLoginError("");
+    return true;
+  }, []);
+
   const fetchOrders = useCallback(async () => {
+    if (!apiKey) return;
     const res = await fetch("/api/admin", { headers: { "x-admin-key": apiKey } });
     if (res.ok) {
       const data = await res.json();
@@ -180,10 +224,32 @@ export function AdminPageClient() {
             new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         )
       );
+      ordersReadyRef.current = true;
       setAuthenticated(true);
     }
   }, [apiKey]);
 
+  useEffect(() => {
+    const saved = window.localStorage.getItem(REMEMBER_DEVICE_KEY)?.trim();
+    if (!saved) return;
+
+    queueMicrotask(() => {
+      setRememberDevice(true);
+      setApiKey(saved);
+      setLoading(true);
+    });
+
+    void authenticateWithKey(saved)
+      .then((ok) => {
+        if (!ok) {
+          window.localStorage.removeItem(REMEMBER_DEVICE_KEY);
+          setRememberDevice(false);
+          setApiKey("");
+          setLoginError("Saved iPad login expired. Please enter the admin key again.");
+        }
+      })
+      .finally(() => setLoading(false));
+  }, [authenticateWithKey]);
   const fetchSettings = useCallback(async () => {
     const res = await fetch("/api/settings");
     const data = await res.json();
@@ -264,8 +330,31 @@ export function AdminPageClient() {
 
   const enableSound = () => {
     setSoundEnabled(true);
+    setSoundUnlocked(true);
     playNotificationSound("asap");
   };
+
+  useEffect(() => {
+    if (!authenticated || soundUnlocked) return;
+
+    const unlockOnGesture = () => {
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioCtx) return;
+      if (!audioContextRef.current) audioContextRef.current = new AudioCtx();
+      void audioContextRef.current.resume().then(() => {
+        setSoundUnlocked(true);
+      });
+    };
+
+    window.addEventListener("pointerdown", unlockOnGesture, { once: true });
+    window.addEventListener("keydown", unlockOnGesture, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", unlockOnGesture);
+      window.removeEventListener("keydown", unlockOnGesture);
+    };
+  }, [authenticated, soundUnlocked]);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -293,8 +382,32 @@ export function AdminPageClient() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    await fetchOrders();
+    setLoginError("");
+    ordersReadyRef.current = false;
+    cancellationAlertsReadyRef.current = false;
+    const ok = await authenticateWithKey(apiKey);
+    if (!ok) {
+      setLoginError("Incorrect admin key.");
+      setLoading(false);
+      return;
+    }
+    if (rememberDevice) {
+      window.localStorage.setItem(REMEMBER_DEVICE_KEY, apiKey.trim());
+    } else {
+      window.localStorage.removeItem(REMEMBER_DEVICE_KEY);
+    }
     setLoading(false);
+  };
+
+  const handleLogout = () => {
+    setAuthenticated(false);
+    setOrders([]);
+    ordersReadyRef.current = false;
+    cancellationAlertsReadyRef.current = false;
+    setApiKey("");
+    setSoundUnlocked(false);
+    setRememberDevice(false);
+    window.localStorage.removeItem(REMEMBER_DEVICE_KEY);
   };
 
   const updateOrder = async (
@@ -308,6 +421,9 @@ export function AdminPageClient() {
       headers: headers(),
       body: JSON.stringify({ action: "update_order", orderId, status, pickupTime, statusReason }),
     });
+    if (status !== "pending") {
+      setExpandedId((current) => (current === orderId ? null : current));
+    }
     fetchOrders();
   };
 
@@ -387,8 +503,11 @@ export function AdminPageClient() {
   useEffect(() => {
     if (!authenticated) {
       cancellationAlertsReadyRef.current = false;
+      ordersReadyRef.current = false;
       return;
     }
+
+    if (!ordersReadyRef.current) return;
 
     const customerCancelledOrders = orders.filter(
       (order) =>
@@ -398,7 +517,9 @@ export function AdminPageClient() {
     const customerCancelledIds = customerCancelledOrders.map((order) => order.id);
 
     if (!cancellationAlertsReadyRef.current) {
+      loadCancelAlertedIds().forEach((id) => cancellationAlertedIdsRef.current.add(id));
       customerCancelledIds.forEach((id) => cancellationAlertedIdsRef.current.add(id));
+      persistCancelAlertedIds(cancellationAlertedIdsRef.current);
       cancellationAlertsReadyRef.current = true;
     } else {
       const newCustomerCancelledIds = customerCancelledIds.filter(
@@ -406,11 +527,12 @@ export function AdminPageClient() {
       );
       if (newCustomerCancelledIds.length > 0) {
         newCustomerCancelledIds.forEach((id) => cancellationAlertedIdsRef.current.add(id));
-        if (soundEnabled) playNotificationSound("customer-cancelled");
+        persistCancelAlertedIds(cancellationAlertedIdsRef.current);
+        if (soundEnabled && soundUnlocked) playNotificationSound("customer-cancelled");
       }
     }
 
-    if (!soundEnabled) return;
+    if (!soundEnabled || !soundUnlocked) return;
 
     const pendingOrders = restaurantOpen
       ? orders.filter((order) => order.status === "pending")
@@ -425,7 +547,14 @@ export function AdminPageClient() {
     playTone();
     const interval = setInterval(playTone, 5000);
     return () => clearInterval(interval);
-  }, [authenticated, orders, restaurantOpen, soundEnabled, playNotificationSound]);
+  }, [
+    authenticated,
+    orders,
+    restaurantOpen,
+    soundEnabled,
+    soundUnlocked,
+    playNotificationSound,
+  ]);
 
   if (!authenticated) {
     return (
@@ -442,6 +571,19 @@ export function AdminPageClient() {
             placeholder="Admin API key"
             className="w-full rounded-lg border border-stone-200 px-3 py-2.5"
           />
+          <label className="flex items-start gap-2 text-sm text-stone-600">
+            <input
+              type="checkbox"
+              checked={rememberDevice}
+              onChange={(e) => setRememberDevice(e.target.checked)}
+              className="mt-1 rounded border-stone-300 text-teal-600 focus:ring-teal-500"
+            />
+            <span>
+              Remember this iPad — stay signed in after refresh on this device only. Use Logout to
+              forget it.
+            </span>
+          </label>
+          {loginError && <p className="text-sm text-red-600">{loginError}</p>}
           <button
             type="submit"
             disabled={loading}
@@ -471,8 +613,31 @@ export function AdminPageClient() {
           >
             Clear orders
           </button>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="rounded-lg border border-stone-300 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50"
+          >
+            Logout
+          </button>
         </div>
       </div>
+
+      {!soundUnlocked && (
+        <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4">
+          <p className="text-sm font-medium text-amber-950">
+            Browsers (especially iPad) block sound until you tap the page. Tap the button below once
+            so order alerts can play.
+          </p>
+          <button
+            type="button"
+            onClick={enableSound}
+            className="mt-3 rounded-lg bg-stone-900 px-4 py-2.5 text-sm font-semibold text-white"
+          >
+            Tap to enable order sounds
+          </button>
+        </div>
+      )}
 
       <div className="mt-4 flex gap-2 border-b border-stone-200">
         {(["orders", "settings"] as AdminTab[]).map((t) => (
@@ -526,7 +691,7 @@ export function AdminPageClient() {
               <p className="text-stone-500">No orders on screen.</p>
             ) : (
               orders.map((order) => {
-                const expanded = expandedId === order.id;
+                const expanded = order.status === "pending" || expandedId === order.id;
                 const cancelled = order.status === "cancelled";
                 const rejected = order.status === "rejected";
                 const customerCancelled =
@@ -664,7 +829,7 @@ export function AdminPageClient() {
                             Preparation time
                           </label>
                           <div className="mt-2 flex flex-wrap gap-2">
-                            {PREP_MINUTE_OPTIONS.map((minutes) => (
+                            {PREP_MINUTE_OPTIONS_PRIMARY.map((minutes) => (
                               <button
                                 key={minutes}
                                 type="button"
@@ -675,10 +840,32 @@ export function AdminPageClient() {
                                     [order.id]: pickupIsoFromPrepMinutes(minutes),
                                   }));
                                 }}
-                                className={`rounded-lg px-3 py-2 text-sm font-semibold ${
+                                className={`min-w-[3.25rem] rounded-lg px-3.5 py-2.5 text-base font-bold ${
                                   pickupInputs[order.id] === minutes
                                     ? "bg-stone-900 text-white"
                                     : "bg-stone-100 text-stone-700"
+                                }`}
+                              >
+                                {minutes}
+                              </button>
+                            ))}
+                          </div>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {PREP_MINUTE_OPTIONS_EXTENDED.map((minutes) => (
+                              <button
+                                key={minutes}
+                                type="button"
+                                onClick={() => {
+                                  setPickupInputs((prev) => ({ ...prev, [order.id]: minutes }));
+                                  setPickupTimes((prev) => ({
+                                    ...prev,
+                                    [order.id]: pickupIsoFromPrepMinutes(minutes),
+                                  }));
+                                }}
+                                className={`min-w-[3.25rem] rounded-lg px-3.5 py-2.5 text-base font-bold ${
+                                  pickupInputs[order.id] === minutes
+                                    ? "bg-stone-900 text-white"
+                                    : "bg-amber-100 text-amber-950"
                                 }`}
                               >
                                 {minutes}

@@ -3,7 +3,6 @@ import {
   addMinutes,
   format,
   isSunday,
-  isToday,
   isWithinInterval,
   setHours,
   setMinutes,
@@ -240,8 +239,30 @@ export function canCustomerCancelOrder(
   return pickup > cutoff;
 }
 
+export function restaurantCalendarDate(value: string | Date = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: RESTAURANT_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(typeof value === "string" ? new Date(value) : value);
+}
+
 export function isOrderFromToday(iso: string): boolean {
-  return isToday(new Date(iso));
+  return restaurantCalendarDate(iso) === restaurantCalendarDate(new Date());
+}
+
+/** UTC instant for midnight at the start of the restaurant's local calendar day. */
+export function restaurantStartOfToday(now = new Date()): Date {
+  const today = restaurantCalendarDate(now);
+  let t = now.getTime();
+  while (restaurantCalendarDate(new Date(t)) === today) {
+    t -= 60 * 60 * 1000;
+  }
+  while (restaurantCalendarDate(new Date(t)) !== today) {
+    t += 60 * 1000;
+  }
+  return new Date(t);
 }
 
 export function cartItemKey(

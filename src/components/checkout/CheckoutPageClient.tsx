@@ -54,6 +54,7 @@ export function CheckoutPageClient() {
       allergyNotes,
       items,
       extras,
+      saveHistory: acceptedTerms,
     };
 
     try {
@@ -66,7 +67,7 @@ export function CheckoutPageClient() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to place order");
 
-      if (data.order?.customer) {
+      if (acceptedTerms && data.order?.customer) {
         setCustomer(data.order.customer);
       }
 
@@ -160,7 +161,6 @@ export function CheckoutPageClient() {
             type="checkbox"
             checked={acceptedTerms}
             onChange={(e) => setAcceptedTerms(e.target.checked)}
-            required
             className="mt-1 rounded border-stone-300 text-teal-600 focus:ring-teal-500"
           />
           <span>
@@ -168,7 +168,9 @@ export function CheckoutPageClient() {
             <Link href="/privacy" className="font-medium text-teal-700 underline">
               Privacy Policy and Terms
             </Link>
-            .
+            . If you do not check this box, your order will still be placed for today, but your
+            name, phone number, and order history will not be saved for future login or reorder
+            service, and that guest information is removed after midnight.
           </span>
         </label>
 

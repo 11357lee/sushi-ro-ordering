@@ -132,6 +132,16 @@ export function ConfirmationPageClient({
               {formatPickupTime(order.pickup_time)}
             </p>
           </div>
+          {showCancel && cancelCountdown !== null && cancelCountdown > 0 && (
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-left text-sm text-amber-950">
+              <p>
+                We apologize for the longer wait. We are currently busy and need a little more
+                time to prepare your order carefully. You may cancel with the button below while
+                the timer is active. After the timer ends, please call us if you need to cancel.
+                Thank you for your understanding.
+              </p>
+            </div>
+          )}
           <p className="mt-4 text-sm text-stone-500">Pay in store when collecting your order.</p>
         </>
       )}

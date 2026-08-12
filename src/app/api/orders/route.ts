@@ -34,6 +34,7 @@ export async function POST(request: Request) {
     const phone = normalizePhone(body.phone);
     const pickupType = body.pickupType;
     const pickupTime = pickupType === "asap" ? null : body.pickupTime;
+    const saveHistory = Boolean(body.saveHistory);
     const settings = await fetchRestaurantSettings();
 
     if (isOrderingDisabled()) {
@@ -83,6 +84,7 @@ export async function POST(request: Request) {
           first_name: body.firstName.trim(),
           last_name: body.lastName.trim(),
           phone,
+          save_history: saveHistory,
         },
         order_items: body.items.map((item) => ({
           id: uuidv4(),
@@ -102,6 +104,7 @@ export async function POST(request: Request) {
 
       return NextResponse.json({
         order: saved,
+        saveHistory,
         redirectTo: `/order/${saved.id}/waiting`,
       });
     }
@@ -112,19 +115,26 @@ export async function POST(request: Request) {
       .from("customers")
       .select("*")
       .eq("phone", phone)
-      .ilike("first_name", body.firstName.trim())
       .maybeSingle();
 
-    let customerId = existingCustomer?.id;
+    let customerId = existingCustomer?.id as string | undefined;
+    let customerRecord = existingCustomer;
 
     if (customerId) {
-      await supabase
+      const updates: Record<string, unknown> = {
+        first_name: body.firstName.trim(),
+        last_name: body.lastName.trim(),
+      };
+      // Consent only upgrades retention; never wipe an existing saved account mid-order.
+      if (saveHistory) updates.save_history = true;
+
+      const { data: updated } = await supabase
         .from("customers")
-        .update({
-          first_name: body.firstName.trim(),
-          last_name: body.lastName.trim(),
-        })
-        .eq("id", customerId);
+        .update(updates)
+        .eq("id", customerId)
+        .select()
+        .single();
+      customerRecord = updated ?? existingCustomer;
     } else {
       const { data: newCustomer, error } = await supabase
         .from("customers")
@@ -132,6 +142,7 @@ export async function POST(request: Request) {
           first_name: body.firstName.trim(),
           last_name: body.lastName.trim(),
           phone,
+          save_history: saveHistory,
         })
         .select()
         .single();
@@ -140,6 +151,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Failed to create customer" }, { status: 500 });
       }
       customerId = newCustomer.id;
+      customerRecord = newCustomer;
     }
 
     const initialStatus = "pending";
@@ -195,6 +207,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       order: fullOrder,
+      saveHistory: Boolean(customerRecord?.save_history),
       redirectTo: `/order/${order.id}/waiting`,
     });
   } catch (error) {

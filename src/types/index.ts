@@ -84,6 +84,7 @@ export interface Customer {
   first_name: string;
   last_name: string | null;
   phone: string;
+  save_history?: boolean;
 }
 
 export interface SelectedOption {
@@ -177,6 +178,8 @@ export interface CreateOrderPayload {
   allergyNotes: string;
   items: CartItem[];
   extras: CartExtras;
+  /** When false, order still works for today but account/history is not kept past midnight. */
+  saveHistory?: boolean;
 }
 
 export const WAITING_TIME_COLORS: Record<number, string> = {

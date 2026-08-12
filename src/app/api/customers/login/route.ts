@@ -36,6 +36,16 @@ export async function POST(request: Request) {
       );
     }
 
+    if (!existing.save_history) {
+      return NextResponse.json(
+        {
+          error:
+            "This phone number has no saved account. Accept Privacy Policy and Terms at checkout to keep order history.",
+        },
+        { status: 404 }
+      );
+    }
+
     const orders = await fetchCustomerOrders(existing.id);
     if (!orders.length) {
       return NextResponse.json(

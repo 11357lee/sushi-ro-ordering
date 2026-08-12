@@ -8,7 +8,7 @@ export default function PrivacyPage() {
       <main className="flex-1 bg-stone-50">
         <div className="mx-auto max-w-3xl px-4 py-10">
           <h1 className="text-3xl font-bold text-stone-900">Privacy Policy and Terms</h1>
-          <p className="mt-3 text-sm text-stone-600">Last updated: July 21, 2026</p>
+          <p className="mt-3 text-sm text-stone-600">Last updated: August 11, 2026</p>
 
           <section className="mt-8 space-y-3">
             <h2 className="text-xl font-semibold text-stone-900">Privacy policy</h2>
@@ -17,6 +17,13 @@ export default function PrivacyPage() {
               instructions you provide when placing or tracking pickup orders. We use this
               information to prepare orders, show order history, contact you about your order, and
               improve restaurant operations.
+            </p>
+            <p className="text-stone-700">
+              At checkout, you can choose whether to save your information for future login and
+              reorder service by accepting this Privacy Policy and Terms. If you do not accept,
+              your order can still be placed for that day, but your account details and order
+              history will not be kept for future service and guest information is removed after
+              midnight (America/Toronto).
             </p>
             <p className="text-stone-700">
               We do not sell customer information. Order and account data is stored in our ordering

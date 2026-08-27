@@ -132,24 +132,40 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
       : isNigiriSashimi && nigiriSashimiOptions.length > 0 && !selectedRequiredOption
         ? "Choose option"
         : `Add · ${formatPrice(lineTotal)}`;
+  const isMoriawaseTray =
+    item.category?.slug === "moriawase-tray" ||
+    item.category?.name.toLowerCase().includes("moriawase");
+  const selectedMakiSide =
+    selectedBentoSide?.name.toLowerCase().includes("maki") ?? false;
+  const specialRequestPlaceholder =
+    isMoriawaseTray || selectedMakiSide
+      ? "Please no modification — price may differ based on your request"
+      : "Price may differ based on your request";
 
   return (
     <article
-      className={`flex flex-col rounded-2xl border bg-white p-3 shadow-sm transition-shadow hover:shadow-md sm:p-4 ${
+      className={`flex flex-col rounded-xl border bg-white p-2.5 shadow-sm transition-shadow hover:shadow-md sm:p-3 ${
         isGlutenFree ? "border-purple-300 bg-purple-50/50" : "border-stone-200"
       } ${featured ? "ring-1 ring-stone-100" : ""}`}
       style={isGlutenFree ? { borderLeftWidth: 4, borderLeftColor: accentColor } : undefined}
     >
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
-        <div>
-          <h3 className="text-sm font-semibold text-stone-900 sm:text-base">{toDisplayName(item.name)}</h3>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold leading-snug text-stone-900 sm:text-base">
+            {toDisplayName(item.name)}
+            {isNigiriSashimi && item.description && (
+              <span className="ml-2 text-xs font-normal text-stone-600 sm:text-sm">
+                {item.description}
+              </span>
+            )}
+          </h3>
           {isGlutenFree && (
-            <span className="mt-1 inline-block text-xs font-medium text-purple-800">
+            <span className="mt-0.5 inline-block text-[11px] font-medium text-purple-800">
               Gluten free
             </span>
           )}
           {soldOut && (
-            <span className="mt-1 inline-block rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+            <span className="mt-0.5 inline-block rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-medium text-red-700">
               Sold out
             </span>
           )}
@@ -159,16 +175,16 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
         </span>
       </div>
 
-      {item.description && (
-        <p className="mt-2 text-xs text-stone-600 sm:text-sm">{item.description}</p>
+      {!isNigiriSashimi && item.description && (
+        <p className="mt-1 text-xs leading-snug text-stone-600">{item.description}</p>
       )}
 
       {item.labels && item.labels.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1">
+        <div className="mt-1 flex flex-wrap gap-1">
           {item.labels.map((label) => (
             <span
               key={label.id}
-              className={`rounded-full px-2 py-0.5 text-xs font-medium ${LABEL_COLORS[label.slug] ?? "bg-stone-100 text-stone-700"}`}
+              className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${LABEL_COLORS[label.slug] ?? "bg-stone-100 text-stone-700"}`}
             >
               {label.name}
             </span>
@@ -177,10 +193,10 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
       )}
 
       {optionalOptions.length > 0 && (
-        <div className="mt-3 space-y-1.5">
-          <p className="text-xs font-medium text-stone-500">Options</p>
+        <div className="mt-1.5 space-y-0.5">
+          <p className="text-[11px] font-medium text-stone-500">Options</p>
           {optionalOptions.map((opt) => (
-            <label key={opt.id} className="flex cursor-pointer items-center gap-2 text-sm">
+            <label key={opt.id} className="flex cursor-pointer items-center gap-1.5 text-xs sm:text-sm">
               <input
                 type="checkbox"
                 checked={selectedOptions.some((o) => o.id === opt.id)}
@@ -202,10 +218,10 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
       )}
 
       {isNigiriSashimi && nigiriSashimiOptions.length > 0 && (
-        <div className="mt-3 space-y-1.5 rounded-xl border border-stone-200 bg-stone-50 p-3">
-          <p className="text-xs font-semibold text-stone-900">Choose one *</p>
+        <div className="mt-1.5 space-y-0.5 rounded-lg border border-stone-200 bg-stone-50 px-2 py-1.5">
+          <p className="text-[11px] font-semibold text-stone-900">Choose one *</p>
           {nigiriSashimiOptions.map((option) => (
-            <label key={option.id} className="flex cursor-pointer items-center gap-2 text-sm">
+            <label key={option.id} className="flex cursor-pointer items-center gap-1.5 text-xs sm:text-sm">
               <input
                 type="radio"
                 name={`nigiri-sashimi-${item.id}`}
@@ -223,10 +239,10 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
       )}
 
       {isBentoBuilder && (
-        <div className="mt-3 space-y-1.5 rounded-xl border border-amber-200 bg-amber-50 p-3">
-          <p className="text-xs font-semibold text-amber-900">Choose one meat *</p>
+        <div className="mt-1.5 space-y-0.5 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5">
+          <p className="text-[11px] font-semibold text-amber-900">Choose one meat *</p>
           {bentoMeats.map((meat) => (
-            <label key={meat.id} className="flex cursor-pointer items-center gap-2 text-sm">
+            <label key={meat.id} className="flex cursor-pointer items-center gap-1.5 text-xs sm:text-sm">
               <input
                 type="radio"
                 name={`bento-meat-${item.id}`}
@@ -246,10 +262,10 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
       )}
 
       {(isBentoBuilder || (isBento && !isVeggieBento)) && (
-        <div className="mt-3 space-y-1.5 rounded-xl border border-amber-200 bg-amber-50 p-3">
-          <p className="text-xs font-semibold text-amber-900">Choose one side *</p>
+        <div className="mt-1.5 space-y-0.5 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5">
+          <p className="text-[11px] font-semibold text-amber-900">Choose one side *</p>
           {bentoSides.map((side) => (
-            <label key={side.id} className="flex cursor-pointer items-center gap-2 text-sm">
+            <label key={side.id} className="flex cursor-pointer items-center gap-1.5 text-xs sm:text-sm">
               <input
                 type="radio"
                 name={`bento-side-${item.id}`}
@@ -266,32 +282,30 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
         </div>
       )}
 
-      {optionError && <p className="mt-2 text-sm font-medium text-red-600">{optionError}</p>}
+      {optionError && <p className="mt-1 text-xs font-medium text-red-600">{optionError}</p>}
 
-      <div className="mt-3">
-        <input
-          type="text"
-          placeholder="Special request"
-          value={specialRequest}
-          onChange={(e) => setSpecialRequest(e.target.value)}
-          className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm placeholder:text-stone-400 focus:border-teal-500 focus:outline-none"
-        />
-      </div>
+      <input
+        type="text"
+        placeholder={specialRequestPlaceholder}
+        value={specialRequest}
+        onChange={(e) => setSpecialRequest(e.target.value)}
+        className="mt-1.5 w-full rounded-md border border-stone-200 px-2 py-1.5 text-xs placeholder:text-stone-400 focus:border-teal-500 focus:outline-none sm:text-sm"
+      />
 
-      <div className="mt-auto flex flex-col gap-2 pt-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-        <div className="flex items-center rounded-lg border border-stone-200">
+      <div className="mt-1.5 flex flex-row flex-nowrap items-center gap-2">
+        <div className="flex shrink-0 items-center rounded-md border border-stone-200">
           <button
             type="button"
             onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-            className="px-3 py-2 text-stone-600 hover:bg-stone-50"
+            className="px-2.5 py-1.5 text-stone-600 hover:bg-stone-50"
           >
             −
           </button>
-          <span className="min-w-[2rem] text-center text-sm font-medium">{quantity}</span>
+          <span className="min-w-[1.5rem] text-center text-sm font-medium">{quantity}</span>
           <button
             type="button"
             onClick={() => setQuantity((q) => q + 1)}
-            className="px-3 py-2 text-stone-600 hover:bg-stone-50"
+            className="px-2.5 py-1.5 text-stone-600 hover:bg-stone-50"
           >
             +
           </button>
@@ -300,7 +314,7 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
           type="button"
           onClick={handleAdd}
           disabled={soldOut}
-          className={`rounded-lg px-3 py-2 text-xs font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50 sm:px-4 sm:text-sm ${
+          className={`min-w-0 flex-1 rounded-md px-2 py-1.5 text-xs font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm ${
             added
               ? "bg-emerald-600"
               : soldOut

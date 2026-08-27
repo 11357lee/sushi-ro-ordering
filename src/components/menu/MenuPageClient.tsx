@@ -6,6 +6,7 @@ import { CategoryNav, SectionTabs } from "@/components/menu/CategoryNav";
 import { MenuItemCard } from "@/components/menu/MenuItemCard";
 import { MenuSearch } from "@/components/menu/MenuSearch";
 import { RestaurantBanner } from "@/components/menu/RestaurantBanner";
+import { BackToTopButton } from "@/components/layout/BackToTopButton";
 import { CATEGORY_DESCRIPTION_FALLBACKS } from "@/lib/constants";
 import { toDisplayName } from "@/lib/utils";
 
@@ -19,7 +20,6 @@ const SINGLE_COLUMN_CATEGORY_SLUGS = new Set([
   "moriawase-tray",
   "moriawase",
   "tray",
-  "ramen",
   "sushi-pizza",
   "fusion-roll",
   "bento-box",
@@ -182,6 +182,7 @@ export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientPr
           <p className="py-12 text-center text-stone-500">No items found.</p>
         )}
       </div>
+      <BackToTopButton />
     </>
   );
 }

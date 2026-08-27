@@ -60,13 +60,13 @@ export function CategoryNav({
           : "border-stone-200 bg-white"
       }`}
     >
-      <div className="mx-auto flex max-w-6xl flex-wrap gap-2 px-4 py-3">
+      <div className="mx-auto flex max-w-6xl flex-wrap gap-x-2 gap-y-0.5 px-4 py-1.5">
         {categories.map((cat) => (
           <button
             key={cat.id}
             type="button"
             onClick={() => onChange(cat.slug)}
-            className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
+            className={`rounded-md px-2.5 py-0.5 text-sm font-medium leading-snug ${
               activeCategory === cat.slug ? activeClass : "text-stone-600 hover:bg-stone-100"
             }`}
           >

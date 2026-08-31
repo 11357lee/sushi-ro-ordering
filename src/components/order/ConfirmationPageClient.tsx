@@ -121,6 +121,12 @@ export function ConfirmationPageClient({
           </div>
           <h1 className="text-2xl font-bold text-stone-900">Thank you for your order!</h1>
           <p className="mt-2 text-stone-600">Order #{order.order_number}</p>
+          {order.status === "pending" && order.pickup_type === "scheduled" && (
+            <p className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-950">
+              Your order is scheduled. The restaurant will confirm it as soon as we are ready to
+              open or process scheduled orders.
+            </p>
+          )}
           <div className="mt-6 rounded-xl bg-stone-50 p-6">
             {prepMinutes !== null && (
               <p className="text-sm font-medium text-stone-500">

@@ -74,7 +74,8 @@ export function updateDemoOrderStatus(
   id: string,
   status: OrderStatus,
   pickupTime?: string | null,
-  statusReason?: string | null
+  statusReason?: string | null,
+  selectedPrepMinutes?: number
 ): Order | undefined {
   const updates: Partial<Order> = {
     status,
@@ -86,9 +87,11 @@ export function updateDemoOrderStatus(
     if (pickupTime) updates.pickup_time = pickupTime;
 
     const existing = getDemoOrder(id);
-    const prepMinutes = pickupTime
-      ? Math.round((new Date(pickupTime).getTime() - Date.now()) / 60000)
-      : getDemoWaitingTimeMinutes();
+    const prepMinutes =
+      selectedPrepMinutes ??
+      (pickupTime
+        ? Math.round((new Date(pickupTime).getTime() - Date.now()) / 60000)
+        : getDemoWaitingTimeMinutes());
     if (existing?.pickup_type === "asap" && prepMinutes >= 60) {
       updates.cancel_window_expires_at = new Date(Date.now() + 120_000).toISOString();
     } else {

@@ -45,6 +45,7 @@ export async function PATCH(request: Request) {
     orderId,
     status,
     pickupTime,
+    prepMinutes: requestedPrepMinutes,
     statusReason,
     waitingMinutes,
     pauseDuration,
@@ -142,7 +143,13 @@ export async function PATCH(request: Request) {
         finalPickupTime = addMinutes(new Date(), waitMinutes).toISOString();
       }
 
-      const updated = updateDemoOrderStatus(orderId, orderStatus, finalPickupTime, statusReason);
+      const updated = updateDemoOrderStatus(
+        orderId,
+        orderStatus,
+        finalPickupTime,
+        statusReason,
+        requestedPrepMinutes != null ? Number(requestedPrepMinutes) : undefined
+      );
       return NextResponse.json({ order: updated });
     }
 
@@ -176,9 +183,12 @@ export async function PATCH(request: Request) {
 
       updates.pickup_time = finalPickupTime;
 
-      const prepMinutes = Math.round(
-        (new Date(finalPickupTime).getTime() - confirmedAt.getTime()) / 60000
-      );
+      const prepMinutes =
+        requestedPrepMinutes != null
+          ? Number(requestedPrepMinutes)
+          : Math.round(
+              (new Date(finalPickupTime).getTime() - confirmedAt.getTime()) / 60000
+            );
       if (existingOrder?.pickup_type === "asap" && prepMinutes >= 60) {
         updates.cancel_window_expires_at = addMinutes(confirmedAt, 2).toISOString();
       } else {

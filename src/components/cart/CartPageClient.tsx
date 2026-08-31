@@ -10,6 +10,7 @@ import {
   generateBusinessPickupSlots,
   isPauseActive,
   isRestaurantOpen,
+  toCustomerItemName,
   toDisplayName,
 } from "@/lib/utils";
 
@@ -122,7 +123,7 @@ export function CartPageClient() {
             >
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <h3 className="font-semibold text-stone-900">{toDisplayName(item.name)}</h3>
+                  <h3 className="font-semibold text-stone-900">{toCustomerItemName(item.name)}</h3>
                   {isGF && (
                     <span className="text-xs font-medium text-purple-800">Gluten free</span>
                   )}

@@ -2,16 +2,19 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { addMinutes } from "date-fns";
-import type { MenuData, MenuItem, Order } from "@/types";
+import type { MenuData, MenuItem, Order, SpecialClosedPeriod } from "@/types";
 import { WAITING_TIME_LABELS } from "@/types";
 import {
   formatPhoneDisplay,
   formatOrderDate,
   formatPickupTime,
   formatPrice,
+  formatSpecialClosureLabel,
   isPauseActive,
   isRestaurantOpen,
   isWithinBusinessHours,
+  normalizeSpecialClosedPeriods,
+  sortOrderItemsForAdmin,
   toDisplayName,
 } from "@/lib/utils";
 
@@ -63,21 +66,29 @@ function customerTitle(order: Order): string {
   return `${first}${last ? ` ${last}` : ""}`.trim();
 }
 
-function defaultPickupTime(order: Order, waitingMinutes: number): string {
-  if (order.pickup_type === "scheduled" && order.pickup_time) {
-    return order.pickup_time;
-  }
-  return addMinutes(new Date(), waitingMinutes).toISOString();
-}
-
 function formatCountdown(pickupTime: string | null, now: Date): string | null {
   if (!pickupTime) return null;
   const diffMs = new Date(pickupTime).getTime() - now.getTime();
-  if (diffMs <= 0) return "Pickup time passed";
+  if (diffMs <= 0) return null;
   const totalMinutes = Math.ceil(diffMs / 60000);
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
-  return hours > 0 ? `${hours}h ${minutes}m left` : `${minutes}m left`;
+  return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+}
+
+function acceptPickupDetails(
+  order: Order,
+  pickupInputs: Record<string, string>,
+  waitingMinutes: number
+): { pickupTime: string; prepMinutes: number } {
+  if (order.pickup_type === "scheduled" && order.pickup_time) {
+    return { pickupTime: order.pickup_time, prepMinutes: 0 };
+  }
+  const prepMinutes = Math.max(
+    1,
+    Number(pickupInputs[order.id] ?? waitingMinutes) || waitingMinutes
+  );
+  return { pickupTime: pickupIsoFromPrepMinutes(String(prepMinutes)), prepMinutes };
 }
 
 function pickupIsoFromPrepMinutes(minutes: string): string {
@@ -98,9 +109,9 @@ function OrderExtras({ order }: { order: Order }) {
   if (!extras.length) return null;
 
   return (
-    <ul className="flex flex-wrap gap-2 text-sm">
+    <ul className="flex flex-wrap gap-1 text-xs">
       {extras.map((line) => (
-        <li key={line} className="rounded-full bg-blue-50 px-3 py-1 font-medium text-blue-800">
+        <li key={line} className="rounded-full bg-blue-50 px-2 py-0.5 font-medium text-blue-800">
           {line}
         </li>
       ))}
@@ -113,39 +124,54 @@ function SpecialNotes({ order }: { order: Order }) {
   if (!notes.length) return null;
 
   return (
-    <div className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
+    <div className="my-1 rounded-md bg-red-50 px-2 py-1 text-xs font-semibold text-red-700">
       {notes.join(" · ")}
     </div>
   );
 }
 
-function OrderItems({ order }: { order: Order }) {
+function OrderItems({
+  order,
+  menuItemsById,
+}: {
+  order: Order;
+  menuItemsById: Map<string, { categorySlug: string }>;
+}) {
+  const items = sortOrderItemsForAdmin(order.order_items ?? [], menuItemsById);
+  const rows = items.map((item, index) => {
+    const isGF = item.section_slug === "gluten-free";
+    const prev = index > 0 ? items[index - 1] : null;
+    const prevIsGF = prev?.section_slug === "gluten-free";
+    return {
+      item,
+      isGF,
+      showDivider: prev !== null && prevIsGF !== isGF,
+    };
+  });
+
   return (
-    <ul className="space-y-3 rounded-xl bg-stone-100 px-3 py-3 text-lg">
-      {order.order_items?.map((item) => {
-        const isGF = item.section_slug === "gluten-free";
-        return (
-          <li
-            key={item.id}
-            className={isGF ? "rounded-lg bg-purple-50 px-2 py-1 text-purple-950" : ""}
-          >
-            <span className="text-xl font-bold text-stone-950">
+    <ul className="space-y-1.5 rounded-lg bg-stone-100 px-2 py-2 text-sm">
+      {rows.map(({ item, isGF, showDivider }) => (
+        <li key={item.id}>
+          {showDivider && <div className="my-1.5 border-t border-stone-300" />}
+          <div className={isGF ? "rounded-md bg-purple-50 px-1.5 py-1 text-purple-950" : "px-1.5 py-0.5"}>
+            <span className="text-base font-bold text-stone-950">
               {item.quantity}x {toDisplayName(item.name)}
             </span>
             {isGF && (
-              <span className="ml-2 text-sm font-medium text-purple-800">Gluten free</span>
+              <span className="ml-1.5 text-xs font-medium text-purple-800">GF</span>
             )}
             {item.selected_options?.length > 0 && (
-              <p className="mt-0.5 text-base font-semibold text-teal-700">
+              <p className="text-sm font-semibold text-teal-700">
                 {item.selected_options.map((o) => toDisplayName(o.name)).join(", ")}
               </p>
             )}
             {item.special_request && (
-              <p className="mt-0.5 text-base italic text-red-600">{item.special_request}</p>
+              <p className="text-sm italic text-red-600">{item.special_request}</p>
             )}
-          </li>
-        );
-      })}
+          </div>
+        </li>
+      ))}
     </ul>
   );
 }
@@ -161,11 +187,12 @@ export function AdminPageClient() {
   const [waitingMinutes, setWaitingMinutes] = useState(15);
   const [soldOutIds, setSoldOutIds] = useState<string[]>([]);
   const [pauseUntil, setPauseUntil] = useState<string | null>(null);
-  const [specialClosedDates, setSpecialClosedDates] = useState<string[]>([]);
-  const [newClosedDate, setNewClosedDate] = useState("");
+  const [specialClosedPeriods, setSpecialClosedPeriods] = useState<SpecialClosedPeriod[]>([]);
+  const [closedStartDate, setClosedStartDate] = useState("");
+  const [closedEndDate, setClosedEndDate] = useState("");
+  const [closedMessage, setClosedMessage] = useState("");
   const [closingTime, setClosingTime] = useState("21:00:00");
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [pickupTimes, setPickupTimes] = useState<Record<string, string>>({});
   const [pickupInputs, setPickupInputs] = useState<Record<string, string>>({});
   const [reasonInputs, setReasonInputs] = useState<Record<string, string>>({});
   const [customReasonInputs, setCustomReasonInputs] = useState<Record<string, string>>({});
@@ -186,6 +213,7 @@ export function AdminPageClient() {
     initialNotificationSound("sushi-ro-admin-scheduled-sound", "soft")
   );
   const [moreOpen, setMoreOpen] = useState(false);
+  const [orderMenuOpenId, setOrderMenuOpenId] = useState<string | null>(null);
 
   const headers = useCallback(
     () => ({
@@ -257,7 +285,7 @@ export function AdminPageClient() {
     setWaitingMinutes(data.waitingTime?.minutes ?? 15);
     setSoldOutIds(data.settings?.sold_out_item_ids ?? []);
     setPauseUntil(data.settings?.pause_until ?? null);
-    setSpecialClosedDates(data.settings?.special_closed_dates ?? []);
+    setSpecialClosedPeriods(normalizeSpecialClosedPeriods(data.settings?.special_closed_dates));
     setClosingTime(data.settings?.closing_time ?? "21:00:00");
   }, []);
 
@@ -359,15 +387,6 @@ export function AdminPageClient() {
 
   useEffect(() => {
     queueMicrotask(() => {
-      setPickupTimes((prev) => {
-        const next = { ...prev };
-        orders.forEach((order) => {
-          if (!next[order.id]) {
-            next[order.id] = defaultPickupTime(order, waitingMinutes);
-          }
-        });
-        return next;
-      });
       setPickupInputs((prev) => {
         const next = { ...prev };
         orders.forEach((order) => {
@@ -415,12 +434,20 @@ export function AdminPageClient() {
     orderId: string,
     status: string,
     pickupTime?: string,
-    statusReason?: string
+    statusReason?: string,
+    prepMinutes?: number
   ) => {
     await fetch("/api/admin", {
       method: "PATCH",
       headers: headers(),
-      body: JSON.stringify({ action: "update_order", orderId, status, pickupTime, statusReason }),
+      body: JSON.stringify({
+        action: "update_order",
+        orderId,
+        status,
+        pickupTime,
+        prepMinutes,
+        statusReason,
+      }),
     });
     if (status !== "pending") {
       setExpandedId((current) => (current === orderId ? null : current));
@@ -471,13 +498,13 @@ export function AdminPageClient() {
     setSoldOutIds(next);
   };
 
-  const updateSpecialClosedDates = async (dates: string[]) => {
+  const updateSpecialClosedPeriods = async (periods: SpecialClosedPeriod[]) => {
     await fetch("/api/admin", {
       method: "PATCH",
       headers: headers(),
-      body: JSON.stringify({ action: "update_special_closed_dates", specialClosedDates: dates }),
+      body: JSON.stringify({ action: "update_special_closed_dates", specialClosedDates: periods }),
     });
-    setSpecialClosedDates(dates);
+    setSpecialClosedPeriods(periods);
   };
 
   const menuItemsByCategory = useMemo(() => {
@@ -492,11 +519,21 @@ export function AdminPageClient() {
     });
   }, [menu]);
 
+  const menuItemsById = useMemo(() => {
+    const map = new Map<string, { categorySlug: string }>();
+    if (!menu) return map;
+    for (const item of menu.items) {
+      const category = menu.categories.find((c) => c.id === item.category_id);
+      map.set(item.id, { categorySlug: category?.slug ?? "other" });
+    }
+    return map;
+  }, [menu]);
+
   const restaurantOpen = isRestaurantOpen({
     pause_until: pauseUntil,
     closing_time: closingTime,
     timezone: "America/Toronto",
-    special_closed_dates: specialClosedDates,
+    special_closed_dates: specialClosedPeriods,
   });
   const paused = isPauseActive(pauseUntil);
   const withinBusinessHours = isWithinBusinessHours();
@@ -720,11 +757,13 @@ export function AdminPageClient() {
                     ? formatCountdown(order.pickup_time ?? null, now)
                     : null;
 
+                const acceptDetails = acceptPickupDetails(order, pickupInputs, waitingMinutes);
+
                 return (
                   <div
                     id={`admin-order-${order.id}`}
                     key={order.id}
-                    className={`rounded-2xl border-2 bg-white p-4 shadow-sm sm:p-5 ${
+                    className={`rounded-xl border-2 bg-white p-3 shadow-sm ${
                       cancelled || rejected
                         ? "border-red-500 ring-2 ring-red-100"
                         : order.status === "pending"
@@ -732,272 +771,282 @@ export function AdminPageClient() {
                           : "border-stone-200"
                     }`}
                   >
-                    <SpecialNotes order={order} />
-                    <div
-                      className={`grid w-full gap-4 text-left ${
-                        order.status === "pending" || order.status === "accepted"
-                          ? "grid-cols-[1.3fr_1fr_1.1fr]"
-                          : "grid-cols-[1.4fr_1fr]"
-                      }`}
-                    >
+                    <div className="grid w-full grid-cols-[1.15fr_0.85fr_1fr] gap-2 text-left">
                       <button
                         type="button"
                         onClick={() => setExpandedId(expanded ? null : order.id)}
                         className="text-left"
                       >
                         {customerCancelled && (
-                          <p className="mb-2 rounded-lg bg-red-50 px-3 py-2 text-base font-bold text-red-700">
+                          <p className="mb-1 rounded-md bg-red-50 px-2 py-1 text-xs font-bold text-red-700">
                             Customer cancelled online
                           </p>
                         )}
-                        <p className="text-3xl font-extrabold tracking-tight text-stone-950">
+                        <p className="text-lg font-extrabold tracking-tight text-stone-950">
                           {customerTitle(order)}
-                          {countdown && (
-                            <span className="ml-2 rounded-full bg-amber-100 px-3 py-1 text-base font-bold text-amber-800">
-                              {countdown}
-                            </span>
-                          )}
                         </p>
-                        <p className="text-lg font-semibold text-stone-600">
+                        <p className="text-sm font-medium text-stone-600">
                           {formatPickupTime(order.created_at)}
                         </p>
-                        <p className="mt-1 text-lg font-semibold text-stone-700">
+                        <p className="text-sm font-medium text-stone-700">
                           {order.customer?.phone ? formatPhoneDisplay(order.customer.phone) : ""} ·{" "}
                           <span className="capitalize">{order.status}</span>
                         </p>
                         {order.pickup_type === "asap" ? (
-                          <p className="text-lg font-bold text-amber-700">ASAP pickup</p>
+                          <p className="text-sm font-bold text-amber-700">ASAP pickup</p>
                         ) : (
-                          <p className="text-lg font-bold text-sky-700">
-                            Scheduled: {formatPickupTime(order.pickup_time)}
+                          <p className="text-sm font-bold text-sky-700">
+                            Pickup {formatPickupTime(order.pickup_time)}
+                            {countdown && (
+                              <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-bold text-amber-800">
+                                {countdown}
+                              </span>
+                            )}
+                          </p>
+                        )}
+                        {order.pickup_type === "asap" && order.status === "accepted" && order.pickup_time && (
+                          <p className="text-sm font-bold text-stone-800">
+                            Ready {formatPickupTime(order.pickup_time)}
+                            {countdown && (
+                              <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-bold text-amber-800">
+                                {countdown}
+                              </span>
+                            )}
                           </p>
                         )}
                       </button>
+
                       <button
                         type="button"
                         onClick={() => setExpandedId(expanded ? null : order.id)}
                         className="text-left"
                       >
-                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-400">
+                        <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-stone-400">
                           Extras
                         </p>
                         <OrderExtras order={order} />
                       </button>
-                      {order.status === "pending" && (
-                        <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              updateOrder(
-                                order.id,
-                                "accepted",
-                                order.pickup_type === "scheduled"
-                                  ? order.pickup_time ?? undefined
-                                  : pickupTimes[order.id] ??
-                                    pickupIsoFromPrepMinutes(
-                                      pickupInputs[order.id] ?? String(waitingMinutes)
-                                    )
-                              )
-                            }
-                            className="w-full rounded-lg bg-emerald-600 px-3 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700"
-                          >
-                            Accept
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              updateOrder(
-                                order.id,
-                                "rejected",
-                                undefined,
-                                reasonInputs[order.id] === "Custom message"
-                                  ? customReasonInputs[order.id] || "Custom message"
-                                  : reasonInputs[order.id] ?? "Out of items"
-                              )
-                            }
-                            className="w-full rounded-lg bg-red-600 px-3 py-2.5 text-sm font-semibold text-white hover:bg-red-700"
-                          >
-                            Reject
-                          </button>
-                          <label className="block text-xs font-semibold uppercase tracking-wide text-stone-400">
-                            Reject reason
+
+                      <div className="space-y-1.5" onClick={(e) => e.stopPropagation()}>
+                        {order.status === "pending" && order.pickup_type === "asap" && (
+                          <div>
+                            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-stone-400">
+                              Prep (min)
+                            </p>
+                            <div className="flex flex-wrap gap-1">
+                              {PREP_MINUTE_OPTIONS_PRIMARY.map((minutes) => (
+                                <button
+                                  key={minutes}
+                                  type="button"
+                                  onClick={() => {
+                                    setPickupInputs((prev) => ({ ...prev, [order.id]: minutes }));
+                                  }}
+                                  className={`rounded px-2 py-1 text-xs font-bold ${
+                                    pickupInputs[order.id] === minutes
+                                      ? "bg-stone-900 text-white"
+                                      : "bg-stone-100 text-stone-700"
+                                  }`}
+                                >
+                                  {minutes}
+                                </button>
+                              ))}
+                              {PREP_MINUTE_OPTIONS_EXTENDED.map((minutes) => (
+                                <button
+                                  key={minutes}
+                                  type="button"
+                                  onClick={() => {
+                                    setPickupInputs((prev) => ({ ...prev, [order.id]: minutes }));
+                                  }}
+                                  className={`rounded px-2 py-1 text-xs font-bold ${
+                                    pickupInputs[order.id] === minutes
+                                      ? "bg-stone-900 text-white"
+                                      : "bg-amber-100 text-amber-950"
+                                  }`}
+                                >
+                                  {minutes}
+                                </button>
+                              ))}
+                            </div>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              value={pickupInputs[order.id] ?? ""}
+                              onChange={(e) => {
+                                const value = e.target.value.replace(/\D/g, "").slice(0, 3);
+                                setPickupInputs((prev) => ({ ...prev, [order.id]: value }));
+                              }}
+                              placeholder="Min"
+                              className="mt-1 w-full rounded border border-stone-200 px-2 py-1 text-xs"
+                            />
+                          </div>
+                        )}
+
+                        {order.status === "pending" && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateOrder(
+                                  order.id,
+                                  "accepted",
+                                  acceptDetails.pickupTime,
+                                  undefined,
+                                  acceptDetails.prepMinutes
+                                )
+                              }
+                              className="w-full rounded-lg bg-emerald-600 px-2 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                            >
+                              Accept
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateOrder(
+                                  order.id,
+                                  "rejected",
+                                  undefined,
+                                  reasonInputs[order.id] === "Custom message"
+                                    ? customReasonInputs[order.id] || "Custom message"
+                                    : reasonInputs[order.id] ?? "Out of items"
+                                )
+                              }
+                              className="w-full rounded-lg bg-red-600 px-2 py-2 text-sm font-semibold text-white hover:bg-red-700"
+                            >
+                              Reject
+                            </button>
                             <select
                               value={reasonInputs[order.id] ?? "Out of items"}
                               onChange={(e) =>
                                 setReasonInputs((prev) => ({ ...prev, [order.id]: e.target.value }))
                               }
-                              className="mt-1 w-full rounded-lg border border-stone-200 px-2 py-1.5 text-sm font-medium text-stone-700"
+                              className="w-full rounded border border-stone-200 px-2 py-1 text-xs font-medium text-stone-700"
                             >
                               <option>Out of items</option>
                               <option>Restaurant too busy</option>
                               <option>Custom message</option>
                             </select>
-                          </label>
-                          {reasonInputs[order.id] === "Custom message" && (
-                            <input
-                              type="text"
-                              placeholder="Custom reject message"
-                              onChange={(e) =>
-                                setCustomReasonInputs((prev) => ({
-                                  ...prev,
-                                  [order.id]: e.target.value,
-                                }))
-                              }
-                              className="w-full rounded-lg border border-stone-200 px-2 py-1.5 text-sm"
-                            />
-                          )}
-                        </div>
-                      )}
-                      {order.status === "accepted" && (
-                        <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              updateOrder(
-                                order.id,
-                                "cancelled",
-                                undefined,
-                                reasonInputs[order.id] === "Custom message"
-                                  ? customReasonInputs[order.id] || "Custom message"
-                                  : reasonInputs[order.id] ?? "Customer cancellation"
-                              )
-                            }
-                            className="w-full rounded-lg bg-red-600 px-3 py-2.5 text-sm font-semibold text-white hover:bg-red-700"
-                          >
-                            Cancel order
-                          </button>
-                          <label className="block text-xs font-semibold uppercase tracking-wide text-stone-400">
-                            Cancel reason
-                            <select
-                              value={reasonInputs[order.id] ?? "Customer cancellation"}
-                              onChange={(e) =>
-                                setReasonInputs((prev) => ({ ...prev, [order.id]: e.target.value }))
-                              }
-                              className="mt-1 w-full rounded-lg border border-stone-200 px-2 py-1.5 text-sm font-medium text-stone-700"
-                            >
-                              <option>Customer cancellation</option>
-                              <option>Out of items</option>
-                              <option>Custom message</option>
-                            </select>
-                          </label>
-                          {reasonInputs[order.id] === "Custom message" && (
-                            <input
-                              type="text"
-                              placeholder="Custom cancel message"
-                              onChange={(e) =>
-                                setCustomReasonInputs((prev) => ({
-                                  ...prev,
-                                  [order.id]: e.target.value,
-                                }))
-                              }
-                              className="w-full rounded-lg border border-stone-200 px-2 py-1.5 text-sm"
-                            />
-                          )}
-                        </div>
-                      )}
-                    </div>
+                            {reasonInputs[order.id] === "Custom message" && (
+                              <input
+                                type="text"
+                                placeholder="Reject message"
+                                onChange={(e) =>
+                                  setCustomReasonInputs((prev) => ({
+                                    ...prev,
+                                    [order.id]: e.target.value,
+                                  }))
+                                }
+                                className="w-full rounded border border-stone-200 px-2 py-1 text-xs"
+                              />
+                            )}
+                          </>
+                        )}
 
-                    <div className="mt-4 grid grid-cols-[1.4fr_0.8fr] gap-4 border-t border-stone-100 pt-4">
-                      <div>
-                        <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-stone-500">
-                          Items
-                        </h3>
-                        {expanded ? (
-                          <OrderItems order={order} />
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => setExpandedId(order.id)}
-                            className="text-sm font-medium text-teal-700 hover:underline"
-                          >
-                            View items
-                          </button>
+                        {order.status === "accepted" && (
+                          <>
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">
+                              Total
+                            </p>
+                            <p className="text-xl font-extrabold text-stone-950">
+                              {formatPrice(order.total ?? order.subtotal)}
+                            </p>
+                            <p className="text-xs font-medium text-stone-600">
+                              Sub {formatPrice(order.subtotal)} · Tax {formatPrice(order.tax ?? 0)}
+                            </p>
+                            <div className="relative">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setOrderMenuOpenId((current) =>
+                                    current === order.id ? null : order.id
+                                  )
+                                }
+                                className="rounded-lg border border-stone-300 bg-white px-2.5 py-1.5 text-sm font-bold text-stone-700 hover:bg-stone-50"
+                                aria-label="Order actions"
+                              >
+                                ⋯
+                              </button>
+                              {orderMenuOpenId === order.id && (
+                                <div className="absolute right-0 z-10 mt-1 w-44 rounded-lg border border-stone-200 bg-white p-1 shadow-lg">
+                                  <select
+                                    value={reasonInputs[order.id] ?? "Customer cancellation"}
+                                    onChange={(e) =>
+                                      setReasonInputs((prev) => ({
+                                        ...prev,
+                                        [order.id]: e.target.value,
+                                      }))
+                                    }
+                                    className="mb-1 w-full rounded border border-stone-200 px-2 py-1 text-xs"
+                                  >
+                                    <option>Customer cancellation</option>
+                                    <option>Out of items</option>
+                                    <option>Custom message</option>
+                                  </select>
+                                  {reasonInputs[order.id] === "Custom message" && (
+                                    <input
+                                      type="text"
+                                      placeholder="Cancel message"
+                                      onChange={(e) =>
+                                        setCustomReasonInputs((prev) => ({
+                                          ...prev,
+                                          [order.id]: e.target.value,
+                                        }))
+                                      }
+                                      className="mb-1 w-full rounded border border-stone-200 px-2 py-1 text-xs"
+                                    />
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOrderMenuOpenId(null);
+                                      void updateOrder(
+                                        order.id,
+                                        "cancelled",
+                                        undefined,
+                                        reasonInputs[order.id] === "Custom message"
+                                          ? customReasonInputs[order.id] || "Custom message"
+                                          : reasonInputs[order.id] ?? "Customer cancellation"
+                                      );
+                                    }}
+                                    className="block w-full rounded px-2 py-1.5 text-left text-xs font-medium text-red-700 hover:bg-red-50"
+                                  >
+                                    Cancel order
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </>
                         )}
                       </div>
-                      <div className="text-left">
-                        <p className="text-[11px] font-semibold uppercase tracking-wide text-stone-400">
-                          Total
-                        </p>
-                        <p className="text-xl font-extrabold text-stone-950">
-                          {formatPrice(order.total ?? order.subtotal)}
-                        </p>
-                        <p className="text-sm font-medium text-stone-600">
-                          Subtotal {formatPrice(order.subtotal)} · Tax {formatPrice(order.tax ?? 0)}
-                        </p>
-                      </div>
                     </div>
 
-                    {order.status === "pending" && order.pickup_type === "asap" && (
-                      <div className="mt-4 space-y-3 border-t border-stone-100 pt-4">
-                        <div>
-                          <label className="block text-sm font-medium text-stone-700">
-                            Preparation time
-                          </label>
-                          <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5">
-                            {PREP_MINUTE_OPTIONS_PRIMARY.map((minutes) => (
-                              <button
-                                key={minutes}
-                                type="button"
-                                onClick={() => {
-                                  setPickupInputs((prev) => ({ ...prev, [order.id]: minutes }));
-                                  setPickupTimes((prev) => ({
-                                    ...prev,
-                                    [order.id]: pickupIsoFromPrepMinutes(minutes),
-                                  }));
-                                }}
-                                className={`rounded-lg px-3.5 py-2.5 text-base font-bold ${
-                                  pickupInputs[order.id] === minutes
-                                    ? "bg-stone-900 text-white"
-                                    : "bg-stone-100 text-stone-700"
-                                }`}
-                              >
-                                {minutes}
-                              </button>
-                            ))}
-                          </div>
-                          <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                            {PREP_MINUTE_OPTIONS_EXTENDED.map((minutes) => (
-                              <button
-                                key={minutes}
-                                type="button"
-                                onClick={() => {
-                                  setPickupInputs((prev) => ({ ...prev, [order.id]: minutes }));
-                                  setPickupTimes((prev) => ({
-                                    ...prev,
-                                    [order.id]: pickupIsoFromPrepMinutes(minutes),
-                                  }));
-                                }}
-                                className={`rounded-lg px-3.5 py-2.5 text-base font-bold ${
-                                  pickupInputs[order.id] === minutes
-                                    ? "bg-stone-900 text-white"
-                                    : "bg-amber-100 text-amber-950"
-                                }`}
-                              >
-                                {minutes}
-                              </button>
-                            ))}
-                          </div>
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                            value={pickupInputs[order.id] ?? ""}
-                            onChange={(e) => {
-                              const value = e.target.value.replace(/\D/g, "").slice(0, 3);
-                              setPickupInputs((prev) => ({ ...prev, [order.id]: value }));
-                              if (value) {
-                                setPickupTimes((prev) => ({
-                                  ...prev,
-                                  [order.id]: pickupIsoFromPrepMinutes(value),
-                                }));
-                              }
-                            }}
-                            placeholder="Minutes"
-                            className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2 text-sm"
-                          />
+                    <div className="mt-2 border-t border-stone-100 pt-2">
+                      <h3 className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">
+                        Items
+                      </h3>
+                      <SpecialNotes order={order} />
+                      {expanded ? (
+                        <OrderItems order={order} menuItemsById={menuItemsById} />
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setExpandedId(order.id)}
+                          className="text-sm font-medium text-teal-700 hover:underline"
+                        >
+                          View items
+                        </button>
+                      )}
+                      {order.status === "pending" && (
+                        <div className="mt-2 text-left">
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">
+                            Total
+                          </p>
+                          <p className="text-lg font-extrabold text-stone-950">
+                            {formatPrice(order.total ?? order.subtotal)}
+                          </p>
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                 );
               })
@@ -1115,41 +1164,83 @@ export function AdminPageClient() {
           <section>
             <h2 className="text-lg font-semibold text-stone-900">Special closed dates</h2>
             <p className="mt-1 text-sm text-stone-600">
-              Add holidays or one-off closure dates.
+              Add single days or date ranges (e.g. Dec 3–31 vacation). A custom message replaces the
+              Open/Closed badge on the menu during the closure.
             </p>
-            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-              <input
-                type="date"
-                value={newClosedDate}
-                onChange={(e) => setNewClosedDate(e.target.value)}
-                className="rounded-lg border border-stone-200 px-3 py-2 text-sm"
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  if (!newClosedDate || specialClosedDates.includes(newClosedDate)) return;
-                  updateSpecialClosedDates([...specialClosedDates, newClosedDate].sort());
-                  setNewClosedDate("");
-                }}
-                className="rounded-lg bg-stone-900 px-4 py-2 text-sm font-semibold text-white"
-              >
-                Add closed date
-              </button>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              <label className="text-sm font-medium text-stone-700">
+                Start date
+                <input
+                  type="date"
+                  value={closedStartDate}
+                  onChange={(e) => setClosedStartDate(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2 text-sm"
+                />
+              </label>
+              <label className="text-sm font-medium text-stone-700">
+                End date
+                <input
+                  type="date"
+                  value={closedEndDate}
+                  onChange={(e) => setClosedEndDate(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2 text-sm"
+                />
+              </label>
             </div>
+            <label className="mt-2 block text-sm font-medium text-stone-700">
+              Banner message (optional)
+              <input
+                type="text"
+                value={closedMessage}
+                onChange={(e) => setClosedMessage(e.target.value)}
+                placeholder="Closed for vacation — reopening Jan 2"
+                className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2 text-sm"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() => {
+                if (!closedStartDate || !closedEndDate || closedEndDate < closedStartDate) return;
+                const next: SpecialClosedPeriod = {
+                  start: closedStartDate,
+                  end: closedEndDate,
+                  message: closedMessage.trim() || undefined,
+                };
+                updateSpecialClosedPeriods(
+                  [...specialClosedPeriods, next].sort((a, b) => a.start.localeCompare(b.start))
+                );
+                setClosedStartDate("");
+                setClosedEndDate("");
+                setClosedMessage("");
+              }}
+              className="mt-3 rounded-lg bg-stone-900 px-4 py-2 text-sm font-semibold text-white"
+            >
+              Add closed period
+            </button>
             <div className="mt-3 flex flex-wrap gap-2">
-              {specialClosedDates.map((date) => (
+              {specialClosedPeriods.map((period) => (
                 <button
-                  key={date}
+                  key={`${period.start}-${period.end}-${period.message ?? ""}`}
                   type="button"
                   onClick={() =>
-                    updateSpecialClosedDates(specialClosedDates.filter((d) => d !== date))
+                    updateSpecialClosedPeriods(
+                      specialClosedPeriods.filter(
+                        (entry) =>
+                          !(
+                            entry.start === period.start &&
+                            entry.end === period.end &&
+                            entry.message === period.message
+                          )
+                      )
+                    )
                   }
-                  className="rounded-full bg-red-50 px-3 py-1 text-sm font-medium text-red-700"
+                  className="rounded-full bg-red-50 px-3 py-1 text-left text-sm font-medium text-red-700"
                 >
-                  {date} ×
+                  {formatSpecialClosureLabel(period)}
+                  {period.message ? ` · ${period.message}` : ""} ×
                 </button>
               ))}
-              {!specialClosedDates.length && (
+              {!specialClosedPeriods.length && (
                 <p className="text-sm text-stone-500">No special closed dates.</p>
               )}
             </div>

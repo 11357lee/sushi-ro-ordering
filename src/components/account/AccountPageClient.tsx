@@ -12,6 +12,7 @@ import {
   formatPickupTime,
   formatPrice,
   orderItemsToCartItems,
+  toCustomerItemName,
   toDisplayName,
 } from "@/lib/utils";
 
@@ -282,7 +283,7 @@ export function AccountPageClient() {
                     {order.order_items?.map((item) => (
                       <li key={item.id}>
                         <span className="font-medium">
-                          {item.quantity}x {toDisplayName(item.name)}
+                          {item.quantity}x {toCustomerItemName(item.name)}
                         </span>
                         {item.selected_options?.length > 0 && (
                           <p className="text-stone-500">

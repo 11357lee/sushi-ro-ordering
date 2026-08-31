@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import type { RestaurantSettings, WaitingTime } from "@/types";
 import { RESTAURANT_PHONE, RESTAURANT_PHONE_LINK } from "@/lib/constants";
 import { WAITING_TIME_COLORS, WAITING_TIME_LABELS } from "@/types";
-import { getWaitingTimeText, isPauseActive, isRestaurantOpen } from "@/lib/utils";
+import { getWaitingTimeText, getActiveSpecialClosure, isPauseActive, isRestaurantOpen } from "@/lib/utils";
 
 interface RestaurantBannerProps {
   initialSettings: RestaurantSettings;
@@ -31,9 +31,15 @@ export function RestaurantBanner({
   }, []);
 
   const phone = settings.phone || RESTAURANT_PHONE;
+  const specialClosure = getActiveSpecialClosure(settings);
   const open = isRestaurantOpen(settings);
   const paused = isPauseActive(settings.pause_until);
   const waitColor = WAITING_TIME_COLORS[waitingTime.minutes] ?? "bg-emerald-500";
+  const closureMessage =
+    specialClosure?.message?.trim() ||
+    (specialClosure
+      ? `Closed for vacation (${specialClosure.start === specialClosure.end ? specialClosure.start : `${specialClosure.start} – ${specialClosure.end}`}). Online ordering will resume when we reopen.`
+      : null);
 
   return (
     <section className="relative overflow-hidden bg-stone-900 text-white">
@@ -70,16 +76,22 @@ export function RestaurantBanner({
           .
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-2 sm:mt-5 sm:gap-3">
-          <span
-            className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold sm:text-sm ${
-              open && !paused
-                ? "bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-400/40"
-                : "bg-red-500/20 text-red-300 ring-1 ring-red-400/40"
-            }`}
-          >
-            {paused ? "Paused" : open ? "Open" : "Closed"}
-          </span>
-          {open && !paused && (
+          {specialClosure ? (
+            <span className="inline-flex max-w-full items-center rounded-full bg-red-500/20 px-3 py-1 text-xs font-semibold text-red-200 ring-1 ring-red-400/40 sm:text-sm">
+              {closureMessage}
+            </span>
+          ) : (
+            <span
+              className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold sm:text-sm ${
+                open && !paused
+                  ? "bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-400/40"
+                  : "bg-red-500/20 text-red-300 ring-1 ring-red-400/40"
+              }`}
+            >
+              {paused ? "Paused" : open ? "Open" : "Closed"}
+            </span>
+          )}
+          {open && !paused && !specialClosure && (
             <span
               className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold text-white sm:text-sm ${waitColor}`}
             >

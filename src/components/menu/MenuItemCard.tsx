@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { MenuItem, SelectedOption } from "@/types";
 import { LABEL_COLORS } from "@/types";
 import { buildCartItemFromMenu, useCartStore } from "@/lib/cart-store";
-import { formatPrice, toDisplayName } from "@/lib/utils";
+import { formatPrice, toCustomerItemName } from "@/lib/utils";
 
 interface MenuItemCardProps {
   item: MenuItem;
@@ -44,9 +44,10 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
 
   const isGlutenFree = item.section?.slug === "gluten-free";
   const isBento =
-    item.category?.slug.includes("bento") || item.category?.name.toLowerCase().includes("bento");
+    Boolean(item.category?.slug?.includes("bento")) ||
+    Boolean(item.category?.name?.toLowerCase().includes("bento"));
   const isVeggieBento = item.name.toLowerCase().includes("veggie bento");
-  const isNigiriSashimi = item.category?.slug.includes("nigiri-sashimi");
+  const isNigiriSashimi = Boolean(item.category?.slug?.includes("nigiri-sashimi"));
   const accentColor = isGlutenFree ? "#7e22ce" : item.section?.accent_color ?? "#1a1a1a";
   const fallbackBentoSides: SelectedOption[] = [
     { id: "bento-side-maki", name: "Maki (3 California and 3 BBQ Salmon)", price_modifier: 0 },
@@ -134,9 +135,12 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
         : `Add · ${formatPrice(lineTotal)}`;
   const isMoriawaseTray =
     item.category?.slug === "moriawase-tray" ||
-    item.category?.name.toLowerCase().includes("moriawase");
-  const selectedMakiSide =
-    selectedBentoSide?.name.toLowerCase().includes("maki") ?? false;
+    Boolean(item.category?.name?.toLowerCase().includes("moriawase"));
+  const isTrayItem =
+    item.name.toLowerCase().includes("maki tray") ||
+    item.name.toLowerCase().includes("veggie tray");
+  const showSpecialRequest = !isNigiriSashimi && !isTrayItem;
+  const selectedMakiSide = Boolean(selectedBentoSide?.name?.toLowerCase().includes("maki"));
   const specialRequestPlaceholder =
     isMoriawaseTray || selectedMakiSide
       ? "Please no modification — price may differ based on your request"
@@ -152,7 +156,7 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <h3 className="text-sm font-semibold leading-snug text-stone-900 sm:text-base">
-            {toDisplayName(item.name)}
+            {toCustomerItemName(item.name)}
             {isNigiriSashimi && item.description && (
               <span className="ml-2 text-xs font-normal text-stone-600 sm:text-sm">
                 {item.description}
@@ -284,28 +288,30 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
 
       {optionError && <p className="mt-1 text-xs font-medium text-red-600">{optionError}</p>}
 
-      <input
-        type="text"
-        placeholder={specialRequestPlaceholder}
-        value={specialRequest}
-        onChange={(e) => setSpecialRequest(e.target.value)}
-        className="mt-1.5 w-full rounded-md border border-stone-200 px-2 py-1.5 text-xs placeholder:text-stone-400 focus:border-teal-500 focus:outline-none sm:text-sm"
-      />
+      {showSpecialRequest && (
+        <input
+          type="text"
+          placeholder={specialRequestPlaceholder}
+          value={specialRequest}
+          onChange={(e) => setSpecialRequest(e.target.value)}
+          className="mt-1.5 w-full rounded-md border border-stone-200 px-2 py-1.5 text-xs placeholder:text-stone-400 focus:border-teal-500 focus:outline-none sm:text-sm"
+        />
+      )}
 
       <div className="mt-1.5 flex flex-row flex-nowrap items-center gap-2">
-        <div className="flex shrink-0 items-center rounded-md border border-stone-200">
+        <div className="flex w-[4.5rem] shrink-0 items-center justify-between rounded-md border border-stone-200">
           <button
             type="button"
             onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-            className="px-2.5 py-1.5 text-stone-600 hover:bg-stone-50"
+            className="px-1.5 py-1.5 text-stone-600 hover:bg-stone-50"
           >
             −
           </button>
-          <span className="min-w-[1.5rem] text-center text-sm font-medium">{quantity}</span>
+          <span className="min-w-[1rem] text-center text-sm font-medium">{quantity}</span>
           <button
             type="button"
             onClick={() => setQuantity((q) => q + 1)}
-            className="px-2.5 py-1.5 text-stone-600 hover:bg-stone-50"
+            className="px-1.5 py-1.5 text-stone-600 hover:bg-stone-50"
           >
             +
           </button>
@@ -314,7 +320,7 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
           type="button"
           onClick={handleAdd}
           disabled={soldOut}
-          className={`min-w-0 flex-1 rounded-md px-2 py-1.5 text-xs font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm ${
+          className={`min-w-0 flex-[1.6] rounded-md px-2 py-1.5 text-xs font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm ${
             added
               ? "bg-emerald-600"
               : soldOut

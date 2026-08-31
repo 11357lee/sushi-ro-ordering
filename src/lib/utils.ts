@@ -8,7 +8,7 @@ import {
   setMinutes,
   setSeconds,
 } from "date-fns";
-import type { CartItem, Order, RestaurantSettings, SelectedOption } from "@/types";
+import type { CartItem, Order, RestaurantSettings, SelectedOption, SpecialClosedPeriod } from "@/types";
 import {
   BUSINESS_HOURS,
   ORDERING_DISABLED_END,
@@ -43,6 +43,7 @@ export function formatPhoneInput(value: string): string {
 }
 
 export function toDisplayName(text: string): string {
+  if (!text) return "";
   return text
     .split(/\s+/)
     .map((word) => {
@@ -60,6 +61,15 @@ export function toDisplayName(text: string): string {
       return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
     })
     .join(" ");
+}
+
+/** Customer-facing menu titles: hide redundant (GF) when the gluten-free tag/section already shows it. */
+export function toCustomerItemName(text: string): string {
+  if (!text) return "";
+  return toDisplayName(text)
+    .replace(/\s*\(\s*gf\s*\)/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
 export function calcLineTotal(
@@ -147,6 +157,37 @@ export function isPauseActive(pauseUntil: string | null | undefined): boolean {
   return new Date(pauseUntil) > new Date();
 }
 
+export function normalizeSpecialClosedPeriods(
+  raw: (string | SpecialClosedPeriod)[] | undefined
+): SpecialClosedPeriod[] {
+  if (!raw?.length) return [];
+  return raw.map((entry) => {
+    if (typeof entry === "string") return { start: entry, end: entry };
+    return { start: entry.start, end: entry.end, message: entry.message };
+  });
+}
+
+export function isDateInSpecialClosure(
+  dateKey: string,
+  periods: SpecialClosedPeriod[]
+): boolean {
+  return periods.some((period) => dateKey >= period.start && dateKey <= period.end);
+}
+
+export function getActiveSpecialClosure(
+  settings: Pick<RestaurantSettings, "special_closed_dates">,
+  now = new Date()
+): SpecialClosedPeriod | null {
+  const dateKey = restaurantCalendarDate(now);
+  const periods = normalizeSpecialClosedPeriods(settings.special_closed_dates);
+  return periods.find((period) => isDateInSpecialClosure(dateKey, [period])) ?? null;
+}
+
+export function formatSpecialClosureLabel(period: SpecialClosedPeriod): string {
+  if (period.start === period.end) return period.start;
+  return `${period.start} to ${period.end}`;
+}
+
 export function isRestaurantOpen(
   settings: Pick<
     RestaurantSettings,
@@ -155,9 +196,9 @@ export function isRestaurantOpen(
   now = new Date()
 ): boolean {
   if (isPauseActive(settings.pause_until)) return false;
-  const localNow = restaurantWallClock(now);
-  const dateKey = format(localNow, "yyyy-MM-dd");
-  if (settings.special_closed_dates?.includes(dateKey)) return false;
+  const dateKey = restaurantCalendarDate(now);
+  const periods = normalizeSpecialClosedPeriods(settings.special_closed_dates);
+  if (isDateInSpecialClosure(dateKey, periods)) return false;
   return isWithinBusinessHours(now);
 }
 
@@ -275,6 +316,56 @@ export function cartItemKey(
     .sort()
     .join("-");
   return `${menuItemId}:${optKey}:${specialRequest.trim()}`;
+}
+
+/** Admin kitchen display order — regular items first, then gluten-free, grouped by category. */
+const ADMIN_ITEM_CATEGORY_ORDER: Record<string, number> = {
+  appetizer: 1,
+  "appetizer-salad": 1,
+  "gf-appetizer": 1,
+  soup: 2,
+  salad: 2,
+  ramen: 3,
+  "bento-box": 4,
+  "sushi-pizza": 5,
+  "nigiri-sashimi": 6,
+  "gf-nigiri-sashimi": 6,
+  "traditional-roll": 7,
+  "gf-traditional-roll": 7,
+  "vegetable-roll": 8,
+  "gf-vegetable-roll": 8,
+  "fusion-roll": 9,
+  "gf-fusion-roll": 9,
+  moriawase: 10,
+  "moriawase-tray": 10,
+  "gf-moriawase": 10,
+  "drinks-extra": 11,
+};
+
+function adminCategorySortKey(
+  categorySlug: string | undefined,
+  isGlutenFree: boolean
+): [number, number, string] {
+  const order = ADMIN_ITEM_CATEGORY_ORDER[categorySlug ?? ""] ?? 99;
+  return [isGlutenFree ? 1 : 0, order, categorySlug ?? "zzz"];
+}
+
+export function sortOrderItemsForAdmin(
+  items: NonNullable<Order["order_items"]>,
+  menuItemsById?: Map<string, { categorySlug: string }>
+): NonNullable<Order["order_items"]> {
+  return [...items].sort((a, b) => {
+    const aIsGF = a.section_slug === "gluten-free";
+    const bIsGF = b.section_slug === "gluten-free";
+    const aCat = menuItemsById?.get(a.menu_item_id ?? "")?.categorySlug;
+    const bCat = menuItemsById?.get(b.menu_item_id ?? "")?.categorySlug;
+    const [aSection, aOrder, aSlug] = adminCategorySortKey(aCat, aIsGF);
+    const [bSection, bOrder, bSlug] = adminCategorySortKey(bCat, bIsGF);
+    if (aSection !== bSection) return aSection - bSection;
+    if (aOrder !== bOrder) return aOrder - bOrder;
+    if (aSlug !== bSlug) return aSlug.localeCompare(bSlug);
+    return a.name.localeCompare(b.name);
+  });
 }
 
 export function orderItemsToCartItems(

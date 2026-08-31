@@ -70,7 +70,13 @@ export interface RestaurantSettings {
   tax_rate?: number;
   pause_until?: string | null;
   sold_out_item_ids?: string[];
-  special_closed_dates?: string[];
+  special_closed_dates?: (string | SpecialClosedPeriod)[];
+}
+
+export interface SpecialClosedPeriod {
+  start: string;
+  end: string;
+  message?: string;
 }
 
 export interface WaitingTime {

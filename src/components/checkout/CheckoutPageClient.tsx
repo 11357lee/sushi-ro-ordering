@@ -85,6 +85,14 @@ export function CheckoutPageClient() {
       <h1 className="text-2xl font-bold text-stone-900">Checkout</h1>
       <p className="mt-1 text-sm text-stone-600">Pay in store when collecting your order.</p>
 
+      <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+        <p>
+          If your order requires a long preparation time (about 60 minutes or more), we may miss
+          your call during busy rush hours. Please try again in a few minutes if we do not answer.
+          Thank you for your understanding.
+        </p>
+      </div>
+
       <div className="mt-4 rounded-xl border border-stone-200 bg-stone-50 p-4 text-sm">
         <p>
           <span className="font-medium">Pickup:</span>{" "}

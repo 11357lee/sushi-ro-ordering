@@ -14,9 +14,14 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchAdminOrders } from "@/lib/data/queries";
 import type { OrderStatus } from "@/types";
 
+function normalizeAdminKey(value: string | null | undefined): string {
+  return (value ?? "").replace(/[\u200B-\u200D\uFEFF]/g, "").trim();
+}
+
 function verifyAdmin(request: Request): boolean {
-  const key = request.headers.get("x-admin-key");
-  return key?.trim() === process.env.ADMIN_API_KEY?.trim() && Boolean(process.env.ADMIN_API_KEY);
+  const key = normalizeAdminKey(request.headers.get("x-admin-key"));
+  const expected = normalizeAdminKey(process.env.ADMIN_API_KEY);
+  return Boolean(expected) && key === expected;
 }
 
 function closingTimeToday(closingTime = "21:00:00"): Date {

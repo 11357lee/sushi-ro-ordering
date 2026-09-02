@@ -37,6 +37,27 @@ const PREP_MINUTE_OPTIONS_EXTENDED = ["60", "70", "80", "90", "100", "120"];
 const CANCEL_ALERT_STORAGE_KEY = "sushi-ro-admin-cancel-alerts";
 const REMEMBER_DEVICE_KEY = "sushi-ro-admin-remembered-key";
 
+type AdminAuthFailure = "empty" | "invalid" | "network";
+type AdminAuthResult = { ok: true } | { ok: false; reason: AdminAuthFailure };
+
+function normalizeAdminKey(value: string): string {
+  return value
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
+    .trim();
+}
+
+function adminAuthErrorMessage(reason: AdminAuthFailure, savedDevice = false): string {
+  if (reason === "network") {
+    return "Cannot reach the server. Check your Wi-Fi connection and try again.";
+  }
+  if (reason === "empty") {
+    return "Enter your admin API key.";
+  }
+  return savedDevice
+    ? "Saved iPad login no longer works. Enter your admin key again."
+    : "Incorrect admin key.";
+}
+
 function loadCancelAlertedIds(): Set<string> {
   if (typeof window === "undefined") return new Set();
   try {
@@ -178,6 +199,7 @@ function OrderItems({
 
 export function AdminPageClient() {
   const [apiKey, setApiKey] = useState("");
+  const [showApiKey, setShowApiKey] = useState(false);
   const [rememberDevice, setRememberDevice] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
   const [loginError, setLoginError] = useState("");
@@ -223,23 +245,28 @@ export function AdminPageClient() {
     [apiKey]
   );
 
-  const authenticateWithKey = useCallback(async (key: string) => {
-    const trimmed = key.trim();
-    if (!trimmed) return false;
-    const res = await fetch("/api/admin", { headers: { "x-admin-key": trimmed } });
-    if (!res.ok) return false;
-    const data = await res.json();
-    setApiKey(trimmed);
-    setOrders(
-      (data.orders ?? []).sort(
-        (a: Order, b: Order) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      )
-    );
-    ordersReadyRef.current = true;
-    setAuthenticated(true);
-    setLoginError("");
-    return true;
+  const authenticateWithKey = useCallback(async (key: string): Promise<AdminAuthResult> => {
+    const trimmed = normalizeAdminKey(key);
+    if (!trimmed) return { ok: false, reason: "empty" };
+    try {
+      const res = await fetch("/api/admin", { headers: { "x-admin-key": trimmed } });
+      if (res.status === 401) return { ok: false, reason: "invalid" };
+      if (!res.ok) return { ok: false, reason: "network" };
+      const data = await res.json();
+      setApiKey(trimmed);
+      setOrders(
+        (data.orders ?? []).sort(
+          (a: Order, b: Order) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        )
+      );
+      ordersReadyRef.current = true;
+      setAuthenticated(true);
+      setLoginError("");
+      return { ok: true };
+    } catch {
+      return { ok: false, reason: "network" };
+    }
   }, []);
 
   const fetchOrders = useCallback(async () => {
@@ -268,16 +295,21 @@ export function AdminPageClient() {
       setLoading(true);
     });
 
-    void authenticateWithKey(saved)
-      .then((ok) => {
-        if (!ok) {
-          window.localStorage.removeItem(REMEMBER_DEVICE_KEY);
-          setRememberDevice(false);
-          setApiKey("");
-          setLoginError("Saved iPad login expired. Please enter the admin key again.");
-        }
-      })
-      .finally(() => setLoading(false));
+    const timer = window.setTimeout(() => {
+      void authenticateWithKey(saved)
+        .then((result) => {
+          if (result.ok) return;
+          if (result.reason === "invalid") {
+            window.localStorage.removeItem(REMEMBER_DEVICE_KEY);
+            setRememberDevice(false);
+            setApiKey("");
+          }
+          setLoginError(adminAuthErrorMessage(result.reason, result.reason === "invalid"));
+        })
+        .finally(() => setLoading(false));
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [authenticateWithKey]);
   const fetchSettings = useCallback(async () => {
     const res = await fetch("/api/settings");
@@ -405,14 +437,16 @@ export function AdminPageClient() {
     setLoginError("");
     ordersReadyRef.current = false;
     cancellationAlertsReadyRef.current = false;
-    const ok = await authenticateWithKey(apiKey);
-    if (!ok) {
-      setLoginError("Incorrect admin key.");
+    const normalizedKey = normalizeAdminKey(apiKey);
+    setApiKey(normalizedKey);
+    const result = await authenticateWithKey(normalizedKey);
+    if (!result.ok) {
+      setLoginError(adminAuthErrorMessage(result.reason));
       setLoading(false);
       return;
     }
     if (rememberDevice) {
-      window.localStorage.setItem(REMEMBER_DEVICE_KEY, apiKey.trim());
+      window.localStorage.setItem(REMEMBER_DEVICE_KEY, normalizedKey);
     } else {
       window.localStorage.removeItem(REMEMBER_DEVICE_KEY);
     }
@@ -602,13 +636,27 @@ export function AdminPageClient() {
           Order management for Sushi-Ro. Uses the same API as a future iOS app.
         </p>
         <form onSubmit={handleLogin} className="mt-6 space-y-4">
-          <input
-            type="password"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value.trim())}
-            placeholder="Admin API key"
-            className="w-full rounded-lg border border-stone-200 px-3 py-2.5"
-          />
+          <div className="space-y-2">
+            <input
+              type={showApiKey ? "text" : "password"}
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder="Admin API key"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              enterKeyHint="go"
+              className="w-full rounded-lg border border-stone-200 px-3 py-2.5 text-base"
+            />
+            <button
+              type="button"
+              onClick={() => setShowApiKey((current) => !current)}
+              className="text-sm font-medium text-teal-700"
+            >
+              {showApiKey ? "Hide key" : "Show key"}
+            </button>
+          </div>
           <label className="flex items-start gap-2 text-sm text-stone-600">
             <input
               type="checkbox"

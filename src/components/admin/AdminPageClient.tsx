@@ -286,6 +286,15 @@ export function AdminPageClient() {
   }, [apiKey]);
 
   useEffect(() => {
+    document.documentElement.setAttribute("data-admin-hydrated", "1");
+    const warning = document.getElementById("admin-compat-warning");
+    if (warning) {
+      warning.style.display = "none";
+      warning.classList.add("hidden");
+    }
+  }, []);
+
+  useEffect(() => {
     const saved = window.localStorage.getItem(REMEMBER_DEVICE_KEY)?.trim();
     if (!saved) return;
 
@@ -431,8 +440,10 @@ export function AdminPageClient() {
     });
   }, [orders, waitingMinutes]);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleLogin = async (e?: React.FormEvent | React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    if (loading) return;
     setLoading(true);
     setLoginError("");
     ordersReadyRef.current = false;
@@ -635,12 +646,24 @@ export function AdminPageClient() {
         <p className="mt-2 text-sm text-stone-600">
           Order management for Sushi-Ro. Uses the same API as a future iOS app.
         </p>
-        <form onSubmit={handleLogin} className="mt-6 space-y-4">
+        <form
+          method="post"
+          action="#"
+          onSubmit={handleLogin}
+          className="mt-6 space-y-4"
+        >
           <div className="space-y-2">
             <input
               type={showApiKey ? "text" : "password"}
+              name="admin-api-key"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void handleLogin(e);
+                }
+              }}
               placeholder="Admin API key"
               autoComplete="off"
               autoCorrect="off"
@@ -671,8 +694,9 @@ export function AdminPageClient() {
           </label>
           {loginError && <p className="text-sm text-red-600">{loginError}</p>}
           <button
-            type="submit"
+            type="button"
             disabled={loading}
+            onClick={handleLogin}
             className="w-full rounded-lg bg-stone-900 py-3 font-semibold text-white"
           >
             {loading ? "..." : "Enter"}

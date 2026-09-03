@@ -36,6 +36,8 @@ const PREP_MINUTE_OPTIONS_PRIMARY = ["5", "10", "15", "20", "25", "30", "35", "4
 const PREP_MINUTE_OPTIONS_EXTENDED = ["60", "70", "80", "90", "100", "120"];
 const CANCEL_ALERT_STORAGE_KEY = "sushi-ro-admin-cancel-alerts";
 const REMEMBER_DEVICE_KEY = "sushi-ro-admin-remembered-key";
+const SOUND_VOLUME = 0.32;
+const SOUND_TONE_MS = 0.32;
 
 type AdminAuthFailure = "empty" | "invalid" | "network";
 type AdminAuthResult = { ok: true } | { ok: false; reason: AdminAuthFailure };
@@ -373,7 +375,7 @@ export function AdminPageClient() {
       if (!AudioCtx) return;
       if (!audioContextRef.current) audioContextRef.current = new AudioCtx();
       const ctx = audioContextRef.current;
-      void ctx.resume();
+      void ctx.resume().then(() => setSoundUnlocked(true));
       const sound =
         kind === "customer-cancelled"
           ? { frequencies: [988, 740, 554], type: "sawtooth" as OscillatorType }
@@ -384,23 +386,39 @@ export function AdminPageClient() {
         const gain = ctx.createGain();
         oscillator.frequency.value = frequency;
         oscillator.type = sound.type;
-        gain.gain.setValueAtTime(0.0001, ctx.currentTime + offset);
-        gain.gain.exponentialRampToValueAtTime(0.06, ctx.currentTime + offset + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + offset + 0.22);
+        const startAt = ctx.currentTime + offset;
+        gain.gain.setValueAtTime(0.0001, startAt);
+        gain.gain.exponentialRampToValueAtTime(SOUND_VOLUME, startAt + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, startAt + SOUND_TONE_MS);
         oscillator.connect(gain);
         gain.connect(ctx.destination);
-        oscillator.start(ctx.currentTime + offset);
-        oscillator.stop(ctx.currentTime + offset + 0.24);
+        oscillator.start(startAt);
+        oscillator.stop(startAt + SOUND_TONE_MS + 0.02);
       };
 
-      sound.frequencies.forEach((frequency, index) => startTone(frequency, index * 0.16));
+      sound.frequencies.forEach((frequency, index) => startTone(frequency, index * 0.18));
     },
     [asapSound, scheduledSound]
   );
 
+  const unlockAudio = useCallback(() => {
+    const AudioCtx =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioCtx) {
+      setSoundUnlocked(true);
+      return;
+    }
+    if (!audioContextRef.current) audioContextRef.current = new AudioCtx();
+    void audioContextRef.current.resume().then(() => {
+      setSoundUnlocked(true);
+      setSoundEnabled(true);
+    });
+  }, []);
+
   const enableSound = () => {
     setSoundEnabled(true);
-    setSoundUnlocked(true);
+    unlockAudio();
     playNotificationSound("asap");
   };
 
@@ -408,23 +426,18 @@ export function AdminPageClient() {
     if (!authenticated || soundUnlocked) return;
 
     const unlockOnGesture = () => {
-      const AudioCtx =
-        window.AudioContext ||
-        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-      if (!AudioCtx) return;
-      if (!audioContextRef.current) audioContextRef.current = new AudioCtx();
-      void audioContextRef.current.resume().then(() => {
-        setSoundUnlocked(true);
-      });
+      unlockAudio();
     };
 
     window.addEventListener("pointerdown", unlockOnGesture, { once: true });
+    window.addEventListener("touchstart", unlockOnGesture, { once: true, passive: true });
     window.addEventListener("keydown", unlockOnGesture, { once: true });
     return () => {
       window.removeEventListener("pointerdown", unlockOnGesture);
+      window.removeEventListener("touchstart", unlockOnGesture);
       window.removeEventListener("keydown", unlockOnGesture);
     };
-  }, [authenticated, soundUnlocked]);
+  }, [authenticated, soundUnlocked, unlockAudio]);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -440,7 +453,7 @@ export function AdminPageClient() {
     });
   }, [orders, waitingMinutes]);
 
-  const handleLogin = async (e?: React.FormEvent | React.MouseEvent) => {
+  const handleLogin = async (e?: React.FormEvent | React.MouseEvent | React.KeyboardEvent) => {
     e?.preventDefault();
     e?.stopPropagation();
     if (loading) return;
@@ -448,6 +461,8 @@ export function AdminPageClient() {
     setLoginError("");
     ordersReadyRef.current = false;
     cancellationAlertsReadyRef.current = false;
+    // Unlock audio during this tap so order alerts work without a second touch.
+    unlockAudio();
     const normalizedKey = normalizeAdminKey(apiKey);
     setApiKey(normalizedKey);
     const result = await authenticateWithKey(normalizedKey);
@@ -708,6 +723,15 @@ export function AdminPageClient() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-4 text-base sm:py-6">
+      {authenticated && !soundUnlocked && (
+        <button
+          type="button"
+          onClick={enableSound}
+          className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-3.5 text-base font-extrabold text-stone-950 shadow-sm"
+        >
+          Tap to enable loud order sounds
+        </button>
+      )}
       <div className="sticky top-0 z-20 -mx-4 space-y-3 border-b border-stone-200 bg-stone-100 px-4 py-3">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm font-semibold text-stone-700">Waiting:</span>
@@ -843,7 +867,7 @@ export function AdminPageClient() {
                           : "border-stone-200"
                     }`}
                   >
-                    <div className="grid w-full grid-cols-[1.15fr_0.85fr_1fr] gap-2 text-left">
+                    <div className="grid w-full grid-cols-1 gap-3 text-left sm:grid-cols-[minmax(0,1.1fr)_minmax(0,1.2fr)]">
                       <button
                         type="button"
                         onClick={() => setExpandedId(expanded ? null : order.id)}
@@ -886,26 +910,21 @@ export function AdminPageClient() {
                             )}
                           </p>
                         )}
+                        <div className="mt-2">
+                          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-stone-400">
+                            Extras
+                          </p>
+                          <OrderExtras order={order} />
+                        </div>
                       </button>
 
-                      <button
-                        type="button"
-                        onClick={() => setExpandedId(expanded ? null : order.id)}
-                        className="text-left"
-                      >
-                        <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-stone-400">
-                          Extras
-                        </p>
-                        <OrderExtras order={order} />
-                      </button>
-
-                      <div className="space-y-1.5" onClick={(e) => e.stopPropagation()}>
+                      <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
                         {order.status === "pending" && order.pickup_type === "asap" && (
                           <div>
-                            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-stone-400">
+                            <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-stone-400">
                               Prep (min)
                             </p>
-                            <div className="flex flex-wrap gap-1">
+                            <div className="grid grid-cols-5 gap-1.5">
                               {PREP_MINUTE_OPTIONS_PRIMARY.map((minutes) => (
                                 <button
                                   key={minutes}
@@ -913,15 +932,17 @@ export function AdminPageClient() {
                                   onClick={() => {
                                     setPickupInputs((prev) => ({ ...prev, [order.id]: minutes }));
                                   }}
-                                  className={`rounded px-2 py-1 text-xs font-bold ${
+                                  className={`min-h-11 rounded-lg px-1 py-2.5 text-sm font-extrabold sm:text-base ${
                                     pickupInputs[order.id] === minutes
                                       ? "bg-stone-900 text-white"
-                                      : "bg-stone-100 text-stone-700"
+                                      : "bg-stone-100 text-stone-800"
                                   }`}
                                 >
                                   {minutes}
                                 </button>
                               ))}
+                            </div>
+                            <div className="mt-1.5 grid grid-cols-6 gap-1.5">
                               {PREP_MINUTE_OPTIONS_EXTENDED.map((minutes) => (
                                 <button
                                   key={minutes}
@@ -929,7 +950,7 @@ export function AdminPageClient() {
                                   onClick={() => {
                                     setPickupInputs((prev) => ({ ...prev, [order.id]: minutes }));
                                   }}
-                                  className={`rounded px-2 py-1 text-xs font-bold ${
+                                  className={`min-h-11 rounded-lg px-1 py-2.5 text-sm font-extrabold sm:text-base ${
                                     pickupInputs[order.id] === minutes
                                       ? "bg-stone-900 text-white"
                                       : "bg-amber-100 text-amber-950"
@@ -948,8 +969,8 @@ export function AdminPageClient() {
                                 const value = e.target.value.replace(/\D/g, "").slice(0, 3);
                                 setPickupInputs((prev) => ({ ...prev, [order.id]: value }));
                               }}
-                              placeholder="Min"
-                              className="mt-1 w-full rounded border border-stone-200 px-2 py-1 text-xs"
+                              placeholder="Custom min"
+                              className="mt-2 w-full rounded-lg border border-stone-200 px-3 py-2.5 text-base"
                             />
                           </div>
                         )}
@@ -967,7 +988,7 @@ export function AdminPageClient() {
                                   acceptDetails.prepMinutes
                                 )
                               }
-                              className="w-full rounded-lg bg-emerald-600 px-2 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                              className="min-h-12 w-full rounded-xl bg-emerald-600 px-3 py-3 text-base font-bold text-white hover:bg-emerald-700"
                             >
                               Accept
                             </button>
@@ -983,7 +1004,7 @@ export function AdminPageClient() {
                                     : reasonInputs[order.id] ?? "Out of items"
                                 )
                               }
-                              className="w-full rounded-lg bg-red-600 px-2 py-2 text-sm font-semibold text-white hover:bg-red-700"
+                              className="min-h-11 w-full rounded-xl bg-red-600 px-3 py-2.5 text-base font-bold text-white hover:bg-red-700"
                             >
                               Reject
                             </button>
@@ -1143,8 +1164,9 @@ export function AdminPageClient() {
           <section>
             <h2 className="text-lg font-semibold text-stone-900">Notification sounds</h2>
             <p className="mt-1 text-sm text-stone-600">
-              Sounds are on by default. Some browsers and iPads still require one tap after opening
-              the admin page, so use the test button if you do not hear alerts.
+              Sounds are louder by default. Safari and iPads usually need one tap after opening the
+              admin page (or when logging in) before alerts can play — use the yellow banner or the
+              test button below if you do not hear them.
             </p>
             <div className="mt-4 grid gap-3 rounded-xl border border-stone-200 bg-white p-4 sm:grid-cols-2">
               <label className="text-sm font-medium text-stone-700">

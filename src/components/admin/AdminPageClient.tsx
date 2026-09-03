@@ -14,6 +14,7 @@ import {
   isRestaurantOpen,
   isWithinBusinessHours,
   normalizeSpecialClosedPeriods,
+  restaurantCalendarDate,
   sortOrderItemsForAdmin,
   toDisplayName,
 } from "@/lib/utils";
@@ -328,9 +329,28 @@ export function AdminPageClient() {
     setWaitingMinutes(data.waitingTime?.minutes ?? 15);
     setSoldOutIds(data.settings?.sold_out_item_ids ?? []);
     setPauseUntil(data.settings?.pause_until ?? null);
-    setSpecialClosedPeriods(normalizeSpecialClosedPeriods(data.settings?.special_closed_dates));
+    const today = restaurantCalendarDate();
+    const periods = normalizeSpecialClosedPeriods(data.settings?.special_closed_dates).filter(
+      (period) => period.end >= today
+    );
+    setSpecialClosedPeriods(periods);
+    // Persist purge of past dates when any remain in storage
+    const rawCount = normalizeSpecialClosedPeriods(data.settings?.special_closed_dates).length;
+    if (rawCount > periods.length) {
+      void fetch("/api/admin", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-key": apiKey,
+        },
+        body: JSON.stringify({
+          action: "update_special_closed_dates",
+          specialClosedDates: periods,
+        }),
+      });
+    }
     setClosingTime(data.settings?.closing_time ?? "21:00:00");
-  }, []);
+  }, [apiKey]);
 
   const fetchMenu = useCallback(async () => {
     const res = await fetch("/api/menu");
@@ -1258,17 +1278,22 @@ export function AdminPageClient() {
           <section>
             <h2 className="text-lg font-semibold text-stone-900">Special closed dates</h2>
             <p className="mt-1 text-sm text-stone-600">
-              Add single days or date ranges (e.g. Dec 3–31 vacation). A custom message replaces the
-              Open/Closed badge on the menu during the closure.
+              Add a start and end date (same day = one day closed). Past periods are removed
+              automatically.
             </p>
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <label className="text-sm font-medium text-stone-700">
                 Start date
                 <input
                   type="date"
                   value={closedStartDate}
-                  onChange={(e) => setClosedStartDate(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2 text-sm"
+                  min={restaurantCalendarDate()}
+                  onChange={(e) => {
+                    const start = e.target.value;
+                    setClosedStartDate(start);
+                    if (!closedEndDate || closedEndDate < start) setClosedEndDate(start);
+                  }}
+                  className="mt-1 min-h-11 w-full rounded-lg border border-stone-200 px-3 py-2.5 text-base"
                 />
               </label>
               <label className="text-sm font-medium text-stone-700">
@@ -1276,11 +1301,17 @@ export function AdminPageClient() {
                 <input
                   type="date"
                   value={closedEndDate}
+                  min={closedStartDate || restaurantCalendarDate()}
                   onChange={(e) => setClosedEndDate(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2 text-sm"
+                  className="mt-1 min-h-11 w-full rounded-lg border border-stone-200 px-3 py-2.5 text-base"
                 />
               </label>
             </div>
+            {closedStartDate && closedEndDate && (
+              <p className="mt-2 text-sm font-medium text-stone-700">
+                Duration: {formatSpecialClosureLabel({ start: closedStartDate, end: closedEndDate })}
+              </p>
+            )}
             <label className="mt-2 block text-sm font-medium text-stone-700">
               Banner message (optional)
               <input
@@ -1288,26 +1319,33 @@ export function AdminPageClient() {
                 value={closedMessage}
                 onChange={(e) => setClosedMessage(e.target.value)}
                 placeholder="Closed for vacation — reopening Jan 2"
-                className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2 text-sm"
+                className="mt-1 min-h-11 w-full rounded-lg border border-stone-200 px-3 py-2.5 text-base"
               />
             </label>
             <button
               type="button"
               onClick={() => {
-                if (!closedStartDate || !closedEndDate || closedEndDate < closedStartDate) return;
+                if (!closedStartDate || !closedEndDate || closedEndDate < closedStartDate) {
+                  setSettingsMessage("Choose a valid start and end date.");
+                  return;
+                }
                 const next: SpecialClosedPeriod = {
                   start: closedStartDate,
                   end: closedEndDate,
                   message: closedMessage.trim() || undefined,
                 };
+                const today = restaurantCalendarDate();
                 updateSpecialClosedPeriods(
-                  [...specialClosedPeriods, next].sort((a, b) => a.start.localeCompare(b.start))
+                  [...specialClosedPeriods, next]
+                    .filter((period) => period.end >= today)
+                    .sort((a, b) => a.start.localeCompare(b.start))
                 );
                 setClosedStartDate("");
                 setClosedEndDate("");
                 setClosedMessage("");
+                setSettingsMessage("Closed period saved.");
               }}
-              className="mt-3 rounded-lg bg-stone-900 px-4 py-2 text-sm font-semibold text-white"
+              className="mt-3 rounded-lg bg-stone-900 px-4 py-2.5 text-sm font-semibold text-white"
             >
               Add closed period
             </button>
@@ -1328,7 +1366,7 @@ export function AdminPageClient() {
                       )
                     )
                   }
-                  className="rounded-full bg-red-50 px-3 py-1 text-left text-sm font-medium text-red-700"
+                  className="rounded-full bg-red-50 px-3 py-1.5 text-left text-sm font-medium text-red-700"
                 >
                   {formatSpecialClosureLabel(period)}
                   {period.message ? ` · ${period.message}` : ""} ×
@@ -1350,7 +1388,7 @@ export function AdminPageClient() {
                 <div key={menuSection.id}>
                   <h3
                     className={`mb-3 text-base font-bold ${
-                      menuSection.slug === "gluten-free" ? "text-purple-900" : "text-stone-900"
+                      menuSection.slug === "gluten-free" ? "text-blue-900" : "text-stone-900"
                     }`}
                   >
                     {toDisplayName(menuSection.name)}
@@ -1367,7 +1405,7 @@ export function AdminPageClient() {
                   <div
                     key={category.id}
                     className={`rounded-xl border bg-white ${
-                      isGFCategory ? "border-purple-200 bg-purple-50/40" : "border-stone-200"
+                      isGFCategory ? "border-blue-200 bg-blue-50/40" : "border-stone-200"
                     }`}
                   >
                     <button
@@ -1377,7 +1415,7 @@ export function AdminPageClient() {
                       }
                       className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
                     >
-                      <span className={`font-semibold ${isGFCategory ? "text-purple-950" : "text-stone-900"}`}>
+                      <span className={`font-semibold ${isGFCategory ? "text-blue-950" : "text-stone-900"}`}>
                         {toDisplayName(category.name)}
                       </span>
                       <span className="text-sm text-stone-500">
@@ -1396,9 +1434,11 @@ export function AdminPageClient() {
                               onClick={() => toggleSoldOut(item.id)}
                               className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
                                 soldOut
-                                  ? "bg-red-100 text-red-800 ring-1 ring-red-200"
+                                  ? isGFCategory
+                                    ? "bg-blue-200 text-blue-950 ring-1 ring-blue-400"
+                                    : "bg-red-100 text-red-800 ring-1 ring-red-200"
                                   : isGFCategory
-                                    ? "bg-purple-100 text-purple-900 ring-1 ring-purple-300"
+                                    ? "bg-blue-100 text-blue-900 ring-1 ring-blue-300"
                                     : "bg-stone-100 text-stone-700"
                               }`}
                             >

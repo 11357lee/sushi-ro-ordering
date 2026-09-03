@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { TAX_RATE } from "@/lib/constants";
 import { useCartStore } from "@/lib/cart-store";
 import { useCustomerStore } from "@/lib/customer-store";
-import { formatPhoneInput, formatPickupTime, formatPrice } from "@/lib/utils";
+import { formatPhoneInput, formatPickupTime, formatPrice, getWaitingTimeText } from "@/lib/utils";
 import type { CreateOrderPayload } from "@/types";
 
 export function CheckoutPageClient() {
@@ -23,6 +23,24 @@ export function CheckoutPageClient() {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [waitingMinutes, setWaitingMinutes] = useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/settings")
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled && data.waitingTime?.minutes != null) {
+          setWaitingMinutes(Number(data.waitingTime.minutes));
+        }
+      })
+      .catch(() => {
+        /* ignore */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   if (items.length === 0) {
     return (
@@ -84,6 +102,18 @@ export function CheckoutPageClient() {
     <div className="mx-auto max-w-lg px-4 py-6 sm:py-8">
       <h1 className="text-2xl font-bold text-stone-900">Checkout</h1>
       <p className="mt-1 text-sm text-stone-600">Pay in store when collecting your order.</p>
+
+      {waitingMinutes != null && (
+        <div className="mt-4 rounded-xl border border-teal-200 bg-teal-50 p-4 text-sm text-teal-950">
+          <p className="font-semibold">Current kitchen wait</p>
+          <p className="mt-1 text-base font-bold">{getWaitingTimeText(waitingMinutes)}</p>
+          {pickupType === "asap" && (
+            <p className="mt-1 text-teal-900">
+              ASAP orders are prepared in about this time after the restaurant accepts your order.
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
         <p>

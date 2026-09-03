@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   getDemoPauseUntil,
   getDemoSoldOutIds,
+  getDemoSpecialClosedDates,
   getDemoWaitingTimeMinutes,
   isDemoMode,
 } from "@/lib/data/demo-store";
@@ -16,6 +17,7 @@ export async function GET() {
         ...MOCK_SETTINGS,
         pause_until: getDemoPauseUntil(),
         sold_out_item_ids: getDemoSoldOutIds(),
+        special_closed_dates: getDemoSpecialClosedDates(),
       },
       waitingTime: { ...MOCK_WAITING_TIME, minutes: getDemoWaitingTimeMinutes() },
       orderingDisabled: isOrderingDisabled(),

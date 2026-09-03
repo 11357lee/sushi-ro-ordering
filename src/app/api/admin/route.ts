@@ -7,6 +7,7 @@ import {
   listDemoAdminOrders,
   setDemoPauseUntil,
   setDemoSoldOutIds,
+  setDemoSpecialClosedDates,
   setDemoWaitingTimeMinutes,
   updateDemoOrderStatus,
 } from "@/lib/data/demo-store";
@@ -114,6 +115,7 @@ export async function PATCH(request: Request) {
 
   if (action === "update_special_closed_dates" && Array.isArray(specialClosedDates)) {
     if (isDemoMode()) {
+      setDemoSpecialClosedDates(specialClosedDates);
       return NextResponse.json({ specialClosedDates });
     }
     const supabase = createAdminClient();

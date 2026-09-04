@@ -8,6 +8,7 @@ import {
   formatChoicePriceLabel,
   isMultiMax2Option,
   isRequiredChoiceOption,
+  SWEET_ROLL_REQUIRED_FLAVOUR_COUNT,
 } from "@/lib/data/menu-option-groups";
 import { formatPrice, toCustomerItemName } from "@/lib/utils";
 
@@ -44,8 +45,7 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
   const [selectedChoice, setSelectedChoice] = useState<SelectedOption | null>(null);
   const [selectedBentoMeat, setSelectedBentoMeat] = useState<SelectedOption | null>(null);
   const [selectedBentoSide, setSelectedBentoSide] = useState<SelectedOption | null>(null);
-  const [flavorOne, setFlavorOne] = useState<SelectedOption | null>(null);
-  const [flavorTwo, setFlavorTwo] = useState<SelectedOption | null>(null);
+  const [flavorCounts, setFlavorCounts] = useState<Record<string, number>>({});
   const [specialRequest, setSpecialRequest] = useState("");
   const [added, setAdded] = useState(false);
   const [optionError, setOptionError] = useState("");
@@ -93,6 +93,37 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
     });
   };
 
+  const flavorTotal = multiMax2Options.reduce(
+    (sum, option) => sum + (flavorCounts[option.id] ?? 0),
+    0
+  );
+
+  const adjustFlavorCount = (optionId: string, delta: number) => {
+    setFlavorCounts((prev) => {
+      const currentTotal = Object.values(prev).reduce((sum, n) => sum + n, 0);
+      const current = prev[optionId] ?? 0;
+      const next = Math.max(0, current + delta);
+      if (delta > 0 && currentTotal >= SWEET_ROLL_REQUIRED_FLAVOUR_COUNT) return prev;
+      if (next === current) return prev;
+      const updated = { ...prev, [optionId]: next };
+      if (next === 0) delete updated[optionId];
+      return updated;
+    });
+    setOptionError("");
+  };
+
+  const selectedFlavorOptions: SelectedOption[] = [];
+  for (const option of multiMax2Options) {
+    const count = flavorCounts[option.id] ?? 0;
+    for (let i = 0; i < count; i += 1) {
+      selectedFlavorOptions.push(
+        i === 0
+          ? option
+          : { ...option, id: `${option.id}-slot-${i + 1}`, name: `${option.name} (${i + 1})` }
+      );
+    }
+  }
+
   const handleAdd = () => {
     if (soldOut) return;
     if (isBentoBuilder && !selectedBentoMeat) {
@@ -111,19 +142,15 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
       setOptionError("Please choose one option.");
       return;
     }
-    if (multiMax2Options.length > 0 && !flavorOne) {
-      setOptionError("Please choose at least one flavour.");
+    if (multiMax2Options.length > 0 && flavorTotal !== SWEET_ROLL_REQUIRED_FLAVOUR_COUNT) {
+      setOptionError(`Please choose exactly ${SWEET_ROLL_REQUIRED_FLAVOUR_COUNT} flavours.`);
       return;
     }
-    const flavorOptions = [
-      ...(flavorOne ? [flavorOne] : []),
-      ...(flavorTwo ? [{ ...flavorTwo, id: `${flavorTwo.id}-slot-2`, name: `${flavorTwo.name} (2nd)` }] : []),
-    ];
     const finalOptions = [
       ...selectedOptions,
       ...(selectedRequiredOption ? [selectedRequiredOption] : []),
       ...(selectedChoice ? [selectedChoice] : []),
-      ...flavorOptions,
+      ...selectedFlavorOptions,
       ...(selectedBentoMeat ? [selectedBentoMeat] : []),
       ...(selectedBentoSide ? [selectedBentoSide] : []),
     ];
@@ -149,8 +176,7 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
     ...selectedOptions,
     ...(selectedRequiredOption ? [selectedRequiredOption] : []),
     ...(selectedChoice ? [selectedChoice] : []),
-    ...(flavorOne ? [flavorOne] : []),
-    ...(flavorTwo ? [flavorTwo] : []),
+    ...selectedFlavorOptions,
     ...(selectedBentoMeat ? [selectedBentoMeat] : []),
     ...(selectedBentoSide ? [selectedBentoSide] : []),
   ];
@@ -175,8 +201,8 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
         ? "Choose option"
         : requiredChoices.length > 0 && !selectedChoice
           ? "Choose option"
-          : multiMax2Options.length > 0 && !flavorOne
-            ? "Choose flavour"
+          : multiMax2Options.length > 0 && flavorTotal !== SWEET_ROLL_REQUIRED_FLAVOUR_COUNT
+            ? `Choose ${SWEET_ROLL_REQUIRED_FLAVOUR_COUNT} flavours`
             : `Add · ${formatPrice(lineTotal)}`;
   const isMoriawaseTray =
     item.category?.slug === "moriawase-tray" ||
@@ -272,47 +298,48 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
       )}
 
       {multiMax2Options.length > 0 && (
-        <div className="mt-1.5 space-y-2 rounded-lg border border-pink-200 bg-pink-50/50 px-2 py-1.5">
-          <p className="text-[11px] font-semibold text-pink-950">
-            Flavours — choose up to 2 (duplicates OK) *
-          </p>
-          <label className="block text-xs font-medium text-stone-700">
-            Flavour 1 *
-            <select
-              value={flavorOne?.id ?? ""}
-              onChange={(e) => {
-                const next = multiMax2Options.find((o) => o.id === e.target.value) ?? null;
-                setFlavorOne(next);
-                setOptionError("");
-              }}
-              className="mt-1 w-full rounded-md border border-stone-200 px-2 py-1.5 text-sm"
-            >
-              <option value="">Select</option>
-              {multiMax2Options.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block text-xs font-medium text-stone-700">
-            Flavour 2 (optional)
-            <select
-              value={flavorTwo?.id ?? ""}
-              onChange={(e) => {
-                const next = multiMax2Options.find((o) => o.id === e.target.value) ?? null;
-                setFlavorTwo(next);
-              }}
-              className="mt-1 w-full rounded-md border border-stone-200 px-2 py-1.5 text-sm"
-            >
-              <option value="">None</option>
-              {multiMax2Options.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.name}
-                </option>
-              ))}
-            </select>
-          </label>
+        <div className="mt-1.5 space-y-1.5 rounded-lg border border-pink-200 bg-pink-50/50 px-2 py-1.5">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[11px] font-semibold text-pink-950">
+              Flavours — choose exactly {SWEET_ROLL_REQUIRED_FLAVOUR_COUNT} (duplicates OK) *
+            </p>
+            <span className="text-[11px] font-medium text-pink-900">
+              {flavorTotal}/{SWEET_ROLL_REQUIRED_FLAVOUR_COUNT}
+            </span>
+          </div>
+          {multiMax2Options.map((option) => {
+            const count = flavorCounts[option.id] ?? 0;
+            const canAdd = flavorTotal < SWEET_ROLL_REQUIRED_FLAVOUR_COUNT;
+            return (
+              <div
+                key={option.id}
+                className="flex items-center justify-between gap-2 text-xs sm:text-sm"
+              >
+                <span className="min-w-0 font-medium text-stone-800">{option.name}</span>
+                <div className="flex w-[4.5rem] shrink-0 items-center justify-between rounded-md border border-stone-200 bg-white">
+                  <button
+                    type="button"
+                    aria-label={`Fewer ${option.name}`}
+                    disabled={count === 0}
+                    onClick={() => adjustFlavorCount(option.id, -1)}
+                    className="px-2 py-1 text-stone-700 disabled:text-stone-300"
+                  >
+                    −
+                  </button>
+                  <span className="text-sm font-semibold tabular-nums text-stone-900">{count}</span>
+                  <button
+                    type="button"
+                    aria-label={`More ${option.name}`}
+                    disabled={!canAdd}
+                    onClick={() => adjustFlavorCount(option.id, 1)}
+                    className="px-2 py-1 text-stone-700 disabled:text-stone-300"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 

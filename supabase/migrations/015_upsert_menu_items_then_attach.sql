@@ -3,7 +3,7 @@
 -- Options from 014 should already exist; this is safe to re-run.
 
 -- Ensure categories used below exist / renamed
-UPDATE menu_categories
+UPDATE categories
 SET name = 'Sushi Pizza/Bento Box', slug = 'sushi-pizza-bento-box'
 WHERE id = CAST('c1000001-0000-0000-0000-00000000000a' AS uuid);
 

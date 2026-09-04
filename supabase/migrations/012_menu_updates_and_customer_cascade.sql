@@ -54,12 +54,12 @@ ON CONFLICT (id) DO UPDATE SET
   sort_order = EXCLUDED.sort_order;
 
 -- Rename bento category
-UPDATE menu_categories
+UPDATE categories
 SET name = 'Sushi Pizza/Bento Box', slug = 'sushi-pizza-bento-box'
 WHERE id = 'c1000001-0000-0000-0000-00000000000a';
 
 -- Hide old pizza category if present
-UPDATE menu_categories
+UPDATE categories
 SET sort_order = 99
 WHERE id = 'c1000001-0000-0000-0000-000000000004';
 

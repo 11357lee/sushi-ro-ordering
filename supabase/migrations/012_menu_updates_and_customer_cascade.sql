@@ -100,7 +100,7 @@ WHERE id IN (
 
 -- Attach common choice options (ignore duplicates)
 INSERT INTO menu_item_options (menu_item_id, menu_option_id)
-SELECT m.menu_item_id, m.menu_option_id
+SELECT m.menu_item_id::uuid, m.menu_option_id::uuid
 FROM (VALUES
   ('a1000001-0000-0000-0000-000000000010', '33333333-3333-3333-3333-333333333701'),
   ('a1000001-0000-0000-0000-000000000010', '33333333-3333-3333-3333-333333333702'),

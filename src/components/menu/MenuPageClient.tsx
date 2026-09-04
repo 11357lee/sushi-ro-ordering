@@ -20,9 +20,9 @@ const SINGLE_COLUMN_CATEGORY_SLUGS = new Set([
   "moriawase-tray",
   "moriawase",
   "tray",
-  "sushi-pizza",
+  "sushi-pizza-bento-box",
+  "dessert",
   "fusion-roll",
-  "bento-box",
   "gf-moriawase",
   "gf-fusion-roll",
 ]);
@@ -57,10 +57,12 @@ export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientPr
       menu.categories
         .filter((c) => {
           const section = menu.sections.find((s) => s.id === c.section_id);
-          return section?.slug === activeSection;
+          if (section?.slug !== activeSection) return false;
+          // Hide empty / legacy categories (e.g. old Sushi Pizza after merge)
+          return menu.items.some((item) => item.category_id === c.id);
         })
         .sort((a, b) => a.sort_order - b.sort_order),
-    [menu.categories, menu.sections, activeSection]
+    [menu.categories, menu.items, menu.sections, activeSection]
   );
 
   const filteredItems = useMemo(() => {

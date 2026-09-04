@@ -7,13 +7,13 @@ const CAT = {
   nigiri: "c1000001-0000-0000-0000-000000000001",
   vegetable: "c1000001-0000-0000-0000-000000000002",
   appetizer: "c1000001-0000-0000-0000-000000000003",
-  pizza: "c1000001-0000-0000-0000-000000000004",
   traditional: "c1000001-0000-0000-0000-000000000006",
   fusion: "c1000001-0000-0000-0000-000000000007",
   moriawase: "c1000001-0000-0000-0000-000000000008",
   ramen: "c1000001-0000-0000-0000-000000000009",
   bento: "c1000001-0000-0000-0000-00000000000a",
   drinks: "c1000001-0000-0000-0000-00000000000b",
+  dessert: "c1000001-0000-0000-0000-00000000000c",
   gfNigiri: "c2000001-0000-0000-0000-000000000006",
   gfTraditional: "c2000001-0000-0000-0000-000000000001",
   gfVegetable: "c2000001-0000-0000-0000-000000000002",
@@ -90,11 +90,18 @@ export const CATALOG_CATEGORIES: Category[] = [
     sort_order: 8,
   },
   {
+    id: CAT.dessert,
+    section_id: SECTION_MENU,
+    name: "Dessert",
+    slug: "dessert",
+    sort_order: 9,
+  },
+  {
     id: CAT.drinks,
     section_id: SECTION_MENU,
     name: "Drinks/Extra",
     slug: "drinks-extra",
-    sort_order: 9,
+    sort_order: 10,
   },
   {
     id: CAT.gfTraditional,
@@ -1068,10 +1075,10 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     labels: [{ id: "l2", name: "Vegetarian", slug: "vegetarian" }],
   },
 
-  // ── Regular: Drinks/Extra ─────────────────────────────────────────────────
+  // ── Regular: Dessert ──────────────────────────────────────────────────────
   {
     id: "a1000001-0000-0000-0000-000000000017",
-    category_id: CAT.drinks,
+    category_id: CAT.dessert,
     name: "MATCHA TIRAMISU",
     description: "Green tea tiramisu",
     price: 5.5,
@@ -1081,7 +1088,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
   },
   {
     id: "a1000001-0000-0000-0000-000000000058",
-    category_id: CAT.drinks,
+    category_id: CAT.dessert,
     name: "SWEET POTATO CAKE",
     description: null,
     price: 5.5,
@@ -1091,14 +1098,16 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
   },
   {
     id: "a1000001-0000-0000-0000-00000000005d",
-    category_id: CAT.drinks,
+    category_id: CAT.dessert,
     name: "JAPANESE SWEET ROLL",
-    description: "2 pcs — Choose up to 2 flavours (Chocolate, Milk, Strawberry). Duplicates allowed",
+    description: "2 pcs — Choose exactly 2 flavours (Chocolate, Milk, Strawberry). Duplicates allowed",
     price: 4.5,
     is_available: true,
     has_roll_options: false,
     sort_order: 3,
   },
+
+  // ── Regular: Drinks/Extra ─────────────────────────────────────────────────
   {
     id: "a1000001-0000-0000-0000-00000000005b",
     category_id: CAT.drinks,
@@ -1107,7 +1116,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     price: 2,
     is_available: true,
     has_roll_options: false,
-    sort_order: 4,
+    sort_order: 1,
   },
   {
     id: "a1000001-0000-0000-0000-00000000005c",
@@ -1117,7 +1126,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     price: 5,
     is_available: true,
     has_roll_options: false,
-    sort_order: 5,
+    sort_order: 2,
   },
 
   // ── GF: Nigiri & Sashimi ──────────────────────────────────────────────────

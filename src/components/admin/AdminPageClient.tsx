@@ -933,7 +933,7 @@ export function AdminPageClient() {
                     selectedOrder.status === "accepted" &&
                     selectedOrder.pickup_time && (
                       <p className="text-sm font-medium text-stone-600">
-                        Ready {formatPickupTime(selectedOrder.pickup_time)}
+                        Pickup {formatPickupTime(selectedOrder.pickup_time)}
                       </p>
                     )}
                 </div>

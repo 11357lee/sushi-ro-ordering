@@ -2,7 +2,7 @@ import { AdminPageClient } from "@/components/admin/AdminPageClient";
 
 export default function AdminPage() {
   return (
-    <main className="min-h-screen bg-brand-paper">
+    <main className="min-h-screen bg-stone-100">
       <script
         dangerouslySetInnerHTML={{
           __html: `(function(){setTimeout(function(){if(document.documentElement.getAttribute("data-admin-hydrated")==="1")return;var el=document.getElementById("admin-compat-warning");if(el){el.style.display="block";}},2500);})();`,

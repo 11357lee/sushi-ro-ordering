@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import {
   getMockMenuData,
   MOCK_SETTINGS,
@@ -45,6 +46,7 @@ export async function fetchMenuData(): Promise<MenuData> {
     return getMockMenuData();
   }
 
+  await connection();
   const supabase = createAdminClient();
 
   const [
@@ -57,8 +59,8 @@ export async function fetchMenuData(): Promise<MenuData> {
     { data: itemOptions },
   ] = await Promise.all([
     supabase.from("menu_sections").select("*").order("sort_order"),
-    supabase.from("categories").select("*").order("sort_order"),
-    supabase.from("menu_items").select("*").eq("is_available", true).order("sort_order"),
+    supabase.from("categories").select("*").order("sort_order").order("name"),
+    supabase.from("menu_items").select("*").eq("is_available", true).order("sort_order").order("name"),
     supabase.from("featured_items").select("*").order("sort_order"),
     supabase.from("menu_options").select("*").order("sort_order"),
     supabase.from("menu_item_labels").select("menu_item_id, labels(id, name, slug)"),

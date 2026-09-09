@@ -12,8 +12,8 @@ import {
   SASHIMI_OPTION_ID,
 } from "@/lib/data/menu-catalog";
 import {
-  SOY_SHEET_MAKI_MORI_OPTION_ID,
   SOY_SHEET_OPTION_ID,
+  SUSHI_RICE_OPTION_ID,
 } from "@/lib/data/menu-option-groups";
 import { RESTAURANT_PHONE, RESTAURANT_TIMEZONE } from "@/lib/constants";
 
@@ -37,12 +37,7 @@ const SECTIONS: MenuSection[] = [
 const OPTIONS: MenuOption[] = [
   { id: "33333333-3333-3333-3333-333333333301", name: "Deep-fried", price_modifier: 1, sort_order: 1 },
   { id: SOY_SHEET_OPTION_ID, name: "Replace with Soy Sheet", price_modifier: 1, sort_order: 2 },
-  {
-    id: SOY_SHEET_MAKI_MORI_OPTION_ID,
-    name: "Replace with Soy Sheet",
-    price_modifier: 2.5,
-    sort_order: 2,
-  },
+  { id: SUSHI_RICE_OPTION_ID, name: "Sushi rice", price_modifier: 1, sort_order: 4 },
   { id: "33333333-3333-3333-3333-333333333303", name: "Spicy", price_modifier: 1.5, sort_order: 3 },
   { id: "33333333-3333-3333-3333-333333333401", name: "2 pcs Nigiri", price_modifier: 0, sort_order: 10 },
   { id: SASHIMI_OPTION_ID, name: "3 pcs Sashimi", price_modifier: 0, sort_order: 11 },
@@ -103,6 +98,11 @@ const OPTIONS: MenuOption[] = [
   { id: "33333333-3333-3333-3333-333333333801", name: "Chocolate", price_modifier: 0, sort_order: 90 },
   { id: "33333333-3333-3333-3333-333333333802", name: "Milk", price_modifier: 0, sort_order: 91 },
   { id: "33333333-3333-3333-3333-333333333803", name: "Strawberry", price_modifier: 0, sort_order: 92 },
+
+  // Extra sauce
+  { id: "33333333-3333-3333-3333-333333333751", name: "Unagi", price_modifier: 0, sort_order: 94 },
+  { id: "33333333-3333-3333-3333-333333333752", name: "Teriyaki", price_modifier: 0, sort_order: 95 },
+  { id: "33333333-3333-3333-3333-333333333753", name: "Sriracha", price_modifier: 0, sort_order: 96 },
 ];
 
 const NIGIRI_OPTION_ID = "33333333-3333-3333-3333-333333333401";
@@ -161,6 +161,12 @@ const BEER_OPTION_IDS = [
   "33333333-3333-3333-3333-333333333748",
 ];
 
+const EXTRA_SAUCE_OPTION_IDS = [
+  "33333333-3333-3333-3333-333333333751",
+  "33333333-3333-3333-3333-333333333752",
+  "33333333-3333-3333-3333-333333333753",
+];
+
 const SWEET_ROLL_OPTION_IDS = [
   "33333333-3333-3333-3333-333333333801",
   "33333333-3333-3333-3333-333333333802",
@@ -196,6 +202,13 @@ function optionsForItem(item: MenuItem): MenuOption[] {
   if (item.id === "a1000001-0000-0000-0000-00000000005b") return optionsByIds(POP_OPTION_IDS);
   if (item.id === "a1000001-0000-0000-0000-00000000005c") return optionsByIds(BEER_OPTION_IDS);
   if (item.id === "a1000001-0000-0000-0000-00000000005d") return optionsByIds(SWEET_ROLL_OPTION_IDS);
+  if (item.id === "a1000001-0000-0000-0000-00000000005f") return optionsByIds(EXTRA_SAUCE_OPTION_IDS);
+  if (
+    item.id === "a1000001-0000-0000-0000-000000000060" ||
+    item.id === "a2000001-0000-0000-0000-000000000033"
+  ) {
+    return optionsByIds([SUSHI_RICE_OPTION_ID]);
+  }
 
   if (
     item.id === "a1000001-0000-0000-0000-000000000010" ||
@@ -223,7 +236,7 @@ function optionsForItem(item: MenuItem): MenuOption[] {
     item.id === "a2000001-0000-0000-0000-000000000018"
   ) {
     return [
-      ...optionsByIds(["33333333-3333-3333-3333-333333333721", "33333333-3333-3333-3333-333333333723"]),
+      ...optionsByIds(["33333333-3333-3333-3333-333333333721", "33333333-3333-3333-3333-333333333724"]),
       ...optionsByIds([SOY_SHEET_OPTION_ID]),
     ];
   }
@@ -244,17 +257,6 @@ function optionsForItem(item: MenuItem): MenuOption[] {
 
   if (item.id === "a1000001-0000-0000-0000-000000000007" || item.id === "a1000001-0000-0000-0000-00000000000b") {
     return optionsByIds([SPICY_OPTION_ID]);
-  }
-
-  // Moriawase soy-sheet pricing
-  if (item.id === "a1000001-0000-0000-0000-000000000052") {
-    return optionsByIds([SOY_SHEET_MAKI_MORI_OPTION_ID]);
-  }
-  if (
-    item.id === "a1000001-0000-0000-0000-000000000013" ||
-    item.id === "a1000001-0000-0000-0000-000000000054"
-  ) {
-    return optionsByIds([SOY_SHEET_OPTION_ID]);
   }
 
   if (!item.has_roll_options || INARI_ITEM_IDS.has(item.id)) return [];

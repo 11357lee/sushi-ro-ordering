@@ -210,7 +210,10 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
   const isTrayItem =
     item.name.toLowerCase().includes("maki tray") ||
     item.name.toLowerCase().includes("veggie tray");
-  const showSpecialRequest = !isNigiriSashimi && !isTrayItem;
+  const isDrinksOrDessert =
+    Boolean(item.category?.slug?.includes("drinks-extra")) ||
+    item.category?.slug === "dessert";
+  const showSpecialRequest = !isNigiriSashimi && !isTrayItem && !isDrinksOrDessert;
   const selectedMakiSide = Boolean(selectedBentoSide?.name?.toLowerCase().includes("maki"));
   const specialRequestPlaceholder =
     isMoriawaseTray || selectedMakiSide

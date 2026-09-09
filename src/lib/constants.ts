@@ -16,7 +16,9 @@ export const CART_TIMEOUT_MS = 60 * 60 * 1000;
 
 export const CATEGORY_DESCRIPTION_FALLBACKS: Record<string, string> = {
   ramen: "Warm noodle bowls served with rich broth and fresh toppings.",
+  appetizer: "Starters and soups to enjoy before or with your meal.",
   "appetizer-salad": "Starters, soups, and salads to enjoy before or with your meal.",
+  salad: "Fresh salads to enjoy before or with your meal.",
   "sushi-pizza-bento-box": "Sushi pizza and complete meal boxes with your choice of side.",
   "fusion-roll": "Creative specialty rolls with Sushi-Ro's signature combinations.",
   tray: "Shareable sushi trays for groups, parties, and family meals.",
@@ -25,4 +27,5 @@ export const CATEGORY_DESCRIPTION_FALLBACKS: Record<string, string> = {
   dessert: "House desserts and sweet finishes.",
   "nigiri-sashimi": "Classic nigiri and sashimi prepared fresh to order.",
   "drinks-extra": "Beverages and extra add-ons for your order.",
+  "gf-drinks-extra": "Gluten-free extra add-ons for your order.",
 };

@@ -33,7 +33,13 @@ function itemGridClass(categorySlug?: string | null): string {
     : "grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3";
 }
 
+function compareBySortOrder<T extends { sort_order: number; name: string }>(a: T, b: T) {
+  return a.sort_order - b.sort_order || a.name.localeCompare(b.name);
+}
+
 export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientProps) {
+  const [fetchedMenu, setFetchedMenu] = useState<MenuData | null>(null);
+  const liveMenu = fetchedMenu ?? menu;
   const [activeSection, setActiveSection] = useState("menu");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -52,29 +58,43 @@ export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientPr
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    const refreshMenu = async () => {
+      const res = await fetch("/api/menu", { cache: "no-store" });
+      if (!res.ok) return;
+      const data = (await res.json()) as MenuData;
+      if (data?.items && data?.categories) {
+        setFetchedMenu(data);
+      }
+    };
+    refreshMenu();
+    const interval = setInterval(refreshMenu, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   const sectionCategories = useMemo(
     () =>
-      menu.categories
+      liveMenu.categories
         .filter((c) => {
-          const section = menu.sections.find((s) => s.id === c.section_id);
+          const section = liveMenu.sections.find((s) => s.id === c.section_id);
           if (section?.slug !== activeSection) return false;
           // Hide empty / legacy categories (e.g. old Sushi Pizza after merge)
-          return menu.items.some((item) => item.category_id === c.id);
+          return liveMenu.items.some((item) => item.category_id === c.id);
         })
-        .sort((a, b) => a.sort_order - b.sort_order),
-    [menu.categories, menu.items, menu.sections, activeSection]
+        .sort(compareBySortOrder),
+    [liveMenu.categories, liveMenu.items, liveMenu.sections, activeSection]
   );
 
   const filteredItems = useMemo(() => {
-    let items = menu.items.filter((item) => {
-      const category = menu.categories.find((c) => c.id === item.category_id);
-      const section = menu.sections.find((s) => s.id === category?.section_id);
+    let items = liveMenu.items.filter((item) => {
+      const category = liveMenu.categories.find((c) => c.id === item.category_id);
+      const section = liveMenu.sections.find((s) => s.id === category?.section_id);
       return section?.slug === activeSection;
     });
 
     if (activeCategory) {
       items = items.filter((item) => {
-        const cat = menu.categories.find((c) => c.id === item.category_id);
+        const cat = liveMenu.categories.find((c) => c.id === item.category_id);
         return cat?.slug === activeCategory;
       });
     }
@@ -88,8 +108,8 @@ export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientPr
       );
     }
 
-    return items.sort((a, b) => a.sort_order - b.sort_order);
-  }, [menu, activeSection, activeCategory, search]);
+    return [...items].sort(compareBySortOrder);
+  }, [liveMenu, activeSection, activeCategory, search]);
 
   const groupedByCategory = useMemo(() => {
     if (activeCategory || search.trim()) return null;
@@ -97,7 +117,9 @@ export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientPr
     return sectionCategories
       .map((cat) => ({
         category: cat,
-        items: filteredItems.filter((item) => item.category_id === cat.id),
+        items: filteredItems
+          .filter((item) => item.category_id === cat.id)
+          .sort(compareBySortOrder),
       }))
       .filter((g) => g.items.length > 0);
   }, [sectionCategories, filteredItems, activeCategory, search]);
@@ -114,7 +136,7 @@ export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientPr
       <MenuSearch value={search} onChange={setSearch} />
 
       <SectionTabs
-        sections={menu.sections}
+        sections={liveMenu.sections}
         activeSection={activeSection}
         onChange={(slug) => {
           setActiveSection(slug);

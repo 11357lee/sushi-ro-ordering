@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { addMinutes } from "date-fns";
 import type { MenuData, MenuItem, Order, SpecialClosedPeriod } from "@/types";
-import { WAITING_TIME_LABELS } from "@/types";
 import {
   formatPhoneDisplay,
   formatOrderDate,
@@ -34,7 +33,27 @@ const NOTIFICATION_SOUNDS: Record<
   order: { label: "Order chime", frequencies: [659, 784, 988, 784], type: "triangle" },
 };
 const CUSTOMER_CANCELLED_REASON = "Customer cancelled online";
-const PREP_MINUTE_OPTIONS = ["15", "30", "45"];
+const PREP_MINUTE_OPTIONS = [
+  "10",
+  "15",
+  "20",
+  "25",
+  "30",
+  "35",
+  "40",
+  "45",
+  "50",
+  "60",
+  "90",
+  "120",
+];
+const STORE_WAIT_MINUTES = [15, 30, 60, 120] as const;
+const STORE_WAIT_LABELS: Record<(typeof STORE_WAIT_MINUTES)[number], string> = {
+  15: "15m",
+  30: "30m",
+  60: "1h",
+  120: "2h",
+};
 const CANCEL_ALERT_STORAGE_KEY = "sushi-ro-admin-cancel-alerts";
 const REMEMBER_DEVICE_KEY = "sushi-ro-admin-remembered-key";
 const SOUND_VOLUME = 0.32;
@@ -102,10 +121,14 @@ function formatCountdown(pickupTime: string | null, now: Date): string | null {
   if (!pickupTime) return null;
   const diffMs = new Date(pickupTime).getTime() - now.getTime();
   if (diffMs <= 0) return null;
-  const totalMinutes = Math.ceil(diffMs / 60000);
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+  const totalSeconds = Math.ceil(diffMs / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (hours > 0) {
+    return `${hours}h ${String(minutes).padStart(2, "0")}m`;
+  }
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
 function acceptPickupDetails(
@@ -234,7 +257,6 @@ export function AdminPageClient() {
   const [pickupInputs, setPickupInputs] = useState<Record<string, string>>({});
   const [reasonInputs, setReasonInputs] = useState<Record<string, string>>({});
   const [customReasonInputs, setCustomReasonInputs] = useState<Record<string, string>>({});
-  const [rejectOpen, setRejectOpen] = useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
   const cancellationAlertedIdsRef = useRef<Set<string>>(new Set());
   const cancellationAlertsReadyRef = useRef(false);
@@ -386,7 +408,7 @@ export function AdminPageClient() {
   }, [authenticated, fetchOrders, fetchSettings, fetchMenu]);
 
   useEffect(() => {
-    const interval = setInterval(() => setNow(new Date()), 30000);
+    const interval = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(interval);
   }, []);
 
@@ -542,7 +564,6 @@ export function AdminPageClient() {
         statusReason,
       }),
     });
-    setRejectOpen(false);
     setCancelOpen(false);
     fetchOrders();
   };
@@ -643,11 +664,10 @@ export function AdminPageClient() {
     queuedOrders.find((order) => order.status === "pending") ??
     queuedOrders[0] ??
     null;
-  const prepOptions = useMemo(() => {
-    const options = new Set(PREP_MINUTE_OPTIONS);
-    options.add(String(waitingMinutes));
-    return Array.from(options).sort((a, b) => Number(a) - Number(b));
-  }, [waitingMinutes]);
+  const selectedCountdown =
+    selectedOrder?.status === "accepted"
+      ? formatCountdown(selectedOrder.pickup_time ?? null, now)
+      : null;
 
   useEffect(() => {
     if (!authenticated) {
@@ -781,7 +801,7 @@ export function AdminPageClient() {
   return (
     <div className="flex min-h-screen flex-col bg-brand-paper text-brand-ink">
       <header className="sticky top-0 z-20 border-b border-brand-ink bg-brand-ink text-brand-paper">
-        <div className="mx-auto flex max-w-[1400px] flex-wrap items-center gap-3 px-4 py-3">
+        <div className="mx-auto max-w-[430px] px-4 py-3">
           <div className="flex items-center gap-3">
             <Image
               src="/sushi-ro-mark.png"
@@ -790,61 +810,61 @@ export function AdminPageClient() {
               height={38}
               className="h-10 w-10 rounded-lg object-contain"
             />
-            <div>
+            <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold tracking-wide">Sushi-Ro</p>
               <p className="text-xs text-brand">Admin</p>
             </div>
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-brand-paper/70">
+                {paused ? "Paused" : restaurantOpen ? "Open" : "Closed"}
+              </span>
+              <button
+                type="button"
+                onClick={() => setTab(tab === "settings" ? "orders" : "settings")}
+                className="rounded-full px-3 py-1.5 font-semibold ring-1 ring-white/20 hover:bg-white/10"
+              >
+                {tab === "settings" ? "Orders" : "Settings"}
+              </button>
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-1.5 sm:ml-4">
-            {([15, 30, 60, 120] as const).map((m) => (
+          <div className="mt-3 grid grid-cols-4 gap-1.5">
+            {STORE_WAIT_MINUTES.map((m) => (
               <button
                 key={m}
                 type="button"
                 disabled={!restaurantOpen}
                 onClick={() => updateWaitingTime(m)}
-                className={`rounded-full px-3 py-1.5 text-sm font-semibold ${
+                className={`rounded-full py-2 text-sm font-semibold ${
                   waitingMinutes === m
                     ? "bg-brand text-brand-ink"
                     : "text-brand-paper/80 ring-1 ring-white/20 disabled:opacity-40"
                 }`}
               >
-                {WAITING_TIME_LABELS[m]}
+                {STORE_WAIT_LABELS[m]}
               </button>
             ))}
           </div>
-          <div className="ml-auto flex items-center gap-2 text-sm">
-            <span className="text-brand-paper/70">
-              {paused ? "Paused" : restaurantOpen ? "Open" : "Closed"}
-            </span>
-            <button
-              type="button"
-              onClick={() => setTab(tab === "settings" ? "orders" : "settings")}
-              className="rounded-full px-3 py-1.5 font-semibold ring-1 ring-white/20 hover:bg-white/10"
-            >
-              {tab === "settings" ? "Orders" : "Settings"}
-            </button>
-          </div>
+          {!restaurantOpen && tab === "orders" && (
+            <p className="mt-3 text-xs text-brand-paper/70">
+              Wait time is locked while the restaurant is closed or paused.
+            </p>
+          )}
         </div>
-        {!restaurantOpen && tab === "orders" && (
-          <p className="border-t border-white/10 px-4 py-2 text-xs text-brand-paper/70">
-            Wait time is locked while the restaurant is closed or paused.
-          </p>
-        )}
       </header>
 
       {authenticated && !soundUnlocked && (
         <button
           type="button"
           onClick={enableSound}
-          className="mx-4 mt-3 rounded-xl bg-brand px-4 py-3 text-base font-extrabold text-brand-ink"
+          className="mx-auto mt-3 block w-full max-w-[430px] rounded-xl bg-brand px-4 py-3 text-base font-extrabold text-brand-ink"
         >
           Tap to enable loud order sounds
         </button>
       )}
 
       {tab === "orders" && (
-        <div className="mx-auto grid w-full max-w-[1400px] flex-1 lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)]">
-          <aside className="border-b border-[#eadfc4] lg:border-b-0 lg:border-r">
+        <div className="mx-auto flex w-full max-w-[430px] flex-1 flex-col">
+          <aside className="border-b border-[#eadfc4]">
             <div className="flex items-center justify-between px-4 py-3">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-stone-500">
                 Orders
@@ -854,17 +874,20 @@ export function AdminPageClient() {
             {queuedOrders.length === 0 ? (
               <p className="px-4 py-8 text-sm text-stone-500">No orders on screen.</p>
             ) : (
-              <ul className="pb-4">
+              <ul className="max-h-[30vh] overflow-y-auto pb-2">
                 {queuedOrders.map((order) => {
                   const selected = order.id === selectedOrder?.id;
                   const cancelled = order.status === "cancelled" || order.status === "rejected";
+                  const countdown =
+                    order.status === "accepted"
+                      ? formatCountdown(order.pickup_time ?? null, now)
+                      : null;
                   return (
                     <li key={order.id}>
                       <button
                         type="button"
                         onClick={() => {
                           setSelectedOrderId(order.id);
-                          setRejectOpen(false);
                           setCancelOpen(false);
                         }}
                         className={`flex w-full flex-col gap-0.5 border-l-4 px-4 py-3 text-left ${
@@ -887,6 +910,11 @@ export function AdminPageClient() {
                             : `Later ${formatPickupTime(order.pickup_time)}`}
                           {" · "}
                           {statusLabel(order.status)}
+                          {countdown && (
+                            <span className="ml-1.5 font-bold tabular-nums text-brand-ink">
+                              {countdown}
+                            </span>
+                          )}
                         </p>
                       </button>
                     </li>
@@ -896,11 +924,11 @@ export function AdminPageClient() {
             )}
           </aside>
 
-          <section className="bg-white px-4 py-5 sm:px-8">
+          <section className="flex-1 bg-white px-4 py-5">
             {!selectedOrder || !acceptDetails ? (
               <p className="py-16 text-center text-stone-500">Select an order from the list.</p>
             ) : (
-              <div className="mx-auto max-w-2xl space-y-5">
+              <div className="space-y-5">
                 {selectedOrder.status === "cancelled" &&
                   selectedOrder.status_reason === CUSTOMER_CANCELLED_REASON && (
                     <p className="rounded-lg bg-red-50 px-3 py-2 text-sm font-bold text-red-700">
@@ -921,12 +949,6 @@ export function AdminPageClient() {
                   ) : (
                     <p className="mt-1 font-semibold text-brand-ink">
                       Pickup {formatPickupTime(selectedOrder.pickup_time)}
-                      {selectedOrder.status === "accepted" &&
-                        formatCountdown(selectedOrder.pickup_time ?? null, now) && (
-                          <span className="ml-2 rounded-full bg-brand/20 px-2 py-0.5 text-sm">
-                            {formatCountdown(selectedOrder.pickup_time ?? null, now)}
-                          </span>
-                        )}
                     </p>
                   )}
                   {selectedOrder.pickup_type === "asap" &&
@@ -936,6 +958,11 @@ export function AdminPageClient() {
                         Pickup {formatPickupTime(selectedOrder.pickup_time)}
                       </p>
                     )}
+                  {selectedCountdown && (
+                    <p className="mt-3 text-5xl font-bold tabular-nums tracking-tight text-brand">
+                      {selectedCountdown}
+                    </p>
+                  )}
                 </div>
 
                 <SpecialNotes order={selectedOrder} />
@@ -968,26 +995,39 @@ export function AdminPageClient() {
                     {selectedOrder.pickup_type === "asap" && (
                       <div>
                         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-400">
-                          Prep time
+                          Prep (min)
                         </p>
-                        <div className="flex flex-wrap gap-2">
-                          {prepOptions.map((minutes) => (
+                        <div className="grid grid-cols-4 gap-1.5">
+                          {PREP_MINUTE_OPTIONS.map((minutes) => (
                             <button
                               key={minutes}
                               type="button"
                               onClick={() =>
                                 setPickupInputs((prev) => ({ ...prev, [selectedOrder.id]: minutes }))
                               }
-                              className={`min-h-11 rounded-full px-4 py-2 text-sm font-bold ${
-                                (pickupInputs[selectedOrder.id] ?? String(waitingMinutes)) === minutes
+                              className={`min-h-11 rounded-lg px-1 py-2.5 text-sm font-extrabold ${
+                                (pickupInputs[selectedOrder.id] ?? String(waitingMinutes)) ===
+                                minutes
                                   ? "bg-brand-ink text-brand-paper"
                                   : "bg-brand-paper text-brand-ink"
                               }`}
                             >
-                              {minutes} min
+                              {minutes}
                             </button>
                           ))}
                         </div>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={pickupInputs[selectedOrder.id] ?? ""}
+                          onChange={(e) => {
+                            const value = e.target.value.replace(/\D/g, "").slice(0, 3);
+                            setPickupInputs((prev) => ({ ...prev, [selectedOrder.id]: value }));
+                          }}
+                          placeholder="Custom min"
+                          className="mt-2 w-full rounded-lg border border-[#eadfc4] px-3 py-2.5 text-base"
+                        />
                       </div>
                     )}
                     <button
@@ -1005,60 +1045,49 @@ export function AdminPageClient() {
                     >
                       Accept
                     </button>
-                    {!rejectOpen ? (
-                      <button
-                        type="button"
-                        onClick={() => setRejectOpen(true)}
-                        className="w-full py-2 text-sm font-semibold text-red-700"
-                      >
-                        Can&apos;t make it
-                      </button>
-                    ) : (
-                      <div className="space-y-2">
-                        <select
-                          value={reasonInputs[selectedOrder.id] ?? "Out of items"}
-                          onChange={(e) =>
-                            setReasonInputs((prev) => ({
-                              ...prev,
-                              [selectedOrder.id]: e.target.value,
-                            }))
-                          }
-                          className="w-full rounded-lg border border-[#eadfc4] px-3 py-2 text-sm"
-                        >
-                          <option>Out of items</option>
-                          <option>Restaurant too busy</option>
-                          <option>Custom message</option>
-                        </select>
-                        {reasonInputs[selectedOrder.id] === "Custom message" && (
-                          <input
-                            type="text"
-                            placeholder="Reject message"
-                            onChange={(e) =>
-                              setCustomReasonInputs((prev) => ({
-                                ...prev,
-                                [selectedOrder.id]: e.target.value,
-                              }))
-                            }
-                            className="w-full rounded-lg border border-[#eadfc4] px-3 py-2 text-sm"
-                          />
-                        )}
-                        <button
-                          type="button"
-                          onClick={() =>
-                            updateOrder(
-                              selectedOrder.id,
-                              "rejected",
-                              undefined,
-                              reasonInputs[selectedOrder.id] === "Custom message"
-                                ? customReasonInputs[selectedOrder.id] || "Custom message"
-                                : reasonInputs[selectedOrder.id] ?? "Out of items"
-                            )
-                          }
-                          className="min-h-12 w-full rounded-xl bg-red-700 px-3 py-3 font-bold text-white"
-                        >
-                          Reject order
-                        </button>
-                      </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        updateOrder(
+                          selectedOrder.id,
+                          "rejected",
+                          undefined,
+                          reasonInputs[selectedOrder.id] === "Custom message"
+                            ? customReasonInputs[selectedOrder.id] || "Custom message"
+                            : reasonInputs[selectedOrder.id] ?? "Out of items"
+                        )
+                      }
+                      className="min-h-12 w-full rounded-xl bg-red-700 px-3 py-3 text-base font-bold text-white hover:bg-red-800"
+                    >
+                      Reject
+                    </button>
+                    <select
+                      value={reasonInputs[selectedOrder.id] ?? "Out of items"}
+                      onChange={(e) =>
+                        setReasonInputs((prev) => ({
+                          ...prev,
+                          [selectedOrder.id]: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded-lg border border-[#eadfc4] px-3 py-2 text-sm font-medium"
+                    >
+                      <option>Out of items</option>
+                      <option>Restaurant too busy</option>
+                      <option>Custom message</option>
+                    </select>
+                    {reasonInputs[selectedOrder.id] === "Custom message" && (
+                      <input
+                        type="text"
+                        placeholder="Reject message"
+                        value={customReasonInputs[selectedOrder.id] ?? ""}
+                        onChange={(e) =>
+                          setCustomReasonInputs((prev) => ({
+                            ...prev,
+                            [selectedOrder.id]: e.target.value,
+                          }))
+                        }
+                        className="w-full rounded-lg border border-[#eadfc4] px-3 py-2 text-sm"
+                      />
                     )}
                   </div>
                 )}
@@ -1093,6 +1122,7 @@ export function AdminPageClient() {
                           <input
                             type="text"
                             placeholder="Cancel message"
+                            value={customReasonInputs[selectedOrder.id] ?? ""}
                             onChange={(e) =>
                               setCustomReasonInputs((prev) => ({
                                 ...prev,
@@ -1102,22 +1132,31 @@ export function AdminPageClient() {
                             className="w-full rounded-lg border border-[#eadfc4] px-3 py-2 text-sm"
                           />
                         )}
-                        <button
-                          type="button"
-                          onClick={() =>
-                            updateOrder(
-                              selectedOrder.id,
-                              "cancelled",
-                              undefined,
-                              reasonInputs[selectedOrder.id] === "Custom message"
-                                ? customReasonInputs[selectedOrder.id] || "Custom message"
-                                : reasonInputs[selectedOrder.id] ?? "Customer cancellation"
-                            )
-                          }
-                          className="rounded-lg bg-red-700 px-4 py-2 text-sm font-bold text-white"
-                        >
-                          Confirm cancel
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateOrder(
+                                selectedOrder.id,
+                                "cancelled",
+                                undefined,
+                                reasonInputs[selectedOrder.id] === "Custom message"
+                                  ? customReasonInputs[selectedOrder.id] || "Custom message"
+                                  : reasonInputs[selectedOrder.id] ?? "Customer cancellation"
+                              )
+                            }
+                            className="rounded-lg bg-red-700 px-4 py-2 text-sm font-bold text-white"
+                          >
+                            Confirm cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setCancelOpen(false)}
+                            className="rounded-lg px-4 py-2 text-sm font-semibold text-stone-600"
+                          >
+                            Keep order
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1129,7 +1168,7 @@ export function AdminPageClient() {
       )}
 
       {tab === "settings" && (
-        <div className="mx-auto w-full max-w-3xl space-y-8 px-4 py-6">
+        <div className="mx-auto w-full max-w-[430px] space-y-8 px-4 py-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-xl font-bold text-brand-ink">Settings</h2>
             <div className="flex flex-wrap gap-2">

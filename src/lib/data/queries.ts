@@ -3,6 +3,12 @@ import {
   MOCK_SETTINGS,
   MOCK_WAITING_TIME,
 } from "@/lib/data/menu-mock";
+import {
+  getDemoPauseUntil,
+  getDemoSoldOutIds,
+  getDemoSpecialClosedDates,
+  getDemoTestMode,
+} from "@/lib/data/demo-store";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { isOrderFromToday, normalizePhone } from "@/lib/utils";
@@ -111,7 +117,15 @@ export async function fetchMenuData(): Promise<MenuData> {
 }
 
 export async function fetchRestaurantSettings(): Promise<RestaurantSettings> {
-  if (!isSupabaseConfigured()) return MOCK_SETTINGS;
+  if (!isSupabaseConfigured()) {
+    return {
+      ...MOCK_SETTINGS,
+      pause_until: getDemoPauseUntil(),
+      sold_out_item_ids: getDemoSoldOutIds(),
+      special_closed_dates: getDemoSpecialClosedDates(),
+      test_mode: getDemoTestMode(),
+    };
+  }
 
   const supabase = createAdminClient();
   const { data } = await supabase.from("restaurant_settings").select("*").limit(1).single();

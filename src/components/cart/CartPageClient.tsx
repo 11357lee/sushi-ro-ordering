@@ -40,12 +40,13 @@ export function CartPageClient() {
       .then((r) => r.json())
       .then((data) => {
         const settings = data.settings;
+        const testMode = Boolean(settings?.test_mode);
         const openNow = settings ? isRestaurantOpen(settings) : true;
         const paused = isPauseActive(settings?.pause_until);
-        const disabledNow = Boolean(data.orderingDisabled);
+        const disabledNow = Boolean(data.orderingDisabled) && !testMode;
         const nextSlots = generateBusinessPickupSlots({
           closingTime: ORDERING_DISABLED_START,
-          days: 1,
+          days: testMode ? 3 : 1,
         });
         setPickupSlots(nextSlots);
         setOrderingDisabled(disabledNow);

@@ -314,6 +314,7 @@ export const MOCK_SETTINGS = {
   pause_until: null,
   sold_out_item_ids: [],
   special_closed_dates: [] as { start: string; end: string; message?: string }[],
+  test_mode: false,
 };
 
 export const MOCK_WAITING_TIME = {

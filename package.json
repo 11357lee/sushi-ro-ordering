@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "generate:admin-key": "node scripts/generate-admin-key.mjs"
+    "generate:admin-key": "node scripts/generate-admin-key.mjs",
+    "test:orders": "node scripts/order-smoke-tests.mjs",
+    "test:orders:prod": "node scripts/order-smoke-tests.mjs https://sushi-ro-ordering.vercel.app"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",

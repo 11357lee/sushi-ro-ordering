@@ -16,6 +16,7 @@ import {
   normalizeSpecialClosedPeriods,
   sortOrderItemsForAdmin,
   toDisplayName,
+  fetchWithTimeout,
 } from "@/lib/utils";
 
 type AdminTab = "orders" | "settings";
@@ -223,30 +224,23 @@ export function AdminPageClient() {
     [apiKey]
   );
 
-  const authenticateWithKey = useCallback(async (key: string) => {
+  const authenticateWithKey = useCallback(async (key: string): Promise<boolean> => {
     const trimmed = key.trim();
     if (!trimmed) return false;
-    const res = await fetch("/api/admin", { headers: { "x-admin-key": trimmed } });
-    if (!res.ok) return false;
-    const data = await res.json();
-    setApiKey(trimmed);
-    setOrders(
-      (data.orders ?? []).sort(
-        (a: Order, b: Order) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      )
-    );
-    ordersReadyRef.current = true;
-    setAuthenticated(true);
-    setLoginError("");
-    return true;
-  }, []);
-
-  const fetchOrders = useCallback(async () => {
-    if (!apiKey) return;
-    const res = await fetch("/api/admin", { headers: { "x-admin-key": apiKey } });
-    if (res.ok) {
+    try {
+      const res = await fetchWithTimeout("/api/admin", {
+        headers: { "x-admin-key": trimmed },
+      });
+      if (res.status === 401) {
+        setLoginError("Incorrect admin key.");
+        return false;
+      }
+      if (!res.ok) {
+        setLoginError(`Server error (${res.status}). Try again in a moment.`);
+        return false;
+      }
       const data = await res.json();
+      setApiKey(trimmed);
       setOrders(
         (data.orders ?? []).sort(
           (a: Order, b: Order) =>
@@ -255,6 +249,42 @@ export function AdminPageClient() {
       );
       ordersReadyRef.current = true;
       setAuthenticated(true);
+      setLoginError("");
+      return true;
+    } catch (err) {
+      const aborted = err instanceof Error && err.name === "AbortError";
+      setLoginError(
+        aborted
+          ? "Connection timed out. Restaurant Wi‑Fi may be slow — try again or switch to cellular."
+          : "Cannot reach the server. Check Wi‑Fi and open https://sushi-ro-ordering.vercel.app/admin"
+      );
+      return false;
+    }
+  }, []);
+
+  const fetchOrders = useCallback(async () => {
+    if (!apiKey) return;
+    try {
+      const res = await fetchWithTimeout("/api/admin", {
+        headers: { "x-admin-key": apiKey },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setOrders(
+          (data.orders ?? []).sort(
+            (a: Order, b: Order) =>
+              new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          )
+        );
+        ordersReadyRef.current = true;
+        setAuthenticated(true);
+      } else if (res.status === 401) {
+        setAuthenticated(false);
+        setLoginError("Saved iPad login expired. Please enter the admin key again.");
+        window.localStorage.removeItem(REMEMBER_DEVICE_KEY);
+      }
+    } catch {
+      /* keep last orders on transient network errors */
     }
   }, [apiKey]);
 
@@ -407,7 +437,6 @@ export function AdminPageClient() {
     cancellationAlertsReadyRef.current = false;
     const ok = await authenticateWithKey(apiKey);
     if (!ok) {
-      setLoginError("Incorrect admin key.");
       setLoading(false);
       return;
     }

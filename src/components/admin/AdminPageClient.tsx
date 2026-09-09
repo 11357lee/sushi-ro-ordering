@@ -212,6 +212,7 @@ export function AdminPageClient() {
   const [waitingMinutes, setWaitingMinutes] = useState(15);
   const [soldOutIds, setSoldOutIds] = useState<string[]>([]);
   const [pauseUntil, setPauseUntil] = useState<string | null>(null);
+  const [testMode, setTestMode] = useState(false);
   const [specialClosedPeriods, setSpecialClosedPeriods] = useState<SpecialClosedPeriod[]>([]);
   const [closedStartDate, setClosedStartDate] = useState("");
   const [closedEndDate, setClosedEndDate] = useState("");
@@ -329,6 +330,7 @@ export function AdminPageClient() {
     setWaitingMinutes(data.waitingTime?.minutes ?? 15);
     setSoldOutIds(data.settings?.sold_out_item_ids ?? []);
     setPauseUntil(data.settings?.pause_until ?? null);
+    setTestMode(Boolean(data.settings?.test_mode));
     const today = restaurantCalendarDate();
     const periods = normalizeSpecialClosedPeriods(data.settings?.special_closed_dates).filter(
       (period) => period.end >= today
@@ -565,6 +567,17 @@ export function AdminPageClient() {
     setSettingsMessage("Pause updated.");
   };
 
+  const updateTestMode = async (enabled: boolean) => {
+    await fetch("/api/admin", {
+      method: "PATCH",
+      headers: headers(),
+      body: JSON.stringify({ action: "update_test_mode", testMode: enabled }),
+    });
+    setTestMode(enabled);
+    fetchSettings();
+    setSettingsMessage(enabled ? "Test mode is on. You can place a test order now." : "Test mode is off.");
+  };
+
   const toggleSoldOut = async (itemId: string) => {
     const next = soldOutIds.includes(itemId)
       ? soldOutIds.filter((id) => id !== itemId)
@@ -614,6 +627,7 @@ export function AdminPageClient() {
     closing_time: closingTime,
     timezone: "America/Toronto",
     special_closed_dates: specialClosedPeriods,
+    test_mode: testMode,
   });
   const paused = isPauseActive(pauseUntil);
   const withinBusinessHours = isWithinBusinessHours();
@@ -838,17 +852,25 @@ export function AdminPageClient() {
                   Logout
                 </button>
                 <p className="border-t border-stone-100 px-3 py-2 text-xs text-stone-500">
-                  {paused
+                  {paused && !testMode
                     ? "Service paused"
-                    : restaurantOpen
-                      ? "Open (business hours)"
-                      : "Closed (business hours)"}
+                    : testMode
+                      ? "Test mode on"
+                      : restaurantOpen
+                        ? "Open (business hours)"
+                        : "Closed (business hours)"}
                 </p>
               </div>
             )}
           </div>
         </div>
 
+        {testMode && (
+          <p className="rounded-lg bg-amber-100 px-3 py-2 text-sm font-semibold text-amber-950">
+            Test mode is on. Hours are ignored so you can place and accept a test order. Turn it off
+            in Settings when you finish.
+          </p>
+        )}
         {!restaurantOpen && (
           <p className="text-xs text-stone-500">
             Waiting time controls are disabled while the restaurant is closed or paused.
@@ -1182,6 +1204,30 @@ export function AdminPageClient() {
             </button>
           </div>
           <section>
+            <h2 className="text-lg font-semibold text-stone-900">Test mode</h2>
+            <p className="mt-1 text-sm text-stone-600">
+              Turn this on when you want to try the site after hours. Customers can place an order
+              and you can accept it in this admin. Turn it off when you are done.
+            </p>
+            <button
+              type="button"
+              onClick={() => void updateTestMode(!testMode)}
+              className={`mt-3 rounded-lg px-4 py-2.5 text-sm font-semibold ${
+                testMode
+                  ? "bg-amber-400 text-stone-950 hover:bg-amber-300"
+                  : "bg-stone-900 text-white hover:bg-stone-800"
+              }`}
+            >
+              {testMode ? "Turn off test mode" : "Turn on test mode"}
+            </button>
+            {testMode && (
+              <p className="mt-2 text-sm font-medium text-amber-800">
+                Test mode is on. The public menu will say you can place an order.
+              </p>
+            )}
+          </section>
+
+          <section>
             <h2 className="text-lg font-semibold text-stone-900">Notification sounds</h2>
             <p className="mt-1 text-sm text-stone-600">
               Sounds are louder by default. Safari and iPads usually need one tap after opening the
@@ -1257,7 +1303,7 @@ export function AdminPageClient() {
                 <button
                   key={value}
                   type="button"
-                  disabled={!withinBusinessHours && value !== "clear"}
+                  disabled={!withinBusinessHours && !testMode && value !== "clear"}
                   onClick={() => pauseService(value)}
                   className="rounded-lg bg-stone-100 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-50"
                 >
@@ -1268,7 +1314,7 @@ export function AdminPageClient() {
             {settingsMessage && (
               <p className="mt-2 text-sm text-emerald-700">{settingsMessage}</p>
             )}
-            {!withinBusinessHours && (
+            {!withinBusinessHours && !testMode && (
               <p className="mt-2 text-sm text-stone-500">
                 Pause buttons are available during business hours only.
               </p>

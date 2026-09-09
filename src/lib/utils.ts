@@ -188,13 +188,20 @@ export function formatSpecialClosureLabel(period: SpecialClosedPeriod): string {
   return `${period.start} to ${period.end}`;
 }
 
+export function isTestModeOn(
+  settings?: Pick<RestaurantSettings, "test_mode"> | null
+): boolean {
+  return Boolean(settings?.test_mode);
+}
+
 export function isRestaurantOpen(
   settings: Pick<
     RestaurantSettings,
-    "pause_until" | "closing_time" | "timezone" | "special_closed_dates"
+    "pause_until" | "closing_time" | "timezone" | "special_closed_dates" | "test_mode"
   >,
   now = new Date()
 ): boolean {
+  if (isTestModeOn(settings)) return true;
   if (isPauseActive(settings.pause_until)) return false;
   const dateKey = restaurantCalendarDate(now);
   const periods = normalizeSpecialClosedPeriods(settings.special_closed_dates);
@@ -202,7 +209,11 @@ export function isRestaurantOpen(
   return isWithinBusinessHours(now);
 }
 
-export function isOrderingDisabled(now = new Date()): boolean {
+export function isOrderingDisabled(
+  now = new Date(),
+  settings?: Pick<RestaurantSettings, "test_mode"> | null
+): boolean {
+  if (isTestModeOn(settings)) return false;
   const localNow = restaurantWallClock(now);
   const start = parseTimeOnDate(ORDERING_DISABLED_START, localNow);
   const end = parseTimeOnDate(ORDERING_DISABLED_END, localNow);

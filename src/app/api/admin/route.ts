@@ -8,6 +8,7 @@ import {
   setDemoPauseUntil,
   setDemoSoldOutIds,
   setDemoSpecialClosedDates,
+  setDemoTestMode,
   setDemoWaitingTimeMinutes,
   updateDemoOrderStatus,
 } from "@/lib/data/demo-store";
@@ -58,6 +59,7 @@ export async function PATCH(request: Request) {
     soldOutItemIds,
     specialClosedDates,
     closingTime,
+    testMode,
   } = body;
 
   if (action === "update_waiting_time" && waitingMinutes) {
@@ -124,6 +126,19 @@ export async function PATCH(request: Request) {
       .update({ special_closed_dates: specialClosedDates })
       .neq("id", "00000000-0000-0000-0000-000000000000");
     return NextResponse.json({ specialClosedDates });
+  }
+
+  if (action === "update_test_mode" && typeof testMode === "boolean") {
+    if (isDemoMode()) {
+      setDemoTestMode(testMode);
+      return NextResponse.json({ testMode });
+    }
+    const supabase = createAdminClient();
+    await supabase
+      .from("restaurant_settings")
+      .update({ test_mode: testMode })
+      .neq("id", "00000000-0000-0000-0000-000000000000");
+    return NextResponse.json({ testMode });
   }
 
   if (action === "dismiss_orders") {

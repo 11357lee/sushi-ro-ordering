@@ -21,14 +21,7 @@ export function WaitingPageClient({ orderId }: WaitingPageClientProps) {
       const data = await res.json();
       const settings = data.settings;
       if (settings) {
-        setRestaurantOpen(
-          isRestaurantOpen({
-            pause_until: settings.pause_until,
-            closing_time: settings.closing_time,
-            timezone: settings.timezone,
-            special_closed_dates: settings.special_closed_dates,
-          })
-        );
+        setRestaurantOpen(isRestaurantOpen(settings));
       }
     };
     void loadSettings();

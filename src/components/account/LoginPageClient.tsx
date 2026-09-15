@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useCartStore } from "@/lib/cart-store";
-import { useCustomerStore } from "@/lib/customer-store";
+import { isLoggedInCustomer, useCustomerStore } from "@/lib/customer-store";
 import { formatPhoneInput, toDisplayName } from "@/lib/utils";
 
 export function LoginPageClient() {
@@ -14,6 +14,7 @@ export function LoginPageClient() {
   const clearCustomer = useCustomerStore((s) => s.clearCustomer);
   const refreshCustomer = useCustomerStore((s) => s.refreshCustomer);
   const clearCart = useCartStore((s) => s.clearCart);
+  const loggedIn = isLoggedInCustomer(customer);
   const [firstName, setFirstName] = useState("");
   const [phone, setPhone] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
@@ -28,13 +29,13 @@ export function LoginPageClient() {
   const [profileLoading, setProfileLoading] = useState(false);
 
   useEffect(() => {
-    if (!customer) return;
+    if (!loggedIn || !customer) return;
     queueMicrotask(() => {
       setProfileFirstName(customer.first_name);
       setProfileLastName(customer.last_name ?? "");
       setProfilePhone(formatPhoneInput(customer.phone));
     });
-  }, [customer]);
+  }, [customer, loggedIn]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,7 +93,7 @@ export function LoginPageClient() {
   return (
     <div className="mx-auto max-w-md px-4 py-12">
       <h1 className="text-2xl font-bold text-stone-900">Login</h1>
-      {customer ? (
+      {loggedIn && customer ? (
         <div className="mt-6 space-y-4">
           <div className="rounded-xl border border-stone-200 bg-white p-4">
             <p className="font-medium text-stone-900">

@@ -351,6 +351,7 @@ const ADMIN_ITEM_CATEGORY_ORDER: Record<string, number> = {
   "gf-moriawase": 9,
   dessert: 10,
   "drinks-extra": 11,
+  "gf-drinks-extra": 11,
 };
 
 function adminCategorySortKey(

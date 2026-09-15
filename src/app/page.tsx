@@ -1,8 +1,12 @@
+import { connection } from "next/server";
 import { Header } from "@/components/layout/Header";
 import { MenuPageClient } from "@/components/menu/MenuPageClient";
 import { fetchMenuData, fetchRestaurantSettings, fetchWaitingTime } from "@/lib/data/queries";
 
+export const dynamic = "force-dynamic";
+
 export default async function HomePage() {
+  await connection();
   const [menu, settings, waitingTime] = await Promise.all([
     fetchMenuData(),
     fetchRestaurantSettings(),

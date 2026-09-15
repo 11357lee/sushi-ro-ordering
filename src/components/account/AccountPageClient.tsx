@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useCartStore } from "@/lib/cart-store";
-import { useCustomerStore } from "@/lib/customer-store";
+import { isLoggedInCustomer, useCustomerStore } from "@/lib/customer-store";
 import type { Order } from "@/types";
 import {
   formatPhoneInput,
@@ -19,6 +19,7 @@ import {
 export function AccountPageClient() {
   const router = useRouter();
   const customer = useCustomerStore((s) => s.customer);
+  const loggedIn = isLoggedInCustomer(customer);
   const clearCustomer = useCustomerStore((s) => s.clearCustomer);
   const refreshCustomer = useCustomerStore((s) => s.refreshCustomer);
   const addItems = useCartStore((s) => s.addItems);
@@ -37,21 +38,21 @@ export function AccountPageClient() {
   const [profileLoading, setProfileLoading] = useState(false);
 
   useEffect(() => {
-    if (!customer?.id) return;
+    if (!loggedIn || !customer?.id) return;
 
     fetch(`/api/customers/orders?customerId=${encodeURIComponent(customer.id)}`)
       .then((r) => r.json())
       .then((data) => setOrders(data.orders ?? []));
-  }, [customer?.id]);
+  }, [customer?.id, loggedIn]);
 
   useEffect(() => {
-    if (!customer) return;
+    if (!loggedIn || !customer) return;
     queueMicrotask(() => {
       setProfileFirstName(customer.first_name);
       setProfileLastName(customer.last_name ?? "");
       setProfilePhone(formatPhoneInput(customer.phone));
     });
-  }, [customer]);
+  }, [customer, loggedIn]);
 
   const handleReorder = (order: Order) => {
     const cartItems = orderItemsToCartItems(order.order_items);
@@ -137,7 +138,7 @@ export function AccountPageClient() {
     }
   };
 
-  if (!customer) {
+  if (!loggedIn || !customer) {
     return (
       <div className="mx-auto max-w-md px-4 py-16 text-center">
         <p className="text-stone-600">Please log in to view your account.</p>

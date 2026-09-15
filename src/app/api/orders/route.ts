@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { createDemoOrder, isDemoMode } from "@/lib/data/demo-store";
-import { fetchRestaurantSettings } from "@/lib/data/queries";
+import { fetchRestaurantSettings, mapOrder } from "@/lib/data/queries";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { CreateOrderPayload, Order } from "@/types";
 import {
@@ -121,20 +121,25 @@ export async function POST(request: Request) {
     let customerRecord = existingCustomer;
 
     if (customerId) {
-      const updates: Record<string, unknown> = {
-        first_name: body.firstName.trim(),
-        last_name: body.lastName.trim(),
-      };
+      const updates: Record<string, unknown> = {};
+      // Keep retained-account names stable so login by first name still works.
+      // Only refresh names when this order also opts into saved history.
+      if (saveHistory || !existingCustomer?.save_history) {
+        updates.first_name = body.firstName.trim();
+        updates.last_name = body.lastName.trim();
+      }
       // Consent only upgrades retention; never wipe an existing saved account mid-order.
       if (saveHistory) updates.save_history = true;
 
-      const { data: updated } = await supabase
-        .from("customers")
-        .update(updates)
-        .eq("id", customerId)
-        .select()
-        .single();
-      customerRecord = updated ?? existingCustomer;
+      if (Object.keys(updates).length > 0) {
+        const { data: updated } = await supabase
+          .from("customers")
+          .update(updates)
+          .eq("id", customerId)
+          .select()
+          .single();
+        customerRecord = updated ?? existingCustomer;
+      }
     } else {
       const { data: newCustomer, error } = await supabase
         .from("customers")
@@ -206,7 +211,7 @@ export async function POST(request: Request) {
       .single();
 
     return NextResponse.json({
-      order: fullOrder,
+      order: fullOrder ? mapOrder(fullOrder as Record<string, unknown>) : null,
       saveHistory: Boolean(customerRecord?.save_history),
       redirectTo: `/order/${order.id}/waiting`,
     });

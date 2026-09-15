@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import {
   getMockMenuData,
   MOCK_SETTINGS,
@@ -8,6 +9,8 @@ import {
   getDemoSoldOutIds,
   getDemoSpecialClosedDates,
   getDemoTestMode,
+  isDemoMode,
+  listDemoOrdersByCustomerId,
 } from "@/lib/data/demo-store";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
@@ -20,7 +23,7 @@ import type {
   WaitingTime,
 } from "@/types";
 
-function mapOrder(order: Record<string, unknown>): Order {
+export function mapOrder(order: Record<string, unknown>): Order {
   const subtotal = Number(order.subtotal);
   const tax = Number(order.tax ?? 0);
   const savedTotal = Number(order.total ?? 0);
@@ -45,6 +48,7 @@ export async function fetchMenuData(): Promise<MenuData> {
     return getMockMenuData();
   }
 
+  await connection();
   const supabase = createAdminClient();
 
   const [
@@ -57,8 +61,8 @@ export async function fetchMenuData(): Promise<MenuData> {
     { data: itemOptions },
   ] = await Promise.all([
     supabase.from("menu_sections").select("*").order("sort_order"),
-    supabase.from("categories").select("*").order("sort_order"),
-    supabase.from("menu_items").select("*").eq("is_available", true).order("sort_order"),
+    supabase.from("categories").select("*").order("sort_order").order("name"),
+    supabase.from("menu_items").select("*").eq("is_available", true).order("sort_order").order("name"),
     supabase.from("featured_items").select("*").order("sort_order"),
     supabase.from("menu_options").select("*").order("sort_order"),
     supabase.from("menu_item_labels").select("menu_item_id, labels(id, name, slug)"),
@@ -190,7 +194,9 @@ export async function fetchOrdersByPhone(phone: string): Promise<Order[]> {
 }
 
 export async function fetchCustomerOrders(customerId: string): Promise<Order[]> {
-  if (!isSupabaseConfigured()) return [];
+  if (isDemoMode() || !isSupabaseConfigured()) {
+    return listDemoOrdersByCustomerId(customerId);
+  }
 
   const supabase = createAdminClient();
   const { data } = await supabase

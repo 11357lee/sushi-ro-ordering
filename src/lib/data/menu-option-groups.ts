@@ -40,6 +40,7 @@ export const REQUIRED_CHOICE_OPTION_IDS = new Set<string>([
   "33333333-3333-3333-3333-333333333751",
   "33333333-3333-3333-3333-333333333752",
   "33333333-3333-3333-3333-333333333753",
+  "33333333-3333-3333-3333-333333333754",
 ]);
 
 /** Sweet-roll flavours: choose exactly 2 (duplicates allowed). */
@@ -53,7 +54,6 @@ export const SWEET_ROLL_REQUIRED_FLAVOUR_COUNT = 2;
 
 export const SOY_SHEET_OPTION_ID = "33333333-3333-3333-3333-333333333302";
 export const SOY_SHEET_MAKI_MORI_OPTION_ID = "33333333-3333-3333-3333-333333333307";
-export const SUSHI_RICE_OPTION_ID = "33333333-3333-3333-3333-333333333308";
 
 export function isRequiredChoiceOption(option: Pick<MenuOption, "id">): boolean {
   return REQUIRED_CHOICE_OPTION_IDS.has(option.id);

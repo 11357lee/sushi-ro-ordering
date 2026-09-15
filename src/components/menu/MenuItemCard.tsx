@@ -374,21 +374,27 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
       {isNigiriSashimi && nigiriSashimiOptions.length > 0 && (
         <div className="mt-1.5 space-y-0.5 rounded-lg border border-stone-200 bg-stone-50 px-2 py-1.5">
           <p className="text-[11px] font-semibold text-stone-900">Choose one *</p>
-          {nigiriSashimiOptions.map((option) => (
-            <label key={option.id} className="flex cursor-pointer items-center gap-1.5 text-xs sm:text-sm">
-              <input
-                type="radio"
-                name={`nigiri-sashimi-${item.id}`}
-                checked={selectedRequiredOption?.id === option.id}
-                onChange={() => {
-                  setSelectedRequiredOption(option);
-                  setOptionError("");
-                }}
-                className="border-stone-300 text-teal-600 focus:ring-teal-500"
-              />
-              <span>{option.name}</span>
-            </label>
-          ))}
+          {nigiriSashimiOptions.map((option) => {
+            const priceLabel = formatChoicePriceLabel(option, item.price);
+            return (
+              <label key={option.id} className="flex cursor-pointer items-center gap-1.5 text-xs sm:text-sm">
+                <input
+                  type="radio"
+                  name={`nigiri-sashimi-${item.id}`}
+                  checked={selectedRequiredOption?.id === option.id}
+                  onChange={() => {
+                    setSelectedRequiredOption(option);
+                    setOptionError("");
+                  }}
+                  className="border-stone-300 text-teal-600 focus:ring-teal-500"
+                />
+                <span>
+                  {option.name}
+                  {priceLabel ? ` ${priceLabel}` : ""}
+                </span>
+              </label>
+            );
+          })}
         </div>
       )}
 

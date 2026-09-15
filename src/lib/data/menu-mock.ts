@@ -8,13 +8,10 @@ import type {
 import {
   CATALOG_CATEGORIES,
   CATALOG_ITEMS,
-  NIGIRI_MODIFIER_BY_ITEM_ID,
+  SASHIMI_MODIFIER_BY_ITEM_ID,
   SASHIMI_OPTION_ID,
 } from "@/lib/data/menu-catalog";
-import {
-  SOY_SHEET_OPTION_ID,
-  SUSHI_RICE_OPTION_ID,
-} from "@/lib/data/menu-option-groups";
+import { SOY_SHEET_OPTION_ID } from "@/lib/data/menu-option-groups";
 import { RESTAURANT_PHONE, RESTAURANT_TIMEZONE } from "@/lib/constants";
 
 const SECTIONS: MenuSection[] = [
@@ -37,7 +34,6 @@ const SECTIONS: MenuSection[] = [
 const OPTIONS: MenuOption[] = [
   { id: "33333333-3333-3333-3333-333333333301", name: "Deep-fried", price_modifier: 1, sort_order: 1 },
   { id: SOY_SHEET_OPTION_ID, name: "Replace with Soy Sheet", price_modifier: 1, sort_order: 2 },
-  { id: SUSHI_RICE_OPTION_ID, name: "Sushi rice", price_modifier: 1, sort_order: 4 },
   { id: "33333333-3333-3333-3333-333333333303", name: "Spicy", price_modifier: 1.5, sort_order: 3 },
   { id: "33333333-3333-3333-3333-333333333401", name: "2 pcs Nigiri", price_modifier: 0, sort_order: 10 },
   { id: SASHIMI_OPTION_ID, name: "3 pcs Sashimi", price_modifier: 0, sort_order: 11 },
@@ -103,6 +99,7 @@ const OPTIONS: MenuOption[] = [
   { id: "33333333-3333-3333-3333-333333333751", name: "Unagi", price_modifier: 0, sort_order: 94 },
   { id: "33333333-3333-3333-3333-333333333752", name: "Teriyaki", price_modifier: 0, sort_order: 95 },
   { id: "33333333-3333-3333-3333-333333333753", name: "Sriracha", price_modifier: 0, sort_order: 96 },
+  { id: "33333333-3333-3333-3333-333333333754", name: "Spicy Mayo", price_modifier: 0, sort_order: 97 },
 ];
 
 const NIGIRI_OPTION_ID = "33333333-3333-3333-3333-333333333401";
@@ -165,6 +162,7 @@ const EXTRA_SAUCE_OPTION_IDS = [
   "33333333-3333-3333-3333-333333333751",
   "33333333-3333-3333-3333-333333333752",
   "33333333-3333-3333-3333-333333333753",
+  "33333333-3333-3333-3333-333333333754",
 ];
 
 const SWEET_ROLL_OPTION_IDS = [
@@ -187,11 +185,11 @@ function optionsByIds(ids: string[]): MenuOption[] {
 }
 
 function optionsForItem(item: MenuItem): MenuOption[] {
-  const nigiriModifier = NIGIRI_MODIFIER_BY_ITEM_ID[item.id];
-  if (nigiriModifier !== undefined) {
+  const sashimiModifier = SASHIMI_MODIFIER_BY_ITEM_ID[item.id];
+  if (sashimiModifier !== undefined) {
     return [
-      { id: NIGIRI_OPTION_ID, name: "2 pcs Nigiri", price_modifier: nigiriModifier, sort_order: 10 },
-      { id: SASHIMI_OPTION_ID, name: "3 pcs Sashimi", price_modifier: 0, sort_order: 11 },
+      { id: NIGIRI_OPTION_ID, name: "2 pcs Nigiri", price_modifier: 0, sort_order: 10 },
+      { id: SASHIMI_OPTION_ID, name: "3 pcs Sashimi", price_modifier: sashimiModifier, sort_order: 11 },
     ];
   }
 
@@ -199,16 +197,15 @@ function optionsForItem(item: MenuItem): MenuOption[] {
 
   if (item.id === "a1000001-0000-0000-0000-000000000041") return optionsByIds(PIZZA_OPTION_IDS);
 
-  if (item.id === "a1000001-0000-0000-0000-00000000005b") return optionsByIds(POP_OPTION_IDS);
+  if (
+    item.id === "a1000001-0000-0000-0000-00000000005b" ||
+    item.id === "a2000001-0000-0000-0000-000000000034"
+  ) {
+    return optionsByIds(POP_OPTION_IDS);
+  }
   if (item.id === "a1000001-0000-0000-0000-00000000005c") return optionsByIds(BEER_OPTION_IDS);
   if (item.id === "a1000001-0000-0000-0000-00000000005d") return optionsByIds(SWEET_ROLL_OPTION_IDS);
   if (item.id === "a1000001-0000-0000-0000-00000000005f") return optionsByIds(EXTRA_SAUCE_OPTION_IDS);
-  if (
-    item.id === "a1000001-0000-0000-0000-000000000060" ||
-    item.id === "a2000001-0000-0000-0000-000000000033"
-  ) {
-    return optionsByIds([SUSHI_RICE_OPTION_ID]);
-  }
 
   if (
     item.id === "a1000001-0000-0000-0000-000000000010" ||

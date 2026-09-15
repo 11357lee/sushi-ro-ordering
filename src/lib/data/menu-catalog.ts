@@ -157,11 +157,14 @@ export const CATALOG_CATEGORIES: Category[] = [
   },
 ];
 
-/** Single shared sashimi option — modifier 0; item base price is sashimi price. */
+/** Shared sashimi option id; sashimi uses a per-item positive price modifier. */
 export const SASHIMI_OPTION_ID = "33333333-3333-3333-3333-333333333402";
 
-/** Nigiri option price modifier = nigiri price minus sashimi price (per item). */
-export const NIGIRI_MODIFIER_BY_ITEM_ID: Record<string, number> = {
+/**
+ * Sashimi option price modifier = sashimi price minus nigiri price (per item).
+ * Item base price is the nigiri price; nigiri option modifier is 0.
+ */
+export const SASHIMI_MODIFIER_BY_ITEM_ID: Record<string, number> = {
   // Regular nigiri
   "a1000001-0000-0000-0000-000000000001": 2,
   "a1000001-0000-0000-0000-000000000018": 1.5,
@@ -192,13 +195,10 @@ export const NIGIRI_MODIFIER_BY_ITEM_ID: Record<string, number> = {
   "a2000001-0000-0000-0000-000000000011": 3.5,
   "a2000001-0000-0000-0000-000000000012": 3.5,
   "a2000001-0000-0000-0000-000000000013": 3.5,
-  "a2000001-0000-0000-0000-000000000014": 1.5,
-  "a2000001-0000-0000-0000-000000000015": 1.5,
-  "a2000001-0000-0000-0000-000000000016": 1.5,
 };
 
 export const CATALOG_ITEMS: CatalogMenuItem[] = [
-  // ── Regular: Nigiri & Sashimi (base price = sashimi) ──────────────────────
+  // ── Regular: Nigiri & Sashimi (base price = nigiri) ───────────────────────
   {
     id: "a1000001-0000-0000-0000-000000000001",
     category_id: CAT.nigiri,
@@ -1167,7 +1167,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     id: "a1000001-0000-0000-0000-00000000005f",
     category_id: CAT.drinks,
     name: "EXTRA SAUCE",
-    description: "Choose Unagi, Teriyaki, or Sriracha",
+    description: "Choose Unagi, Teriyaki, Sriracha, or Spicy Mayo",
     price: 1,
     is_available: true,
     has_roll_options: false,
@@ -1177,14 +1177,24 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     id: "a1000001-0000-0000-0000-000000000060",
     category_id: CAT.drinks,
     name: "STEAMED WHITE RICE",
-    description: "Sushi rice available +$1",
+    description: null,
     price: 3,
     is_available: true,
     has_roll_options: false,
     sort_order: 5,
   },
+  {
+    id: "a1000001-0000-0000-0000-000000000061",
+    category_id: CAT.drinks,
+    name: "SUSHI RICE",
+    description: null,
+    price: 4,
+    is_available: true,
+    has_roll_options: false,
+    sort_order: 6,
+  },
 
-  // ── GF: Nigiri & Sashimi ──────────────────────────────────────────────────
+  // ── GF: Nigiri & Sashimi (base price = nigiri) ────────────────────────────
   {
     id: "a2000001-0000-0000-0000-000000000008",
     category_id: CAT.gfNigiri,
@@ -1672,6 +1682,16 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
 
   // ── GF: Drinks/Extra ──────────────────────────────────────────────────────
   {
+    id: "a2000001-0000-0000-0000-000000000034",
+    category_id: CAT.gfDrinks,
+    name: "CANNED POP (GF)",
+    description: "Choose: Coke, Diet Coke, Coke Zero, Ginger Ale, Iced Tea, or Sprite",
+    price: 2,
+    is_available: true,
+    has_roll_options: false,
+    sort_order: 1,
+  },
+  {
     id: "a2000001-0000-0000-0000-000000000032",
     category_id: CAT.gfDrinks,
     name: "EXTRA SPICY MAYO (GF)",
@@ -1679,16 +1699,26 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     price: 1,
     is_available: true,
     has_roll_options: false,
-    sort_order: 1,
+    sort_order: 2,
   },
   {
     id: "a2000001-0000-0000-0000-000000000033",
     category_id: CAT.gfDrinks,
     name: "STEAMED WHITE RICE (GF)",
-    description: "Sushi rice available +$1",
+    description: null,
     price: 3,
     is_available: true,
     has_roll_options: false,
-    sort_order: 2,
+    sort_order: 3,
+  },
+  {
+    id: "a2000001-0000-0000-0000-000000000035",
+    category_id: CAT.gfDrinks,
+    name: "SUSHI RICE (GF)",
+    description: null,
+    price: 4,
+    is_available: true,
+    has_roll_options: false,
+    sort_order: 4,
   },
 ];

@@ -20,25 +20,19 @@ import {
 } from "@/lib/utils";
 
 type AdminTab = "orders" | "settings";
-type NotificationSound = "classic" | "high" | "soft" | "double" | "order";
 
-const NOTIFICATION_SOUNDS: Record<
-  NotificationSound,
-  { label: string; frequencies: number[]; type: OscillatorType }
-> = {
-  classic: { label: "Classic beep", frequencies: [880], type: "square" },
-  high: { label: "High chime", frequencies: [1046, 1318], type: "triangle" },
-  soft: { label: "Soft bell", frequencies: [660, 880], type: "sine" },
-  double: { label: "Double beep", frequencies: [780, 780], type: "square" },
-  order: { label: "Order chime", frequencies: [659, 784, 988, 784], type: "triangle" },
-};
+const SOUND_FILES = {
+  asap: "/sounds/order-asap.mp3",
+  scheduled: "/sounds/order-scheduled.mp3",
+  "customer-cancelled": "/sounds/order-cancelled.mp3",
+} as const;
+
 const CUSTOMER_CANCELLED_REASON = "Customer cancelled online";
 const PREP_MINUTE_OPTIONS_PRIMARY = ["5", "10", "15", "20", "25", "30", "35", "40", "45", "50"];
 const PREP_MINUTE_OPTIONS_EXTENDED = ["60", "70", "80", "90", "100", "120"];
 const CANCEL_ALERT_STORAGE_KEY = "sushi-ro-admin-cancel-alerts";
 const REMEMBER_DEVICE_KEY = "sushi-ro-admin-remembered-key";
-const SOUND_VOLUME = 0.32;
-const SOUND_TONE_MS = 0.32;
+const SOUND_VOLUME = 0.85;
 
 type AdminAuthFailure = "empty" | "invalid" | "network";
 type AdminAuthResult = { ok: true } | { ok: false; reason: AdminAuthFailure };
@@ -76,12 +70,6 @@ function loadCancelAlertedIds(): Set<string> {
 function persistCancelAlertedIds(ids: Set<string>) {
   if (typeof window === "undefined") return;
   window.sessionStorage.setItem(CANCEL_ALERT_STORAGE_KEY, JSON.stringify([...ids]));
-}
-
-function initialNotificationSound(key: string, fallback: NotificationSound): NotificationSound {
-  if (typeof window === "undefined") return fallback;
-  const saved = window.localStorage.getItem(key) as NotificationSound | null;
-  return saved && NOTIFICATION_SOUNDS[saved] ? saved : fallback;
 }
 
 function customerTitle(order: Order): string {
@@ -222,7 +210,7 @@ export function AdminPageClient() {
   const [pickupInputs, setPickupInputs] = useState<Record<string, string>>({});
   const [reasonInputs, setReasonInputs] = useState<Record<string, string>>({});
   const [customReasonInputs, setCustomReasonInputs] = useState<Record<string, string>>({});
-  const audioContextRef = useRef<AudioContext | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const cancellationAlertedIdsRef = useRef<Set<string>>(new Set());
   const cancellationAlertsReadyRef = useRef(false);
   const ordersReadyRef = useRef(false);
@@ -232,12 +220,6 @@ export function AdminPageClient() {
   const [now, setNow] = useState(new Date());
   const [loading, setLoading] = useState(false);
   const [settingsMessage, setSettingsMessage] = useState("");
-  const [asapSound, setAsapSound] = useState<NotificationSound>(() =>
-    initialNotificationSound("sushi-ro-admin-asap-sound", "order")
-  );
-  const [scheduledSound, setScheduledSound] = useState<NotificationSound>(() =>
-    initialNotificationSound("sushi-ro-admin-scheduled-sound", "soft")
-  );
   const [moreOpen, setMoreOpen] = useState(false);
   const [orderMenuOpenId, setOrderMenuOpenId] = useState<string | null>(null);
 
@@ -379,63 +361,38 @@ export function AdminPageClient() {
     return () => clearInterval(interval);
   }, []);
 
-  const updateAsapSound = (value: NotificationSound) => {
-    setAsapSound(value);
-    window.localStorage.setItem("sushi-ro-admin-asap-sound", value);
-  };
-
-  const updateScheduledSound = (value: NotificationSound) => {
-    setScheduledSound(value);
-    window.localStorage.setItem("sushi-ro-admin-scheduled-sound", value);
-  };
-
-  const playNotificationSound = useCallback(
-    (kind: "asap" | "scheduled" | "customer-cancelled") => {
-      const AudioCtx =
-        window.AudioContext ||
-        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-      if (!AudioCtx) return;
-      if (!audioContextRef.current) audioContextRef.current = new AudioCtx();
-      const ctx = audioContextRef.current;
-      void ctx.resume().then(() => setSoundUnlocked(true));
-      const sound =
-        kind === "customer-cancelled"
-          ? { frequencies: [988, 740, 554], type: "sawtooth" as OscillatorType }
-          : NOTIFICATION_SOUNDS[kind === "asap" ? asapSound : scheduledSound];
-
-      const startTone = (frequency: number, offset: number) => {
-        const oscillator = ctx.createOscillator();
-        const gain = ctx.createGain();
-        oscillator.frequency.value = frequency;
-        oscillator.type = sound.type;
-        const startAt = ctx.currentTime + offset;
-        gain.gain.setValueAtTime(0.0001, startAt);
-        gain.gain.exponentialRampToValueAtTime(SOUND_VOLUME, startAt + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.0001, startAt + SOUND_TONE_MS);
-        oscillator.connect(gain);
-        gain.connect(ctx.destination);
-        oscillator.start(startAt);
-        oscillator.stop(startAt + SOUND_TONE_MS + 0.02);
-      };
-
-      sound.frequencies.forEach((frequency, index) => startTone(frequency, index * 0.18));
-    },
-    [asapSound, scheduledSound]
-  );
+  const playNotificationSound = useCallback((kind: "asap" | "scheduled" | "customer-cancelled") => {
+    const src = SOUND_FILES[kind];
+    try {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+      const audio = new Audio(src);
+      audio.volume = SOUND_VOLUME;
+      audioRef.current = audio;
+      void audio.play().then(() => setSoundUnlocked(true)).catch(() => {
+        // Autoplay may be blocked until a user gesture unlocks audio.
+      });
+    } catch {
+      // Ignore playback errors on unsupported browsers.
+    }
+  }, []);
 
   const unlockAudio = useCallback(() => {
-    const AudioCtx =
-      window.AudioContext ||
-      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AudioCtx) {
-      setSoundUnlocked(true);
-      return;
-    }
-    if (!audioContextRef.current) audioContextRef.current = new AudioCtx();
-    void audioContextRef.current.resume().then(() => {
-      setSoundUnlocked(true);
-      setSoundEnabled(true);
-    });
+    const audio = new Audio(SOUND_FILES.asap);
+    audio.volume = 0.01;
+    void audio
+      .play()
+      .then(() => {
+        audio.pause();
+        audio.currentTime = 0;
+        setSoundUnlocked(true);
+        setSoundEnabled(true);
+      })
+      .catch(() => {
+        setSoundUnlocked(true);
+      });
   }, []);
 
   const enableSound = () => {
@@ -1230,46 +1187,29 @@ export function AdminPageClient() {
           <section>
             <h2 className="text-lg font-semibold text-stone-900">Notification sounds</h2>
             <p className="mt-1 text-sm text-stone-600">
-              Sounds are louder by default. Safari and iPads usually need one tap after opening the
-              admin page (or when logging in) before alerts can play — use the yellow banner or the
-              test button below if you do not hear them.
+              ASAP orders use the Uber Eats chime, later pickup orders use a soft message alert, and
+              customer cancellations after a long wait use a cancel alert. Safari and iPads usually
+              need one tap after opening admin before sounds can play.
             </p>
-            <div className="mt-4 grid gap-3 rounded-xl border border-stone-200 bg-white p-4 sm:grid-cols-2">
-              <label className="text-sm font-medium text-stone-700">
-                ASAP notification sound
-                <select
-                  value={asapSound}
-                  onChange={(e) => updateAsapSound(e.target.value as NotificationSound)}
-                  className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2 text-base"
-                >
-                  {Object.entries(NOTIFICATION_SOUNDS).map(([value, sound]) => (
-                    <option key={value} value={value}>
-                      {sound.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="text-sm font-medium text-stone-700">
-                Later notification sound
-                <select
-                  value={scheduledSound}
-                  onChange={(e) => updateScheduledSound(e.target.value as NotificationSound)}
-                  className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2 text-base"
-                >
-                  {Object.entries(NOTIFICATION_SOUNDS).map(([value, sound]) => (
-                    <option key={value} value={value}>
-                      {sound.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <div className="flex flex-wrap gap-2 sm:col-span-2">
+            <div className="mt-4 rounded-xl border border-stone-200 bg-white p-4">
+              <ul className="space-y-1 text-sm text-stone-700">
+                <li>
+                  <span className="font-medium">ASAP / regular:</span> Uber Eats notification
+                </li>
+                <li>
+                  <span className="font-medium">Later / pre-order:</span> message alert
+                </li>
+                <li>
+                  <span className="font-medium">Customer cancelled (60+ wait):</span> cancel alert
+                </li>
+              </ul>
+              <div className="mt-4 flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={enableSound}
                   className="rounded-lg bg-stone-900 px-4 py-2 text-sm font-semibold text-white hover:bg-stone-800"
                 >
-                  Test / unlock sound
+                  Test ASAP / unlock sound
                 </button>
                 <button
                   type="button"
@@ -1277,6 +1217,13 @@ export function AdminPageClient() {
                   className="rounded-lg border border-stone-300 px-4 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50"
                 >
                   Test later sound
+                </button>
+                <button
+                  type="button"
+                  onClick={() => playNotificationSound("customer-cancelled")}
+                  className="rounded-lg border border-stone-300 px-4 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50"
+                >
+                  Test cancel sound
                 </button>
               </div>
             </div>

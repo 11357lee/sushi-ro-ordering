@@ -715,7 +715,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     id: "a1000001-0000-0000-0000-000000000041",
     category_id: CAT.bento,
     name: "SUSHI PIZZA",
-    description: "Choose one: Veggie $11, Salmon $12.5, Tuna $13.5, Eel $14",
+    description: "Torched cheese sauce, cheese powder, pepper and onion",
     price: 0,
     is_available: true,
     has_roll_options: false,

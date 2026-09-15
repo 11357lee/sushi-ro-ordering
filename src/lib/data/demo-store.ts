@@ -1,5 +1,5 @@
 import type { Order, OrderStatus } from "@/types";
-import { isOrderFromToday } from "@/lib/utils";
+import { isOrderFromToday, normalizePhone } from "@/lib/utils";
 
 const globalStore = globalThis as unknown as {
   demoOrders?: Map<string, Order>;
@@ -49,7 +49,7 @@ export function updateDemoOrder(id: string, updates: Partial<Order>): Order | un
 }
 
 export function listDemoOrdersByPhone(phone: string): Order[] {
-  const normalized = phone.replace(/\D/g, "");
+  const normalized = normalizePhone(phone);
   return Array.from(getStore().orders.values())
     .filter(
       (o) =>
@@ -57,6 +57,12 @@ export function listDemoOrdersByPhone(phone: string): Order[] {
         isOrderFromToday(o.created_at) &&
         !o.admin_dismissed
     )
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+}
+
+export function listDemoOrdersByCustomerId(customerId: string): Order[] {
+  return Array.from(getStore().orders.values())
+    .filter((o) => o.customer_id === customerId)
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 }
 
@@ -147,12 +153,24 @@ export function setDemoTestMode(enabled: boolean): void {
 }
 
 export function findDemoCustomer(firstName: string, phone: string) {
-  const normalized = phone.replace(/\D/g, "");
-  const orders = Array.from(getStore().orders.values()).filter(
-    (o) =>
-      o.customer?.phone === normalized &&
-      o.customer.first_name.toLowerCase() === firstName.trim().toLowerCase()
+  const normalized = normalizePhone(phone);
+  const name = firstName.trim().toLowerCase().replace(/\s+/g, "");
+  const retained = Array.from(getStore().orders.values())
+    .map((o) => o.customer)
+    .filter((c): c is NonNullable<typeof c> => Boolean(c?.save_history && c.phone === normalized));
+
+  const uniqueById = new Map(retained.map((c) => [c.id, c]));
+  const customers = Array.from(uniqueById.values());
+  if (!customers.length) return null;
+
+  const exact = customers.find(
+    (c) => c.first_name.trim().toLowerCase().replace(/\s+/g, "") === name
   );
-  if (!orders.length) return null;
-  return orders[0].customer ?? null;
+  if (exact) return exact;
+
+  if (customers.length === 1) {
+    customers[0].first_name = firstName.trim();
+    return customers[0];
+  }
+  return null;
 }

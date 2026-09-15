@@ -9,6 +9,8 @@ import {
   getDemoSoldOutIds,
   getDemoSpecialClosedDates,
   getDemoTestMode,
+  isDemoMode,
+  listDemoOrdersByCustomerId,
 } from "@/lib/data/demo-store";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
@@ -21,7 +23,7 @@ import type {
   WaitingTime,
 } from "@/types";
 
-function mapOrder(order: Record<string, unknown>): Order {
+export function mapOrder(order: Record<string, unknown>): Order {
   const subtotal = Number(order.subtotal);
   const tax = Number(order.tax ?? 0);
   const savedTotal = Number(order.total ?? 0);
@@ -192,7 +194,9 @@ export async function fetchOrdersByPhone(phone: string): Promise<Order[]> {
 }
 
 export async function fetchCustomerOrders(customerId: string): Promise<Order[]> {
-  if (!isSupabaseConfigured()) return [];
+  if (isDemoMode() || !isSupabaseConfigured()) {
+    return listDemoOrdersByCustomerId(customerId);
+  }
 
   const supabase = createAdminClient();
   const { data } = await supabase

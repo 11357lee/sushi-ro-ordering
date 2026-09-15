@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useCartStore } from "@/lib/cart-store";
-import { useCustomerStore } from "@/lib/customer-store";
+import { isLoggedInCustomer, useCustomerStore } from "@/lib/customer-store";
 import { formatPrice } from "@/lib/utils";
 
 export function Header() {
@@ -17,6 +17,7 @@ export function Header() {
   const customer = useCustomerStore((s) => s.customer);
   const clearCustomer = useCustomerStore((s) => s.clearCustomer);
   const clearExpiredCustomer = useCustomerStore((s) => s.clearExpiredCustomer);
+  const loggedIn = mounted && isLoggedInCustomer(customer);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -39,7 +40,7 @@ export function Header() {
           Sushi-Ro
         </Link>
         <nav className="flex items-center gap-1.5 sm:gap-3">
-          {mounted && customer ? (
+          {loggedIn ? (
             <button
               type="button"
               onClick={logout}

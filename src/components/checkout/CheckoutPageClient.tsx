@@ -85,7 +85,7 @@ export function CheckoutPageClient() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to place order");
 
-      if (acceptedTerms && data.order?.customer) {
+      if (acceptedTerms && data.saveHistory && data.order?.customer) {
         setCustomer(data.order.customer);
       }
 

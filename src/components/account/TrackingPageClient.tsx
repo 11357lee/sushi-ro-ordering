@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { useCustomerStore } from "@/lib/customer-store";
+import { isLoggedInCustomer, useCustomerStore } from "@/lib/customer-store";
 import { useCartStore } from "@/lib/cart-store";
 import type { Order } from "@/types";
 import {
@@ -120,6 +120,7 @@ function OrderCard({
 export function TrackingPageClient() {
   const router = useRouter();
   const customer = useCustomerStore((s) => s.customer);
+  const loggedIn = isLoggedInCustomer(customer);
   const clearCart = useCartStore((s) => s.clearCart);
   const addItems = useCartStore((s) => s.addItems);
   const [phone, setPhone] = useState("");
@@ -138,7 +139,7 @@ export function TrackingPageClient() {
   }, []);
 
   useEffect(() => {
-    if (!customer?.id) return;
+    if (!loggedIn || !customer?.id) return;
 
     const loadCustomerOrders = async () => {
       setLoading(true);
@@ -153,7 +154,7 @@ export function TrackingPageClient() {
     };
 
     void loadCustomerOrders();
-  }, [customer?.id]);
+  }, [customer?.id, loggedIn]);
 
   const { todayOrders, historyOrders } = useMemo(() => {
     const today: Order[] = [];
@@ -219,12 +220,12 @@ export function TrackingPageClient() {
     <div className="mx-auto max-w-lg px-4 py-8 sm:py-12">
       <h1 className="text-2xl font-bold text-stone-900">Track your order</h1>
       <p className="mt-2 text-sm text-stone-600 sm:text-base">
-        {customer
+        {loggedIn
           ? "You are logged in. Today’s orders and past order history are shown below."
           : "Enter your phone number to see today's orders."}
       </p>
 
-      {!customer && (
+      {!loggedIn && (
         <form onSubmit={handleSearch} className="mt-6 flex flex-col gap-2 sm:flex-row">
           <input
             type="tel"
@@ -249,11 +250,11 @@ export function TrackingPageClient() {
 
       {searched && orders.length === 0 && (
         <p className="mt-8 text-center text-stone-500">
-          {customer ? "No orders found." : "No orders found for today."}
+          {loggedIn ? "No orders found." : "No orders found for today."}
         </p>
       )}
 
-      {customer ? (
+      {loggedIn ? (
         <div className="mt-8 space-y-8">
           <section>
             <h2 className="text-lg font-semibold text-stone-900">Today’s orders</h2>

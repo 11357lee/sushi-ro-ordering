@@ -32,8 +32,9 @@ export function RestaurantBanner({
 
   const phone = settings.phone || RESTAURANT_PHONE;
   const specialClosure = getActiveSpecialClosure(settings);
+  const testMode = Boolean(settings.test_mode);
   const open = isRestaurantOpen(settings);
-  const paused = isPauseActive(settings.pause_until);
+  const paused = isPauseActive(settings.pause_until) && !testMode;
   const waitColor = WAITING_TIME_COLORS[waitingTime.minutes] ?? "bg-emerald-500";
   const closureMessage =
     specialClosure?.message?.trim() ||
@@ -76,7 +77,12 @@ export function RestaurantBanner({
           .
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-2 sm:mt-5 sm:gap-3">
-          {specialClosure ? (
+          {testMode && (
+            <span className="inline-flex items-center rounded-full bg-amber-400 px-3 py-1 text-xs font-bold text-stone-950 ring-1 ring-amber-200 sm:text-sm">
+              Test mode — you can place an order now
+            </span>
+          )}
+          {specialClosure && !testMode ? (
             <span className="inline-flex max-w-full items-center rounded-full bg-red-500/20 px-3 py-1 text-xs font-semibold text-red-200 ring-1 ring-red-400/40 sm:text-sm">
               {closureMessage}
             </span>
@@ -91,7 +97,7 @@ export function RestaurantBanner({
               {paused ? "Paused" : open ? "Open" : "Closed"}
             </span>
           )}
-          {open && !paused && !specialClosure && (
+          {open && !paused && (!specialClosure || testMode) && (
             <span
               className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold text-white sm:text-sm ${waitColor}`}
             >

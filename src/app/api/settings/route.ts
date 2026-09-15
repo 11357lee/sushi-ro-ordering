@@ -3,6 +3,7 @@ import {
   getDemoPauseUntil,
   getDemoSoldOutIds,
   getDemoSpecialClosedDates,
+  getDemoTestMode,
   getDemoWaitingTimeMinutes,
   isDemoMode,
 } from "@/lib/data/demo-store";
@@ -12,15 +13,17 @@ import { isOrderingDisabled } from "@/lib/utils";
 
 export async function GET() {
   if (isDemoMode()) {
+    const settings = {
+      ...MOCK_SETTINGS,
+      pause_until: getDemoPauseUntil(),
+      sold_out_item_ids: getDemoSoldOutIds(),
+      special_closed_dates: getDemoSpecialClosedDates(),
+      test_mode: getDemoTestMode(),
+    };
     return NextResponse.json({
-      settings: {
-        ...MOCK_SETTINGS,
-        pause_until: getDemoPauseUntil(),
-        sold_out_item_ids: getDemoSoldOutIds(),
-        special_closed_dates: getDemoSpecialClosedDates(),
-      },
+      settings,
       waitingTime: { ...MOCK_WAITING_TIME, minutes: getDemoWaitingTimeMinutes() },
-      orderingDisabled: isOrderingDisabled(),
+      orderingDisabled: isOrderingDisabled(new Date(), settings),
     });
   }
 
@@ -29,5 +32,9 @@ export async function GET() {
     fetchWaitingTime(),
   ]);
 
-  return NextResponse.json({ settings, waitingTime, orderingDisabled: isOrderingDisabled() });
+  return NextResponse.json({
+    settings,
+    waitingTime,
+    orderingDisabled: isOrderingDisabled(new Date(), settings),
+  });
 }

@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     const saveHistory = Boolean(body.saveHistory);
     const settings = await fetchRestaurantSettings();
 
-    if (isOrderingDisabled()) {
+    if (isOrderingDisabled(new Date(), settings)) {
       return NextResponse.json(
         { error: "Online ordering is closed from 8:45 PM to 6:00 AM." },
         { status: 400 }

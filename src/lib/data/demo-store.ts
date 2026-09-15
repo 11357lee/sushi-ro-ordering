@@ -8,6 +8,7 @@ const globalStore = globalThis as unknown as {
   demoPauseUntil?: string | null;
   demoSoldOutIds?: Set<string>;
   demoSpecialClosedDates?: { start: string; end: string; message?: string }[];
+  demoTestMode?: boolean;
 };
 
 function getStore() {
@@ -135,6 +136,14 @@ export function setDemoSpecialClosedDates(
   periods: { start: string; end: string; message?: string }[]
 ): void {
   globalStore.demoSpecialClosedDates = periods;
+}
+
+export function getDemoTestMode(): boolean {
+  return Boolean(globalStore.demoTestMode);
+}
+
+export function setDemoTestMode(enabled: boolean): void {
+  globalStore.demoTestMode = enabled;
 }
 
 export function findDemoCustomer(firstName: string, phone: string) {

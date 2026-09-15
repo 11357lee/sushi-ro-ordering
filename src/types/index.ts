@@ -71,6 +71,8 @@ export interface RestaurantSettings {
   pause_until?: string | null;
   sold_out_item_ids?: string[];
   special_closed_dates?: (string | SpecialClosedPeriod)[];
+  /** When true, hours/pause/closed dates are ignored so staff can place test orders. */
+  test_mode?: boolean;
 }
 
 export interface SpecialClosedPeriod {

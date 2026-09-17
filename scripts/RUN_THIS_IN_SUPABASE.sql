@@ -1,7 +1,9 @@
--- VERSION: single-line-v3 (if you see indented "price = 0," you have OLD SQL)
--- 1) In Supabase SQL editor: Select All, Delete (must be empty)
--- 2) Open raw URL, Select All, Copy, Paste, Run (nothing highlighted)
--- https://raw.githubusercontent.com/11357lee/sushi-ro-ordering/cursor/menu-labels-admin-fixes-9070/scripts/RUN_THIS_IN_SUPABASE.sql
+-- ============================================================
+-- PASTE THIS FILE ONLY (version single-line-v3)
+-- If your editor shows indented lines like "    price = 0,"
+-- you still have the OLD broken SQL - delete it all first.
+-- Confirm: every UPDATE/INSERT is ONE long line ending in ;
+-- ============================================================
 
 INSERT INTO labels (id, name, slug) VALUES ('22222222-2222-2222-2222-222222222205'::uuid, 'Raw', 'raw') ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name;
 

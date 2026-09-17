@@ -24,6 +24,7 @@ export async function GET() {
       settings,
       waitingTime: { ...MOCK_WAITING_TIME, minutes: getDemoWaitingTimeMinutes() },
       orderingDisabled: isOrderingDisabled(new Date(), settings),
+      demoMode: true,
     });
   }
 
@@ -36,5 +37,6 @@ export async function GET() {
     settings,
     waitingTime,
     orderingDisabled: isOrderingDisabled(new Date(), settings),
+    demoMode: false,
   });
 }

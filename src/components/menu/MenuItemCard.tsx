@@ -7,6 +7,7 @@ import { buildCartItemFromMenu, useCartStore } from "@/lib/cart-store";
 import {
   formatChoicePriceLabel,
   isMultiMax2Option,
+  isRawOption,
   isRequiredChoiceOption,
   SWEET_ROLL_REQUIRED_FLAVOUR_COUNT,
 } from "@/lib/data/menu-option-groups";
@@ -290,9 +291,18 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
                   }}
                   className="border-stone-300 text-teal-600 focus:ring-teal-500"
                 />
-                <span>
-                  {option.name}
-                  {priceLabel ? ` ${priceLabel}` : ""}
+                <span className="inline-flex flex-wrap items-center gap-1">
+                  <span>
+                    {option.name}
+                    {priceLabel ? ` ${priceLabel}` : ""}
+                  </span>
+                  {isRawOption(option.id) && (
+                    <span
+                      className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${LABEL_COLORS.raw}`}
+                    >
+                      Raw
+                    </span>
+                  )}
                 </span>
               </label>
             );

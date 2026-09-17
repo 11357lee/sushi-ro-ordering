@@ -1,5 +1,24 @@
 import type { MenuOption } from "@/types";
 
+/**
+ * Option-level Raw badges (item itself is not fully raw).
+ * Dragon: Gold / White / Red / Rainbow. House: Snapper / Butter fish. Pizza: Salmon / Tuna.
+ */
+export const RAW_OPTION_IDS = new Set<string>([
+  "33333333-3333-3333-3333-333333333702", // Gold (Salmon)
+  "33333333-3333-3333-3333-333333333703", // White (Snapper)
+  "33333333-3333-3333-3333-333333333704", // Red (Red Tuna)
+  "33333333-3333-3333-3333-333333333705", // Rainbow
+  "33333333-3333-3333-3333-333333333712", // House Snapper
+  "33333333-3333-3333-3333-333333333713", // House Butter fish
+  "33333333-3333-3333-3333-333333333732", // Pizza Salmon
+  "33333333-3333-3333-3333-333333333733", // Pizza Tuna
+]);
+
+export function isRawOption(optionId: string): boolean {
+  return RAW_OPTION_IDS.has(optionId);
+}
+
 /** Required single-select choices (radio). Not soy sheet / deep-fried / spicy. */
 export const REQUIRED_CHOICE_OPTION_IDS = new Set<string>([
   // Dragon toppings

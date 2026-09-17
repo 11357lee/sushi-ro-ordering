@@ -758,7 +758,6 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 0,
-    labels: withLabels(undefined, LABEL.raw),
   },
 
   // ── Regular: Traditional Roll ─────────────────────────────────────────────
@@ -909,7 +908,6 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: true,
     sort_order: 1,
-    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a1000001-0000-0000-0000-00000000004c",
@@ -920,7 +918,6 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: true,
     sort_order: 2,
-    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a1000001-0000-0000-0000-00000000004d",
@@ -1644,7 +1641,6 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: true,
     sort_order: 1,
-    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a2000001-0000-0000-0000-000000000006",

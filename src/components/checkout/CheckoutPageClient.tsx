@@ -14,7 +14,6 @@ export function CheckoutPageClient() {
   const { items, extras, pickupType, pickupTime, subtotal, tax, total, clearCart } =
     useCartStore();
   const customer = useCustomerStore((s) => s.customer);
-  const setCustomer = useCustomerStore((s) => s.setCustomer);
 
   const [firstName, setFirstName] = useState(customer?.first_name ?? "");
   const [lastName, setLastName] = useState(customer?.last_name ?? "");
@@ -85,10 +84,7 @@ export function CheckoutPageClient() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to place order");
 
-      if (acceptedTerms && data.saveHistory && data.order?.customer) {
-        setCustomer(data.order.customer);
-      }
-
+      // Session login is only via /login — checkout must not auto-sign-in.
       clearCart();
       router.push(data.redirectTo);
     } catch (err) {

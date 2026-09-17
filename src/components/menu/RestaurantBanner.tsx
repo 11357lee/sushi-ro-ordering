@@ -17,6 +17,7 @@ export function RestaurantBanner({
 }: RestaurantBannerProps) {
   const [settings, setSettings] = useState(initialSettings);
   const [waitingTime, setWaitingTime] = useState(initialWaitingTime);
+  const [demoMode, setDemoMode] = useState(false);
 
   useEffect(() => {
     const refresh = async () => {
@@ -24,6 +25,7 @@ export function RestaurantBanner({
       const data = await res.json();
       if (data.settings) setSettings(data.settings);
       if (data.waitingTime) setWaitingTime(data.waitingTime);
+      setDemoMode(Boolean(data.demoMode));
     };
     refresh();
     const interval = setInterval(refresh, 15000);
@@ -68,6 +70,16 @@ export function RestaurantBanner({
         <p className="mt-1 text-xs text-stone-400 sm:text-sm">
           Mon–Sat 11:30am–9pm · Sun 12pm–9pm
         </p>
+        {demoMode && (
+          <div className="mt-3 max-w-3xl rounded-xl bg-sky-500/20 p-3 text-sm text-sky-50 ring-1 ring-sky-300/40">
+            <p className="font-semibold">Demo menu (not live Supabase)</p>
+            <p className="mt-1 text-sky-100/90">
+              Local env still has placeholder Supabase keys, so edits in the Supabase dashboard
+              will not show here. Put your real project URL and keys in{" "}
+              <code className="rounded bg-black/30 px-1">.env.local</code> and restart the app.
+            </p>
+          </div>
+        )}
         <div className="mt-4 max-w-3xl rounded-xl bg-amber-500/15 p-3 text-sm text-amber-50 ring-1 ring-amber-300/30">
           Please place your order early when possible. For orders over $300 or catering
           requests, call us at least one day in advance. For cancellations, please call{" "}

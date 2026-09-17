@@ -165,6 +165,29 @@ export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientPr
         onChange={setActiveCategory}
       />
 
+      {(activeCategory || search.trim()) && (
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-2 px-4 pt-2">
+          {activeCategory && (
+            <button
+              type="button"
+              onClick={() => setActiveCategory(null)}
+              className="rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold text-stone-700 hover:bg-stone-200"
+            >
+              Clear category filter
+            </button>
+          )}
+          {search.trim() && (
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              className="rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold text-stone-700 hover:bg-stone-200"
+            >
+              Clear search
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8">
         {groupedByCategory ? (
           groupedByCategory.map(({ category, items }) => (

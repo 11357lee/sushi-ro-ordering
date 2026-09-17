@@ -38,7 +38,7 @@ interface CategoryNavProps {
   categories: Category[];
   activeCategory: string | null;
   variant?: "default" | "gluten-free";
-  onChange: (slug: string) => void;
+  onChange: (slug: string | null) => void;
 }
 
 export function CategoryNav({
@@ -61,11 +61,20 @@ export function CategoryNav({
       }`}
     >
       <div className="mx-auto flex max-w-6xl flex-wrap gap-x-2 gap-y-0.5 px-4 py-1.5">
+        <button
+          type="button"
+          onClick={() => onChange(null)}
+          className={`rounded-md px-2.5 py-0.5 text-sm font-medium leading-snug ${
+            activeCategory === null ? activeClass : "text-stone-600 hover:bg-stone-100"
+          }`}
+        >
+          All
+        </button>
         {categories.map((cat) => (
           <button
             key={cat.id}
             type="button"
-            onClick={() => onChange(cat.slug)}
+            onClick={() => onChange(activeCategory === cat.slug ? null : cat.slug)}
             className={`rounded-md px-2.5 py-0.5 text-sm font-medium leading-snug ${
               activeCategory === cat.slug ? activeClass : "text-stone-600 hover:bg-stone-100"
             }`}

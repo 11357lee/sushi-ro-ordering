@@ -371,13 +371,22 @@ export function AdminPageClient() {
       const audio = new Audio(src);
       audio.volume = SOUND_VOLUME;
       audioRef.current = audio;
-      void audio.play().then(() => setSoundUnlocked(true)).catch(() => {
+      void audio.play().catch(() => {
         // Autoplay may be blocked until a user gesture unlocks audio.
       });
     } catch {
       // Ignore playback errors on unsupported browsers.
     }
   }, []);
+
+  const playTestSound = useCallback(
+    (kind: "asap" | "scheduled" | "customer-cancelled") => {
+      setSoundEnabled(true);
+      setSoundUnlocked(true);
+      playNotificationSound(kind);
+    },
+    [playNotificationSound]
+  );
 
   const unlockAudio = useCallback(() => {
     const audio = new Audio(SOUND_FILES.asap);
@@ -398,7 +407,7 @@ export function AdminPageClient() {
   const enableSound = () => {
     setSoundEnabled(true);
     unlockAudio();
-    playNotificationSound("asap");
+    playTestSound("asap");
   };
 
   useEffect(() => {
@@ -525,14 +534,29 @@ export function AdminPageClient() {
   };
 
   const updateTestMode = async (enabled: boolean) => {
-    await fetch("/api/admin", {
-      method: "PATCH",
-      headers: headers(),
-      body: JSON.stringify({ action: "update_test_mode", testMode: enabled }),
-    });
-    setTestMode(enabled);
-    fetchSettings();
-    setSettingsMessage(enabled ? "Test mode is on. You can place a test order now." : "Test mode is off.");
+    try {
+      const res = await fetch("/api/admin", {
+        method: "PATCH",
+        headers: headers(),
+        body: JSON.stringify({ action: "update_test_mode", testMode: enabled }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setSettingsMessage(
+          typeof data.error === "string"
+            ? data.error
+            : "Could not update test mode. Check your admin key and try again."
+        );
+        return;
+      }
+      setTestMode(Boolean(data.testMode ?? enabled));
+      await fetchSettings();
+      setSettingsMessage(
+        enabled ? "Test mode is on. You can place a test order now." : "Test mode is off."
+      );
+    } catch {
+      setSettingsMessage("Could not update test mode. Check your connection and try again.");
+    }
   };
 
   const toggleSoldOut = async (itemId: string) => {
@@ -622,6 +646,8 @@ export function AdminPageClient() {
     }
 
     if (!soundEnabled || !soundUnlocked) return;
+    // Don't loop alert tones while staff are testing sounds on the Settings tab.
+    if (tab !== "orders") return;
 
     const pendingOrders = restaurantOpen
       ? orders.filter((order) => order.status === "pending")
@@ -643,6 +669,7 @@ export function AdminPageClient() {
     soundEnabled,
     soundUnlocked,
     playNotificationSound,
+    tab,
   ]);
 
   if (!authenticated) {
@@ -1213,14 +1240,14 @@ export function AdminPageClient() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => playNotificationSound("scheduled")}
+                  onClick={() => playTestSound("scheduled")}
                   className="rounded-lg border border-stone-300 px-4 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50"
                 >
                   Test later sound
                 </button>
                 <button
                   type="button"
-                  onClick={() => playNotificationSound("customer-cancelled")}
+                  onClick={() => playTestSound("customer-cancelled")}
                   className="rounded-lg border border-stone-300 px-4 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50"
                 >
                   Test cancel sound

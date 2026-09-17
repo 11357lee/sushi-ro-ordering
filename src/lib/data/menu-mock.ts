@@ -73,6 +73,13 @@ const OPTIONS: MenuOption[] = [
   { id: "33333333-3333-3333-3333-333333333726", name: "Veggie", price_modifier: 0, sort_order: 65 },
   { id: "33333333-3333-3333-3333-333333333727", name: "Salmon", price_modifier: 0, sort_order: 66 },
   { id: "33333333-3333-3333-3333-333333333728", name: "Red Tuna", price_modifier: 1, sort_order: 67 },
+  { id: "33333333-3333-3333-3333-333333333729", name: "Chicken", price_modifier: 0, sort_order: 68 },
+  { id: "33333333-3333-3333-3333-333333333730", name: "Beef", price_modifier: 0, sort_order: 69 },
+
+  // Spicy maki (absolute prices; item base = 0)
+  { id: "33333333-3333-3333-3333-333333333755", name: "Salmon", price_modifier: 9, sort_order: 75 },
+  { id: "33333333-3333-3333-3333-333333333756", name: "Red Tuna", price_modifier: 9.5, sort_order: 76 },
+  { id: "33333333-3333-3333-3333-333333333757", name: "Scallop", price_modifier: 9.5, sort_order: 77 },
 
   // Sushi pizza (absolute prices; item base = 0)
   { id: "33333333-3333-3333-3333-333333333731", name: "Veggie — Torched vegetable with Teriyaki sauce", price_modifier: 11, sort_order: 70 },
@@ -248,7 +255,26 @@ function optionsForItem(item: MenuItem): MenuOption[] {
   if (item.id === "a1000001-0000-0000-0000-000000000036") {
     return optionsByIds([
       "33333333-3333-3333-3333-333333333725",
+      "33333333-3333-3333-3333-333333333730",
       "33333333-3333-3333-3333-333333333726",
+    ]);
+  }
+
+  if (item.id === "a1000001-0000-0000-0000-000000000035") {
+    return optionsByIds([
+      "33333333-3333-3333-3333-333333333725",
+      "33333333-3333-3333-3333-333333333729",
+    ]);
+  }
+
+  if (
+    item.id === "a1000001-0000-0000-0000-00000000000e" ||
+    item.id === "a2000001-0000-0000-0000-000000000002"
+  ) {
+    return optionsByIds([
+      "33333333-3333-3333-3333-333333333755",
+      "33333333-3333-3333-3333-333333333756",
+      "33333333-3333-3333-3333-333333333757",
     ]);
   }
 
@@ -263,10 +289,12 @@ function optionsForItem(item: MenuItem): MenuOption[] {
   return optionsByIds(rollOptionIds);
 }
 
-const ITEMS_WITH_OPTIONS: MenuItem[] = CATALOG_ITEMS.map((item) => ({
-  ...item,
-  options: optionsForItem(item as MenuItem),
-}));
+const ITEMS_WITH_OPTIONS: MenuItem[] = CATALOG_ITEMS.filter((item) => item.is_available).map(
+  (item) => ({
+    ...item,
+    options: optionsForItem(item as MenuItem),
+  })
+);
 
 const FEATURED: FeaturedItem[] = [
   { id: "f1", menu_item_id: "a1000001-0000-0000-0000-000000000010", sort_order: 1 },

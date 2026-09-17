@@ -209,4 +209,5 @@ export const LABEL_COLORS: Record<string, string> = {
   egg: "bg-yellow-100 text-yellow-800",
   cheese: "bg-orange-100 text-orange-800",
   popular: "bg-red-100 text-red-800",
+  raw: "bg-sky-100 text-sky-900",
 };

@@ -134,10 +134,21 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ testMode });
     }
     const supabase = createAdminClient();
-    await supabase
+    const { error } = await supabase
       .from("restaurant_settings")
       .update({ test_mode: testMode })
       .neq("id", "00000000-0000-0000-0000-000000000000");
+    if (error) {
+      return NextResponse.json(
+        {
+          error:
+            error.message.includes("test_mode")
+              ? "Test mode column is missing. Run migration 018_test_mode.sql in Supabase, then try again."
+              : error.message,
+        },
+        { status: 500 }
+      );
+    }
     return NextResponse.json({ testMode });
   }
 

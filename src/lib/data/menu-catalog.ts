@@ -24,6 +24,25 @@ const CAT = {
   gfDrinks: "c2000001-0000-0000-0000-000000000007",
 } as const;
 
+const LABEL = {
+  vegetarian: { id: "l2", name: "Vegetarian", slug: "vegetarian" },
+  egg: { id: "l5", name: "Egg", slug: "egg" },
+  cheese: { id: "l3", name: "Cheese", slug: "cheese" },
+  raw: { id: "l6", name: "Raw", slug: "raw" },
+} as const;
+
+type CatalogLabel = { id: string; name: string; slug: string };
+
+function withLabels(
+  labels: CatalogLabel[] | undefined,
+  ...extra: CatalogLabel[]
+): CatalogLabel[] {
+  const map = new Map<string, CatalogLabel>();
+  for (const label of [...(labels ?? []), ...extra]) map.set(label.slug, label);
+  return Array.from(map.values());
+}
+
+
 export type CatalogMenuItem = Omit<MenuItem, "options" | "category" | "section">;
 
 export const CATALOG_CATEGORIES: Category[] = [
@@ -218,6 +237,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 2,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a1000001-0000-0000-0000-000000000019",
@@ -248,6 +268,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 5,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a1000001-0000-0000-0000-00000000001b",
@@ -258,6 +279,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 6,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a1000001-0000-0000-0000-00000000001c",
@@ -278,6 +300,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 8,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a1000001-0000-0000-0000-00000000001e",
@@ -288,6 +311,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 9,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a1000001-0000-0000-0000-00000000001f",
@@ -298,6 +322,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 10,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a1000001-0000-0000-0000-000000000003",
@@ -308,6 +333,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 11,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a1000001-0000-0000-0000-000000000020",
@@ -328,6 +354,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 13,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a1000001-0000-0000-0000-000000000022",
@@ -338,6 +365,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 14,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a1000001-0000-0000-0000-000000000023",
@@ -348,6 +376,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 15,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a1000001-0000-0000-0000-000000000024",
@@ -358,6 +387,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 16,
+    labels: withLabels(undefined, LABEL.raw),
   },
 
   // ── Regular: Vegetable Roll ───────────────────────────────────────────────
@@ -491,6 +521,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 1,
+    labels: withLabels(undefined, LABEL.vegetarian),
   },
   {
     id: "a1000001-0000-0000-0000-000000000034",
@@ -501,6 +532,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 2,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a1000001-0000-0000-0000-000000000008",
@@ -511,12 +543,13 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 3,
+    labels: withLabels(undefined, LABEL.vegetarian),
   },
   {
     id: "a1000001-0000-0000-0000-000000000035",
     category_id: CAT.appetizer,
     name: "PORK OR CHICKEN CUTLET",
-    description: "With spicy sauce",
+    description: "With spicy sauce. Choose pork or chicken",
     price: 9,
     is_available: true,
     has_roll_options: false,
@@ -536,7 +569,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     id: "a1000001-0000-0000-0000-000000000036",
     category_id: CAT.appetizer,
     name: "GYOZA",
-    description: "5 pcs — Choose pork or veggie",
+    description: "5 pcs — Choose pork, beef, or veggie",
     price: 7.5,
     is_available: true,
     has_roll_options: false,
@@ -592,7 +625,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 11,
-    labels: [{ id: "l3", name: "Cheese", slug: "cheese" }],
+    labels: withLabels([{ id: "l3", name: "Cheese", slug: "cheese" }], LABEL.raw),
   },
   {
     id: "a1000001-0000-0000-0000-00000000003b",
@@ -603,6 +636,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 12,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a1000001-0000-0000-0000-00000000003c",
@@ -667,6 +701,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 1,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a1000001-0000-0000-0000-000000000031",
@@ -688,6 +723,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 3,
+    labels: withLabels(undefined, LABEL.vegetarian),
   },
   {
     id: "a1000001-0000-0000-0000-000000000032",
@@ -698,6 +734,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 4,
+    labels: withLabels(undefined, LABEL.vegetarian),
   },
   {
     id: "a1000001-0000-0000-0000-000000000033",
@@ -708,6 +745,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 5,
+    labels: withLabels(undefined, LABEL.vegetarian),
   },
 
   // ── Regular: Sushi Pizza (merged into Sushi Pizza/Bento Box) ───────────────
@@ -720,6 +758,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 0,
+    labels: withLabels(undefined, LABEL.raw),
   },
 
   // ── Regular: Traditional Roll ─────────────────────────────────────────────
@@ -732,6 +771,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: true,
     sort_order: 1,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a1000001-0000-0000-0000-000000000059",
@@ -742,6 +782,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: true,
     sort_order: 2,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a1000001-0000-0000-0000-00000000000d",
@@ -772,6 +813,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: true,
     sort_order: 5,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a1000001-0000-0000-0000-000000000047",
@@ -782,6 +824,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: true,
     sort_order: 6,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a1000001-0000-0000-0000-000000000048",
@@ -792,7 +835,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: true,
     sort_order: 7,
-    labels: [{ id: "l3", name: "Cheese", slug: "cheese" }],
+    labels: withLabels([{ id: "l3", name: "Cheese", slug: "cheese" }], LABEL.raw),
   },
   {
     id: "a1000001-0000-0000-0000-000000000049",
@@ -827,12 +870,13 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
   {
     id: "a1000001-0000-0000-0000-00000000000e",
     category_id: CAT.traditional,
-    name: "SPICY SALMON MAKI",
-    description: "6 pcs — Salmon, avocado, spicy mayo",
-    price: 9,
+    name: "SPICY MAKI",
+    description: "6 pcs — Choose Salmon, Red Tuna, or Scallop",
+    price: 0,
     is_available: true,
-    has_roll_options: true,
+    has_roll_options: false,
     sort_order: 11,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a1000001-0000-0000-0000-00000000004b",
@@ -840,7 +884,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     name: "SPICY TUNA MAKI",
     description: "6 pcs — Tuna, tempura bits, spicy mayo, green onion",
     price: 9.5,
-    is_available: true,
+    is_available: false,
     has_roll_options: true,
     sort_order: 12,
   },
@@ -850,7 +894,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     name: "SPICY SCALLOP MAKI",
     description: "6 pcs — Scallop, tempura bits, spicy mayo, green onion",
     price: 9.5,
-    is_available: true,
+    is_available: false,
     has_roll_options: true,
     sort_order: 13,
   },
@@ -865,6 +909,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: true,
     sort_order: 1,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a1000001-0000-0000-0000-00000000004c",
@@ -875,6 +920,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: true,
     sort_order: 2,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a1000001-0000-0000-0000-00000000004d",
@@ -885,7 +931,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: true,
     sort_order: 3,
-    labels: [{ id: "l3", name: "Cheese", slug: "cheese" }],
+    labels: withLabels([{ id: "l3", name: "Cheese", slug: "cheese" }], LABEL.raw),
   },
   {
     id: "a1000001-0000-0000-0000-00000000004e",
@@ -896,6 +942,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: true,
     sort_order: 4,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a1000001-0000-0000-0000-00000000004f",
@@ -906,6 +953,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: true,
     sort_order: 5,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a1000001-0000-0000-0000-000000000012",
@@ -916,7 +964,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: true,
     sort_order: 6,
-    labels: [{ id: "l3", name: "Cheese", slug: "cheese" }],
+    labels: withLabels([{ id: "l3", name: "Cheese", slug: "cheese" }], LABEL.raw),
   },
   {
     id: "a1000001-0000-0000-0000-000000000050",
@@ -927,7 +975,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: true,
     sort_order: 7,
-    labels: [{ id: "l3", name: "Cheese", slug: "cheese" }],
+    labels: withLabels([{ id: "l3", name: "Cheese", slug: "cheese" }], LABEL.raw),
   },
   {
     id: "a1000001-0000-0000-0000-000000000051",
@@ -938,7 +986,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: true,
     sort_order: 8,
-    labels: [{ id: "l3", name: "Cheese", slug: "cheese" }],
+    labels: withLabels([{ id: "l3", name: "Cheese", slug: "cheese" }], LABEL.raw),
   },
   {
     id: "a1000001-0000-0000-0000-000000000011",
@@ -961,6 +1009,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 1,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a1000001-0000-0000-0000-000000000013",
@@ -971,6 +1020,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 2,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a1000001-0000-0000-0000-000000000053",
@@ -981,6 +1031,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 3,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a1000001-0000-0000-0000-000000000054",
@@ -991,6 +1042,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 4,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a1000001-0000-0000-0000-000000000014",
@@ -1001,6 +1053,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 5,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a1000001-0000-0000-0000-000000000055",
@@ -1011,6 +1064,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 6,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a1000001-0000-0000-0000-000000000056",
@@ -1021,6 +1075,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 7,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a1000001-0000-0000-0000-000000000057",
@@ -1214,6 +1269,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 2,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a2000001-0000-0000-0000-00000000000a",
@@ -1244,6 +1300,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 5,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a2000001-0000-0000-0000-00000000000d",
@@ -1254,6 +1311,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 6,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a2000001-0000-0000-0000-00000000000e",
@@ -1274,6 +1332,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 8,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a2000001-0000-0000-0000-000000000010",
@@ -1284,6 +1343,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 9,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a2000001-0000-0000-0000-000000000011",
@@ -1294,6 +1354,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 10,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a2000001-0000-0000-0000-000000000012",
@@ -1304,6 +1365,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 11,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a2000001-0000-0000-0000-000000000013",
@@ -1314,6 +1376,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 12,
+    labels: withLabels(undefined, LABEL.raw),
   },
 
   // ── GF: Traditional Roll ──────────────────────────────────────────────────
@@ -1326,6 +1389,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: true,
     sort_order: 1,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a2000001-0000-0000-0000-000000000030",
@@ -1336,6 +1400,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: true,
     sort_order: 2,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a2000001-0000-0000-0000-000000000017",
@@ -1356,6 +1421,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: true,
     sort_order: 4,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a2000001-0000-0000-0000-000000000019",
@@ -1366,6 +1432,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: true,
     sort_order: 5,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a2000001-0000-0000-0000-00000000001a",
@@ -1376,7 +1443,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: true,
     sort_order: 6,
-    labels: [{ id: "l3", name: "Cheese", slug: "cheese" }],
+    labels: withLabels([{ id: "l3", name: "Cheese", slug: "cheese" }], LABEL.raw),
   },
   {
     id: "a2000001-0000-0000-0000-00000000001b",
@@ -1391,12 +1458,13 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
   {
     id: "a2000001-0000-0000-0000-000000000002",
     category_id: CAT.gfTraditional,
-    name: "SPICY SALMON MAKI (GF)",
-    description: "6 pcs — Salmon, avocado, spicy mayo",
-    price: 9,
+    name: "SPICY MAKI (GF)",
+    description: "6 pcs — Choose Salmon, Red Tuna, or Scallop",
+    price: 0,
     is_available: true,
-    has_roll_options: true,
+    has_roll_options: false,
     sort_order: 8,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a2000001-0000-0000-0000-00000000001c",
@@ -1404,7 +1472,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     name: "SPICY TUNA MAKI (GF)",
     description: "6 pcs — Tuna, avocado, spicy mayo, green onion",
     price: 9.5,
-    is_available: true,
+    is_available: false,
     has_roll_options: true,
     sort_order: 9,
   },
@@ -1414,7 +1482,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     name: "SPICY SCALLOP MAKI (GF)",
     description: "6 pcs — Scallop, avocado, spicy mayo, green onion",
     price: 9.5,
-    is_available: true,
+    is_available: false,
     has_roll_options: true,
     sort_order: 10,
   },
@@ -1541,7 +1609,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 2,
-    labels: [{ id: "l3", name: "Cheese", slug: "cheese" }],
+    labels: withLabels([{ id: "l3", name: "Cheese", slug: "cheese" }], LABEL.raw),
   },
   {
     id: "a2000001-0000-0000-0000-000000000026",
@@ -1552,6 +1620,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 3,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a2000001-0000-0000-0000-000000000027",
@@ -1562,6 +1631,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 4,
+    labels: withLabels(undefined, LABEL.vegetarian),
   },
 
   // ── GF: Fusion Roll ───────────────────────────────────────────────────────
@@ -1574,6 +1644,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: true,
     sort_order: 1,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a2000001-0000-0000-0000-000000000006",
@@ -1584,6 +1655,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: true,
     sort_order: 2,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a2000001-0000-0000-0000-000000000028",
@@ -1594,6 +1666,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: true,
     sort_order: 3,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a2000001-0000-0000-0000-000000000029",
@@ -1604,7 +1677,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: true,
     sort_order: 4,
-    labels: [{ id: "l3", name: "Cheese", slug: "cheese" }],
+    labels: withLabels([{ id: "l3", name: "Cheese", slug: "cheese" }], LABEL.raw),
   },
   {
     id: "a2000001-0000-0000-0000-00000000002a",
@@ -1615,7 +1688,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: true,
     sort_order: 5,
-    labels: [{ id: "l3", name: "Cheese", slug: "cheese" }],
+    labels: withLabels([{ id: "l3", name: "Cheese", slug: "cheese" }], LABEL.raw),
   },
   {
     id: "a2000001-0000-0000-0000-00000000002b",
@@ -1638,6 +1711,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 1,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a2000001-0000-0000-0000-00000000002c",
@@ -1648,6 +1722,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 2,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a2000001-0000-0000-0000-00000000002d",
@@ -1658,6 +1733,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 3,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a2000001-0000-0000-0000-00000000002e",
@@ -1668,6 +1744,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 4,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a2000001-0000-0000-0000-00000000002f",
@@ -1678,6 +1755,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 5,
+    labels: withLabels(undefined, LABEL.raw),
   },
 
   // ── GF: Drinks/Extra ──────────────────────────────────────────────────────

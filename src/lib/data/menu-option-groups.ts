@@ -13,7 +13,7 @@ export const REQUIRED_CHOICE_OPTION_IDS = new Set<string>([
   "33333333-3333-3333-3333-333333333711",
   "33333333-3333-3333-3333-333333333712",
   "33333333-3333-3333-3333-333333333713",
-  // BBQ / Alaska / Tataki / Gyoza proteins
+  // BBQ / Alaska / Tataki / Gyoza / Cutlet proteins
   "33333333-3333-3333-3333-333333333721",
   "33333333-3333-3333-3333-333333333722",
   "33333333-3333-3333-3333-333333333723",
@@ -22,6 +22,12 @@ export const REQUIRED_CHOICE_OPTION_IDS = new Set<string>([
   "33333333-3333-3333-3333-333333333726",
   "33333333-3333-3333-3333-333333333727",
   "33333333-3333-3333-3333-333333333728",
+  "33333333-3333-3333-3333-333333333729",
+  "33333333-3333-3333-3333-333333333730",
+  // Spicy maki proteins
+  "33333333-3333-3333-3333-333333333755",
+  "33333333-3333-3333-3333-333333333756",
+  "33333333-3333-3333-3333-333333333757",
   // Pizza
   "33333333-3333-3333-3333-333333333731",
   "33333333-3333-3333-3333-333333333732",
@@ -67,11 +73,10 @@ export function formatChoicePriceLabel(
   option: Pick<MenuOption, "price_modifier">,
   itemBasePrice: number
 ): string {
-  const total = itemBasePrice + option.price_modifier;
   if (itemBasePrice === 0) {
     return option.price_modifier > 0 ? `$${option.price_modifier.toFixed(2)}` : "";
   }
   if (option.price_modifier === 0) return "";
   const sign = option.price_modifier > 0 ? "+" : "";
-  return `(${sign}$${option.price_modifier.toFixed(2)} · $${total.toFixed(2)})`;
+  return `(${sign}$${option.price_modifier.toFixed(2)})`;
 }

@@ -221,6 +221,7 @@ export function AdminPageClient() {
   const [expandedSoldOutCategory, setExpandedSoldOutCategory] = useState<string | null>(null);
   const [now, setNow] = useState(new Date());
   const [loading, setLoading] = useState(false);
+  const [testModeSaving, setTestModeSaving] = useState(false);
   const [settingsMessage, setSettingsMessage] = useState("");
   const [moreOpen, setMoreOpen] = useState(false);
   const [orderMenuOpenId, setOrderMenuOpenId] = useState<string | null>(null);
@@ -567,6 +568,11 @@ export function AdminPageClient() {
   };
 
   const updateTestMode = async (enabled: boolean) => {
+    if (testModeSaving) return;
+    setTestModeSaving(true);
+    setSettingsMessage(enabled ? "Turning on test mode…" : "Turning off test mode…");
+    const previous = testMode;
+    setTestMode(enabled);
     try {
       const res = await fetch("/api/admin", {
         method: "PATCH",
@@ -575,6 +581,7 @@ export function AdminPageClient() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
+        setTestMode(previous);
         setSettingsMessage(
           typeof data.error === "string"
             ? data.error
@@ -583,12 +590,27 @@ export function AdminPageClient() {
         return;
       }
       setTestMode(Boolean(data.testMode ?? enabled));
-      await fetchSettings();
+      // Refresh other settings, but keep the value we just saved if the row omits it.
+      try {
+        const settingsRes = await fetch("/api/settings");
+        const settingsData = await settingsRes.json();
+        setWaitingMinutes(settingsData.waitingTime?.minutes ?? 15);
+        setSoldOutIds(settingsData.settings?.sold_out_item_ids ?? []);
+        setPauseUntil(settingsData.settings?.pause_until ?? null);
+        if (typeof settingsData.settings?.test_mode === "boolean") {
+          setTestMode(settingsData.settings.test_mode);
+        }
+      } catch {
+        // Keep optimistic testMode value.
+      }
       setSettingsMessage(
         enabled ? "Test mode is on. You can place a test order now." : "Test mode is off."
       );
     } catch {
+      setTestMode(previous);
       setSettingsMessage("Could not update test mode. Check your connection and try again.");
+    } finally {
+      setTestModeSaving(false);
     }
   };
 
@@ -1272,65 +1294,38 @@ export function AdminPageClient() {
             </p>
             <button
               type="button"
+              disabled={testModeSaving}
               onClick={() => void updateTestMode(!testMode)}
-              className={`mt-3 rounded-lg px-4 py-2.5 text-sm font-semibold ${
+              className={`mt-3 rounded-lg px-4 py-2.5 text-sm font-semibold disabled:cursor-wait disabled:opacity-70 ${
                 testMode
                   ? "bg-amber-400 text-stone-950 hover:bg-amber-300"
                   : "bg-stone-900 text-white hover:bg-stone-800"
               }`}
             >
-              {testMode ? "Turn off test mode" : "Turn on test mode"}
+              {testModeSaving
+                ? "Saving…"
+                : testMode
+                  ? "Turn off test mode"
+                  : "Turn on test mode"}
             </button>
-            {testMode && (
+            {settingsMessage && (
+              <p
+                className={`mt-2 text-sm font-medium ${
+                  settingsMessage.toLowerCase().includes("could not") ||
+                  settingsMessage.toLowerCase().includes("missing") ||
+                  settingsMessage.toLowerCase().includes("no restaurant")
+                    ? "text-red-700"
+                    : "text-emerald-700"
+                }`}
+              >
+                {settingsMessage}
+              </p>
+            )}
+            {testMode && !settingsMessage && (
               <p className="mt-2 text-sm font-medium text-amber-800">
                 Test mode is on. The public menu will say you can place an order.
               </p>
             )}
-          </section>
-
-          <section>
-            <h2 className="text-lg font-semibold text-stone-900">Notification sounds</h2>
-            <p className="mt-1 text-sm text-stone-600">
-              ASAP orders use the Uber Eats chime, later pickup orders use a soft message alert, and
-              customer cancellations after a long wait use a cancel alert. Safari and iPads usually
-              need one tap after opening admin before sounds can play.
-            </p>
-            <div className="mt-4 rounded-xl border border-stone-200 bg-white p-4">
-              <ul className="space-y-1 text-sm text-stone-700">
-                <li>
-                  <span className="font-medium">ASAP / regular:</span> Uber Eats notification
-                </li>
-                <li>
-                  <span className="font-medium">Later / pre-order:</span> message alert
-                </li>
-                <li>
-                  <span className="font-medium">Customer cancelled (60+ wait):</span> cancel alert
-                </li>
-              </ul>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={enableSound}
-                  className="rounded-lg bg-stone-900 px-4 py-2 text-sm font-semibold text-white hover:bg-stone-800"
-                >
-                  Test ASAP / unlock sound
-                </button>
-                <button
-                  type="button"
-                  onClick={() => playTestSound("scheduled")}
-                  className="rounded-lg border border-stone-300 px-4 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50"
-                >
-                  Test later sound
-                </button>
-                <button
-                  type="button"
-                  onClick={() => playTestSound("customer-cancelled")}
-                  className="rounded-lg border border-stone-300 px-4 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50"
-                >
-                  Test cancel sound
-                </button>
-              </div>
-            </div>
           </section>
 
           <section>
@@ -1362,9 +1357,6 @@ export function AdminPageClient() {
                 </button>
               ))}
             </div>
-            {settingsMessage && (
-              <p className="mt-2 text-sm text-emerald-700">{settingsMessage}</p>
-            )}
             {!withinBusinessHours && !testMode && (
               <p className="mt-2 text-sm text-stone-500">
                 Pause buttons are available during business hours only.

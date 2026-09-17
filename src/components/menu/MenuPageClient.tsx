@@ -8,6 +8,7 @@ import { MenuSearch } from "@/components/menu/MenuSearch";
 import { RestaurantBanner } from "@/components/menu/RestaurantBanner";
 import { BackToTopButton } from "@/components/layout/BackToTopButton";
 import { CATEGORY_DESCRIPTION_FALLBACKS } from "@/lib/constants";
+import { isRawOption } from "@/lib/data/menu-option-groups";
 import { toDisplayName } from "@/lib/utils";
 
 interface MenuPageClientProps {
@@ -101,11 +102,24 @@ export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientPr
 
     if (search.trim()) {
       const q = search.toLowerCase();
-      items = items.filter(
-        (item) =>
-          item.name.toLowerCase().includes(q) ||
-          item.description?.toLowerCase().includes(q)
-      );
+      items = items.filter((item) => {
+        if (item.name.toLowerCase().includes(q)) return true;
+        if (item.description?.toLowerCase().includes(q)) return true;
+        if (
+          item.labels?.some(
+            (label) =>
+              label.name.toLowerCase().includes(q) ||
+              label.slug.toLowerCase().includes(q)
+          )
+        ) {
+          return true;
+        }
+        // Option-level Raw (Dragon/House/Pizza choices)
+        if (q.length >= 2 && ("raw".startsWith(q) || q.includes("raw"))) {
+          if (item.options?.some((option) => isRawOption(option.id))) return true;
+        }
+        return false;
+      });
     }
 
     return [...items].sort(compareBySortOrder);

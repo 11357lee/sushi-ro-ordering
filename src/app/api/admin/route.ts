@@ -134,10 +134,23 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ testMode });
     }
     const supabase = createAdminClient();
+    const { data: rows, error: readError } = await supabase
+      .from("restaurant_settings")
+      .select("id")
+      .limit(1);
+    if (readError) {
+      return NextResponse.json({ error: readError.message }, { status: 500 });
+    }
+    if (!rows?.length) {
+      return NextResponse.json(
+        { error: "No restaurant settings row found. Seed restaurant_settings first." },
+        { status: 500 }
+      );
+    }
     const { error } = await supabase
       .from("restaurant_settings")
       .update({ test_mode: testMode })
-      .neq("id", "00000000-0000-0000-0000-000000000000");
+      .eq("id", rows[0].id);
     if (error) {
       return NextResponse.json(
         {

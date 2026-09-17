@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { Order } from "@/types";
-import { formatPickupTime } from "@/lib/utils";
+import { useCartStore } from "@/lib/cart-store";
+import { formatPickupTime, orderItemsToCartItems } from "@/lib/utils";
 
 interface ConfirmationPageClientProps {
   orderId: string;
@@ -15,6 +17,9 @@ export function ConfirmationPageClient({
   orderId,
   initialOrder,
 }: ConfirmationPageClientProps) {
+  const router = useRouter();
+  const clearCart = useCartStore((s) => s.clearCart);
+  const addItems = useCartStore((s) => s.addItems);
   const [order, setOrder] = useState<Order | null>(initialOrder);
   const [cancelCountdown, setCancelCountdown] = useState<number | null>(null);
   const [cancelling, setCancelling] = useState(false);
@@ -63,6 +68,16 @@ export function ConfirmationPageClient({
     }
   };
 
+  const handlePlaceAgain = () => {
+    if (!order?.order_items?.length) {
+      router.push("/");
+      return;
+    }
+    clearCart();
+    addItems(orderItemsToCartItems(order.order_items));
+    router.push("/checkout");
+  };
+
   if (!order) {
     return (
       <div className="mx-auto max-w-lg px-4 py-16 text-center">
@@ -76,6 +91,7 @@ export function ConfirmationPageClient({
 
   const isRejected = order.status === "rejected";
   const isCancelled = order.status === "cancelled";
+  const isMissed = order.status === "missed";
   const prepMinutes =
     order.pickup_time && order.confirmed_at
       ? Math.max(
@@ -101,6 +117,15 @@ export function ConfirmationPageClient({
               {order.status_reason}
             </p>
           )}
+        </>
+      ) : isMissed ? (
+        <>
+          <h1 className="text-2xl font-bold text-orange-700">Order timed out</h1>
+          <p className="mt-3 text-stone-600">
+            The restaurant did not accept your order within 3 minutes. You can place the same
+            order again.
+          </p>
+          <p className="mt-2 text-sm text-stone-500">Order #{order.order_number}</p>
         </>
       ) : isCancelled ? (
         <>
@@ -153,6 +178,15 @@ export function ConfirmationPageClient({
       )}
 
       <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
+        {isMissed && (
+          <button
+            type="button"
+            onClick={handlePlaceAgain}
+            className="rounded-xl bg-teal-700 px-6 py-3 font-semibold text-white hover:bg-teal-800"
+          >
+            Place order again
+          </button>
+        )}
         {showCancel && cancelCountdown !== null && cancelCountdown > 0 && !isCancelled && (
           <button
             type="button"

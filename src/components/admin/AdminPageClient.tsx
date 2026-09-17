@@ -18,6 +18,7 @@ import {
   sortOrderItemsForAdmin,
   toDisplayName,
 } from "@/lib/utils";
+import { acceptSecondsRemaining } from "@/lib/order-accept-window";
 
 type AdminTab = "orders" | "settings";
 
@@ -214,7 +215,7 @@ export function AdminPageClient() {
   const cancellationAlertedIdsRef = useRef<Set<string>>(new Set());
   const cancellationAlertsReadyRef = useRef(false);
   const ordersReadyRef = useRef(false);
-  const pendingToneKeyRef = useRef("");
+  const pendingToneKindRef = useRef<"asap" | "scheduled" | null>(null);
   const suppressPendingUntilRef = useRef(0);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [soundUnlocked, setSoundUnlocked] = useState(false);
@@ -371,17 +372,9 @@ export function AdminPageClient() {
   const playNotificationSound = useCallback((kind: "asap" | "scheduled" | "customer-cancelled") => {
     const src = SOUND_FILES[kind];
     try {
-      // Let an in-progress clip finish unless switching kinds (e.g. cancel alert).
-      if (
-        audioRef.current &&
-        !audioRef.current.paused &&
-        !audioRef.current.ended &&
-        audioRef.current.dataset.kind === kind
-      ) {
-        return;
-      }
       if (audioRef.current) {
         audioRef.current.pause();
+        audioRef.current.onended = null;
         audioRef.current.currentTime = 0;
       }
       const audio = new Audio(src);
@@ -391,22 +384,24 @@ export function AdminPageClient() {
       void audio.play().catch(() => {
         // Autoplay may be blocked until a user gesture unlocks audio.
       });
+      return audio;
     } catch {
-      // Ignore playback errors on unsupported browsers.
+      return null;
     }
   }, []);
 
   const playCancelAlertTwice = useCallback(() => {
-    playNotificationSound("customer-cancelled");
-    window.setTimeout(() => {
-      // Force a second play even if the first clip is still tagged as cancelled.
-      if (audioRef.current?.dataset.kind === "customer-cancelled") {
-        audioRef.current.pause();
-        audioRef.current.currentTime = 0;
-        audioRef.current.dataset.kind = "";
-      }
+    const first = playNotificationSound("customer-cancelled");
+    const playSecond = () => {
       playNotificationSound("customer-cancelled");
-    }, 700);
+    };
+    if (first) {
+      first.onended = () => {
+        window.setTimeout(playSecond, 200);
+      };
+    } else {
+      window.setTimeout(playSecond, 700);
+    }
   }, [playNotificationSound]);
 
   const playTestSound = useCallback(
@@ -672,7 +667,7 @@ export function AdminPageClient() {
     if (!authenticated) {
       cancellationAlertsReadyRef.current = false;
       ordersReadyRef.current = false;
-      pendingToneKeyRef.current = "";
+      pendingToneKindRef.current = null;
       return;
     }
 
@@ -701,16 +696,15 @@ export function AdminPageClient() {
     newCustomerCancelledIds.forEach((id) => cancellationAlertedIdsRef.current.add(id));
     persistCancelAlertedIds(cancellationAlertedIdsRef.current);
     if (soundEnabled && soundUnlocked) {
-      suppressPendingUntilRef.current = Date.now() + 2000;
+      suppressPendingUntilRef.current = Date.now() + 2500;
       playCancelAlertTwice();
     }
   }, [authenticated, orders, soundEnabled, soundUnlocked, playCancelAlertTwice]);
 
+  // Keep pending tone kind in a ref so the loop is not reset by 5s order polls.
   useEffect(() => {
-    if (!authenticated || !soundEnabled || !soundUnlocked) return;
-    // Don't loop alert tones while staff are testing sounds on the Settings tab.
-    if (tab !== "orders") {
-      pendingToneKeyRef.current = "";
+    if (!authenticated || !soundEnabled || !soundUnlocked || tab !== "orders") {
+      pendingToneKindRef.current = null;
       return;
     }
 
@@ -718,39 +712,70 @@ export function AdminPageClient() {
       ? orders.filter((order) => order.status === "pending")
       : [];
     if (!pendingOrders.length) {
-      pendingToneKeyRef.current = "";
+      pendingToneKindRef.current = null;
       return;
     }
 
     const hasAsap = pendingOrders.some((order) => order.pickup_type === "asap");
-    const toneKind: "asap" | "scheduled" = hasAsap ? "asap" : "scheduled";
-    const toneKey = `${toneKind}:${pendingOrders
-      .map((o) => o.id)
-      .sort()
-      .join(",")}`;
+    pendingToneKindRef.current = hasAsap ? "asap" : "scheduled";
+  }, [authenticated, orders, restaurantOpen, soundEnabled, soundUnlocked, tab]);
 
-    const playTone = () => {
-      if (Date.now() < suppressPendingUntilRef.current) return;
-      playNotificationSound(toneKind);
+  const hasPendingAlert =
+    authenticated &&
+    soundEnabled &&
+    soundUnlocked &&
+    tab === "orders" &&
+    restaurantOpen &&
+    orders.some((order) => order.status === "pending");
+
+  useEffect(() => {
+    if (!hasPendingAlert) return;
+
+    let cancelled = false;
+    let timeoutId = 0;
+
+    const schedule = (delayMs: number) => {
+      window.clearTimeout(timeoutId);
+      timeoutId = window.setTimeout(tick, delayMs);
     };
 
-    // Play immediately only when the pending set / tone kind changes — not on every poll.
-    if (pendingToneKeyRef.current !== toneKey) {
-      pendingToneKeyRef.current = toneKey;
-      playTone();
-    }
+    const tick = () => {
+      if (cancelled) return;
+      if (Date.now() < suppressPendingUntilRef.current) {
+        schedule(400);
+        return;
+      }
+      const kind = pendingToneKindRef.current;
+      if (!kind) {
+        schedule(1000);
+        return;
+      }
+      const audio = playNotificationSound(kind);
+      if (!audio) {
+        schedule(5000);
+        return;
+      }
+      let settled = false;
+      const queueNext = () => {
+        if (cancelled || settled) return;
+        settled = true;
+        schedule(1200);
+      };
+      audio.onended = queueNext;
+      // Safety if onended never fires
+      window.setTimeout(queueNext, 15000);
+    };
 
-    const interval = setInterval(playTone, 8000);
-    return () => clearInterval(interval);
-  }, [
-    authenticated,
-    orders,
-    restaurantOpen,
-    soundEnabled,
-    soundUnlocked,
-    playNotificationSound,
-    tab,
-  ]);
+    schedule(200);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+      if (audioRef.current) {
+        audioRef.current.onended = null;
+      }
+    };
+  }, [hasPendingAlert, playNotificationSound]);
 
   if (!authenticated) {
     return (
@@ -950,11 +975,13 @@ export function AdminPageClient() {
             ) : (
               orders.map((order) => {
                 const isPending = order.status === "pending";
+                const isMissed = order.status === "missed";
                 const expanded = isPending || expandedId === order.id;
                 const cancelled = order.status === "cancelled";
                 const rejected = order.status === "rejected";
                 const customerCancelled =
                   cancelled && order.status_reason === CUSTOMER_CANCELLED_REASON;
+                const acceptRemaining = acceptSecondsRemaining(order);
                 const countdown =
                   order.status === "accepted"
                     ? formatCountdown(order.pickup_time ?? null, now)
@@ -967,6 +994,23 @@ export function AdminPageClient() {
                     {customerCancelled && (
                       <p className="mb-1 rounded-md bg-red-50 px-2 py-1 text-xs font-bold text-red-700">
                         Customer cancelled online
+                      </p>
+                    )}
+                    {isMissed && (
+                      <p className="mb-1 rounded-md bg-orange-50 px-2 py-1 text-xs font-bold text-orange-800">
+                        Missed — not accepted in 3 minutes
+                      </p>
+                    )}
+                    {isPending && acceptRemaining !== null && (
+                      <p
+                        className={`mb-1 rounded-md px-2 py-1 text-xs font-bold ${
+                          acceptRemaining <= 30
+                            ? "bg-red-50 text-red-700"
+                            : "bg-amber-50 text-amber-900"
+                        }`}
+                      >
+                        Accept within {Math.floor(acceptRemaining / 60)}:
+                        {String(acceptRemaining % 60).padStart(2, "0")}
                       </p>
                     )}
                     <p className="text-lg font-extrabold tracking-tight text-stone-950">
@@ -1160,7 +1204,7 @@ export function AdminPageClient() {
                     id={`admin-order-${order.id}`}
                     key={order.id}
                     className={`rounded-xl border-2 bg-white p-3 shadow-sm ${
-                      cancelled || rejected
+                      cancelled || rejected || isMissed
                         ? "border-red-500 ring-2 ring-red-100"
                         : isPending
                           ? "border-amber-300"

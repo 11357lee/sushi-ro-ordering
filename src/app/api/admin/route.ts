@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { addMinutes, setHours, setMinutes, setSeconds } from "date-fns";
 import {
   dismissAllDemoOrders,
+  getDemoOrder,
   getDemoWaitingTimeMinutes,
   isDemoMode,
   listDemoAdminOrders,
@@ -14,6 +15,7 @@ import {
 } from "@/lib/data/demo-store";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchAdminOrders } from "@/lib/data/queries";
+import { isPastAcceptWindow, MISS_STATUS_REASON } from "@/lib/order-accept-window";
 import type { OrderStatus } from "@/types";
 
 function normalizeAdminKey(value: string | null | undefined): string {
@@ -182,6 +184,18 @@ export async function PATCH(request: Request) {
     const orderStatus = status as OrderStatus;
 
     if (isDemoMode()) {
+      const existing = getDemoOrder(orderId);
+      if (!existing) {
+        return NextResponse.json({ error: "Order not found" }, { status: 404 });
+      }
+      if (orderStatus === "accepted" && (existing.status === "missed" || isPastAcceptWindow(existing))) {
+        updateDemoOrderStatus(orderId, "missed", null, MISS_STATUS_REASON);
+        return NextResponse.json(
+          { error: "Order missed — not accepted within 3 minutes." },
+          { status: 409 }
+        );
+      }
+
       const waitMinutes = getDemoWaitingTimeMinutes();
       let finalPickupTime = pickupTime;
 
@@ -202,9 +216,38 @@ export async function PATCH(request: Request) {
     const supabase = createAdminClient();
     const { data: existingOrder } = await supabase
       .from("orders")
-      .select("pickup_type")
+      .select("id, status, pickup_type, created_at")
       .eq("id", orderId)
       .single();
+
+    if (!existingOrder) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+
+    if (
+      orderStatus === "accepted" &&
+      (existingOrder.status === "missed" ||
+        isPastAcceptWindow({
+          status: existingOrder.status,
+          pickup_type: existingOrder.pickup_type,
+          created_at: existingOrder.created_at,
+        }))
+    ) {
+      await supabase
+        .from("orders")
+        .update({
+          status: "missed",
+          status_reason: MISS_STATUS_REASON,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", orderId)
+        .eq("status", "pending");
+      return NextResponse.json(
+        { error: "Order missed — not accepted within 3 minutes." },
+        { status: 409 }
+      );
+    }
+
     const confirmedAt = new Date();
     const updates: Record<string, unknown> = {
       status: orderStatus,

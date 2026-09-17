@@ -1,5 +1,6 @@
 import type { Order, OrderStatus } from "@/types";
 import { isOrderFromToday, normalizePhone } from "@/lib/utils";
+import { isPastAcceptWindow, MISS_STATUS_REASON } from "@/lib/order-accept-window";
 
 const globalStore = globalThis as unknown as {
   demoOrders?: Map<string, Order>;
@@ -36,7 +37,19 @@ export function createDemoOrder(order: Order): Order {
 }
 
 export function getDemoOrder(id: string): Order | undefined {
-  return getStore().orders.get(id);
+  const order = getStore().orders.get(id);
+  if (!order) return undefined;
+  return expireDemoOrderIfNeeded(order);
+}
+
+function expireDemoOrderIfNeeded(order: Order): Order {
+  if (!isPastAcceptWindow(order)) return order;
+  return (
+    updateDemoOrder(order.id, {
+      status: "missed",
+      status_reason: MISS_STATUS_REASON,
+    }) ?? order
+  );
 }
 
 export function updateDemoOrder(id: string, updates: Partial<Order>): Order | undefined {
@@ -51,6 +64,7 @@ export function updateDemoOrder(id: string, updates: Partial<Order>): Order | un
 export function listDemoOrdersByPhone(phone: string): Order[] {
   const normalized = normalizePhone(phone);
   return Array.from(getStore().orders.values())
+    .map(expireDemoOrderIfNeeded)
     .filter(
       (o) =>
         o.customer?.phone === normalized &&
@@ -62,12 +76,14 @@ export function listDemoOrdersByPhone(phone: string): Order[] {
 
 export function listDemoOrdersByCustomerId(customerId: string): Order[] {
   return Array.from(getStore().orders.values())
+    .map(expireDemoOrderIfNeeded)
     .filter((o) => o.customer_id === customerId)
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 }
 
 export function listDemoAdminOrders(): Order[] {
   return Array.from(getStore().orders.values())
+    .map(expireDemoOrderIfNeeded)
     .filter((o) => !o.admin_dismissed)
     .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 }

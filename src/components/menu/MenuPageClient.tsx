@@ -93,6 +93,7 @@ export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientPr
       return section?.slug === activeSection;
     });
 
+    // When a category is selected, search (and browse) stay inside that category only.
     if (activeCategory) {
       items = items.filter((item) => {
         const cat = liveMenu.categories.find((c) => c.id === item.category_id);
@@ -100,7 +101,11 @@ export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientPr
       });
     }
 
+    // Search only within the selected category (not the whole menu).
     if (search.trim()) {
+      if (!activeCategory) {
+        return [];
+      }
       const q = search.toLowerCase();
       items = items.filter((item) => {
         if (item.name.toLowerCase().includes(q)) return true;
@@ -114,7 +119,6 @@ export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientPr
         ) {
           return true;
         }
-        // Option-level Raw (Dragon/House/Pizza choices)
         if (q.length >= 2 && ("raw".startsWith(q) || q.includes("raw"))) {
           if (item.options?.some((option) => isRawOption(option.id))) return true;
         }
@@ -165,18 +169,13 @@ export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientPr
         onChange={setActiveCategory}
       />
 
-      {(activeCategory || search.trim()) && (
+      {search.trim() && (
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-2 px-4 pt-2">
-          {activeCategory && (
-            <button
-              type="button"
-              onClick={() => setActiveCategory(null)}
-              className="rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold text-stone-700 hover:bg-stone-200"
-            >
-              Clear category filter
-            </button>
-          )}
-          {search.trim() && (
+          {!activeCategory ? (
+            <p className="text-sm text-amber-800">
+              Select a category above to search within it.
+            </p>
+          ) : (
             <button
               type="button"
               onClick={() => setSearch("")}

@@ -3,7 +3,8 @@ export type OrderStatus =
   | "accepted"
   | "rejected"
   | "completed"
-  | "cancelled";
+  | "cancelled"
+  | "missed";
 
 export type PickupType = "asap" | "scheduled";
 

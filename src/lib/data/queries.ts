@@ -15,6 +15,7 @@ import {
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { isOrderFromToday, normalizePhone } from "@/lib/utils";
+import { isPastAcceptWindow, MISS_STATUS_REASON } from "@/lib/order-accept-window";
 import type {
   MenuData,
   MenuItem,
@@ -150,6 +151,33 @@ export async function fetchWaitingTime(): Promise<WaitingTime> {
   return data ?? MOCK_WAITING_TIME;
 }
 
+async function expireOrderIfNeeded(order: Order): Promise<Order> {
+  if (!isPastAcceptWindow(order)) return order;
+  if (!isSupabaseConfigured()) return order;
+
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("orders")
+    .update({
+      status: "missed",
+      status_reason: MISS_STATUS_REASON,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", order.id)
+    .eq("status", "pending")
+    .select("*, order_items(*), customer:customers(*)")
+    .maybeSingle();
+
+  if (error || !data) {
+    return {
+      ...order,
+      status: "missed",
+      status_reason: MISS_STATUS_REASON,
+    };
+  }
+  return mapOrder(data as Record<string, unknown>);
+}
+
 export async function fetchOrderById(id: string): Promise<Order | null> {
   if (!isSupabaseConfigured()) return null;
 
@@ -161,7 +189,7 @@ export async function fetchOrderById(id: string): Promise<Order | null> {
     .single();
 
   if (!data) return null;
-  return mapOrder(data as Record<string, unknown>);
+  return expireOrderIfNeeded(mapOrder(data as Record<string, unknown>));
 }
 
 export async function fetchOrdersByPhone(phone: string): Promise<Order[]> {
@@ -219,7 +247,8 @@ export async function fetchAdminOrders(): Promise<Order[]> {
     .eq("admin_dismissed", false)
     .order("created_at", { ascending: false });
 
-  return (data ?? []).map((order) => mapOrder(order as Record<string, unknown>));
+  const orders = (data ?? []).map((order) => mapOrder(order as Record<string, unknown>));
+  return Promise.all(orders.map((order) => expireOrderIfNeeded(order)));
 }
 
 export async function fetchPendingOrders(): Promise<Order[]> {

@@ -61,15 +61,6 @@ export function CategoryNav({
       }`}
     >
       <div className="mx-auto flex max-w-6xl flex-wrap gap-x-2 gap-y-0.5 px-4 py-1.5">
-        <button
-          type="button"
-          onClick={() => onChange(null)}
-          className={`rounded-md px-2.5 py-0.5 text-sm font-medium leading-snug ${
-            activeCategory === null ? activeClass : "text-stone-600 hover:bg-stone-100"
-          }`}
-        >
-          All
-        </button>
         {categories.map((cat) => (
           <button
             key={cat.id}

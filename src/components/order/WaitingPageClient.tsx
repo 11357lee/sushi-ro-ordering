@@ -35,7 +35,11 @@ export function WaitingPageClient({ orderId }: WaitingPageClientProps) {
         setOrder(data.order);
         if (data.order.status === "accepted") {
           router.push(`/order/${orderId}/confirmation`);
-        } else if (data.order.status === "rejected" || data.order.status === "cancelled") {
+        } else if (
+          data.order.status === "rejected" ||
+          data.order.status === "cancelled" ||
+          data.order.status === "missed"
+        ) {
           router.push(`/order/${orderId}/confirmation`);
         }
       }

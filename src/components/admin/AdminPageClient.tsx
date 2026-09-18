@@ -20,21 +20,16 @@ import {
   toDisplayName,
 } from "@/lib/utils";
 import { acceptSecondsRemaining } from "@/lib/order-accept-window";
+import { adminSound, ADMIN_SOUND_POST_CLEAR_MUTE_MS } from "@/lib/admin-sound";
 
 type AdminTab = "orders" | "settings";
-
-const SOUND_FILES = {
-  asap: "/sounds/order-asap.mp3",
-  scheduled: "/sounds/order-scheduled.mp3",
-  "customer-cancelled": "/sounds/order-cancelled.mp3",
-} as const;
 
 const CUSTOMER_CANCELLED_REASON = "Customer cancelled online";
 const PREP_MINUTE_OPTIONS_PRIMARY = ["5", "10", "15", "20", "25", "30", "35", "40", "45", "50"];
 const PREP_MINUTE_OPTIONS_EXTENDED = ["60", "70", "80", "90", "100", "120"];
 const CANCEL_ALERT_STORAGE_KEY = "sushi-ro-admin-cancel-alerts";
 const REMEMBER_DEVICE_KEY = "sushi-ro-admin-remembered-key";
-const SOUND_VOLUME = 0.85;
+const UNLOCK_SOUND = "/sounds/order-asap.mp3";
 
 type AdminAuthFailure = "empty" | "invalid" | "network";
 type AdminAuthResult = { ok: true } | { ok: false; reason: AdminAuthFailure };
@@ -212,14 +207,10 @@ export function AdminPageClient() {
   const [pickupInputs, setPickupInputs] = useState<Record<string, string>>({});
   const [reasonInputs, setReasonInputs] = useState<Record<string, string>>({});
   const [customReasonInputs, setCustomReasonInputs] = useState<Record<string, string>>({});
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioUnlockRef = useRef<HTMLAudioElement | null>(null);
   const cancellationAlertedIdsRef = useRef<Set<string>>(new Set());
   const cancellationAlertsReadyRef = useRef(false);
   const ordersReadyRef = useRef(false);
-  const pendingToneKindRef = useRef<"asap" | "scheduled" | null>(null);
-  const suppressPendingUntilRef = useRef(0);
-  const toneSessionRef = useRef(0); // bumped to cancel in-flight play chains
-  const pendingAlertActiveRef = useRef(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [soundUnlocked, setSoundUnlocked] = useState(false);
   const [expandedSoldOutCategory, setExpandedSoldOutCategory] = useState<string | null>(null);
@@ -378,73 +369,15 @@ export function AdminPageClient() {
     return () => clearInterval(interval);
   }, [hasPendingAsap]);
 
-  const playNotificationSound = useCallback((kind: "asap" | "scheduled" | "customer-cancelled") => {
-    const src = SOUND_FILES[kind];
-    try {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.onended = null;
-        audioRef.current.loop = false;
-        audioRef.current.currentTime = 0;
-      }
-      const audio = new Audio(src);
-      audio.volume = SOUND_VOLUME;
-      audio.dataset.kind = kind;
-      audio.loop = false;
-      audioRef.current = audio;
-      void audio.play().catch(() => {
-        // Autoplay may be blocked until a user gesture unlocks audio.
-      });
-      return audio;
-    } catch {
-      return null;
-    }
+  const playTestSound = useCallback((kind: "asap" | "scheduled" | "customer-cancelled") => {
+    setSoundEnabled(true);
+    setSoundUnlocked(true);
+    adminSound.playTest(kind);
   }, []);
-
-  const stopPendingTone = useCallback(() => {
-    pendingToneKindRef.current = null;
-    pendingAlertActiveRef.current = false;
-    toneSessionRef.current += 1;
-    const audio = audioRef.current;
-    if (!audio) return;
-    // Only stop pending tones — don't cut a cancel alert mid-play.
-    if (audio.dataset.kind === "customer-cancelled") return;
-    audio.pause();
-    audio.onended = null;
-    audio.loop = false;
-    audio.currentTime = 0;
-  }, []);
-
-  const playCancelAlertTwice = useCallback(() => {
-    const first = playNotificationSound("customer-cancelled");
-    const playSecond = () => {
-      playNotificationSound("customer-cancelled");
-    };
-    if (first) {
-      first.onended = () => {
-        window.setTimeout(playSecond, 200);
-      };
-    } else {
-      window.setTimeout(playSecond, 700);
-    }
-  }, [playNotificationSound]);
-
-  const playTestSound = useCallback(
-    (kind: "asap" | "scheduled" | "customer-cancelled") => {
-      setSoundEnabled(true);
-      setSoundUnlocked(true);
-      if (kind === "customer-cancelled") {
-        playCancelAlertTwice();
-      } else {
-        // One-shot test — do not loop.
-        playNotificationSound(kind);
-      }
-    },
-    [playCancelAlertTwice, playNotificationSound]
-  );
 
   const unlockAudio = useCallback(() => {
-    const audio = new Audio(SOUND_FILES.asap);
+    const audio = audioUnlockRef.current ?? new Audio(UNLOCK_SOUND);
+    audioUnlockRef.current = audio;
     audio.volume = 0.01;
     void audio
       .play()
@@ -523,6 +456,7 @@ export function AdminPageClient() {
   };
 
   const handleLogout = () => {
+    adminSound.stopAll();
     setAuthenticated(false);
     setOrders([]);
     ordersReadyRef.current = false;
@@ -540,10 +474,11 @@ export function AdminPageClient() {
     statusReason?: string,
     prepMinutes?: number
   ) => {
-    // Optimistically clear pending so the alert effect tears down immediately.
+    // Optimistically clear pending and hard-stop sound before the network round-trip.
     if (status !== "pending") {
-      setOrders((prev) =>
-        prev.map((order) =>
+      let remainingPending = 0;
+      setOrders((prev) => {
+        const next = prev.map((order) =>
           order.id === orderId
             ? {
                 ...order,
@@ -552,11 +487,13 @@ export function AdminPageClient() {
                 pickup_time: pickupTime ?? order.pickup_time,
               }
             : order
-        )
-      );
-      const stillPending = orders.some((o) => o.id !== orderId && o.status === "pending");
-      if (!stillPending) {
-        stopPendingTone();
+        );
+        remainingPending = next.filter((o) => o.status === "pending").length;
+        return next;
+      });
+      if (remainingPending === 0) {
+        adminSound.setKind(null);
+        adminSound.stopPending({ muteMs: ADMIN_SOUND_POST_CLEAR_MUTE_MS });
       }
     }
     await fetch("/api/admin", {
@@ -717,7 +654,7 @@ export function AdminPageClient() {
     if (!authenticated) {
       cancellationAlertsReadyRef.current = false;
       ordersReadyRef.current = false;
-      pendingToneKindRef.current = null;
+      adminSound.stopAll();
       return;
     }
 
@@ -746,34 +683,9 @@ export function AdminPageClient() {
     newCustomerCancelledIds.forEach((id) => cancellationAlertedIdsRef.current.add(id));
     persistCancelAlertedIds(cancellationAlertedIdsRef.current);
     if (soundEnabled && soundUnlocked) {
-      suppressPendingUntilRef.current = Date.now() + 2500;
-      playCancelAlertTwice();
+      adminSound.playCancelTwice();
     }
-  }, [authenticated, orders, soundEnabled, soundUnlocked, playCancelAlertTwice]);
-
-  // Keep pending tone kind in a ref so the loop is not reset by 5s order polls.
-  useEffect(() => {
-    if (!authenticated || !soundEnabled || !soundUnlocked || tab !== "orders") {
-      pendingToneKindRef.current = null;
-      pendingAlertActiveRef.current = false;
-      stopPendingTone();
-      return;
-    }
-
-    const pendingOrders = restaurantOpen
-      ? orders.filter((order) => order.status === "pending")
-      : [];
-    if (!pendingOrders.length) {
-      pendingToneKindRef.current = null;
-      pendingAlertActiveRef.current = false;
-      stopPendingTone();
-      return;
-    }
-
-    const hasAsap = pendingOrders.some((order) => order.pickup_type === "asap");
-    pendingToneKindRef.current = hasAsap ? "asap" : "scheduled";
-    pendingAlertActiveRef.current = true;
-  }, [authenticated, orders, restaurantOpen, soundEnabled, soundUnlocked, tab, stopPendingTone]);
+  }, [authenticated, orders, soundEnabled, soundUnlocked]);
 
   const hasPendingAlert =
     authenticated &&
@@ -783,74 +695,29 @@ export function AdminPageClient() {
     restaurantOpen &&
     orders.some((order) => order.status === "pending");
 
-  // Play the full clip once, then wait a few seconds before repeating.
-  // Do NOT use audio.loop or a short restart interval — that caused the "crazy fast" chop.
+  const pendingKind: "asap" | "scheduled" | null = hasPendingAlert
+    ? orders.some((order) => order.status === "pending" && order.pickup_type === "asap")
+      ? "asap"
+      : "scheduled"
+    : null;
+
+  // Drive the singleton sound controller. startPending is idempotent — order polls won't restart it.
   useEffect(() => {
-    if (!hasPendingAlert) {
-      stopPendingTone();
+    if (!hasPendingAlert || !pendingKind) {
+      adminSound.setKind(null);
+      adminSound.stopPending();
       return;
     }
+    adminSound.setKind(pendingKind);
+    adminSound.startPending();
+  }, [hasPendingAlert, pendingKind]);
 
-    const session = ++toneSessionRef.current;
-    let timeoutId = 0;
-    let safetyId = 0;
-    let cancelled = false;
-
-    const schedule = (delayMs: number) => {
-      window.clearTimeout(timeoutId);
-      timeoutId = window.setTimeout(tick, delayMs);
-    };
-
-    const tick = () => {
-      if (cancelled || toneSessionRef.current !== session) return;
-      if (!pendingAlertActiveRef.current || !pendingToneKindRef.current) {
-        return;
-      }
-      if (Date.now() < suppressPendingUntilRef.current) {
-        schedule(500);
-        return;
-      }
-
-      const kind = pendingToneKindRef.current;
-      const audio = playNotificationSound(kind);
-      if (!audio) {
-        schedule(5000);
-        return;
-      }
-
-      let settled = false;
-      const queueNext = () => {
-        if (settled || cancelled || toneSessionRef.current !== session) return;
-        settled = true;
-        window.clearTimeout(safetyId);
-        // Comfortable gap between full plays (~3s after the clip ends).
-        schedule(3000);
-      };
-      audio.onended = queueNext;
-      // Safety only: ASAP clip is ~10s; allow full play before forcing next.
-      window.clearTimeout(safetyId);
-      safetyId = window.setTimeout(queueNext, 20000);
-    };
-
-    schedule(300);
-
+  // Stop sound when leaving the page / unmounting.
+  useEffect(() => {
     return () => {
-      cancelled = true;
-      window.clearTimeout(timeoutId);
-      window.clearTimeout(safetyId);
-      // Invalidate this session so any late onended/safety timers cannot restart audio.
-      if (toneSessionRef.current === session) {
-        toneSessionRef.current += 1;
-      }
-      const audio = audioRef.current;
-      if (audio && audio.dataset.kind !== "customer-cancelled") {
-        audio.pause();
-        audio.onended = null;
-        audio.loop = false;
-        audio.currentTime = 0;
-      }
+      adminSound.stopAll();
     };
-  }, [hasPendingAlert, playNotificationSound, stopPendingTone]);
+  }, []);
 
   if (!authenticated) {
     return (

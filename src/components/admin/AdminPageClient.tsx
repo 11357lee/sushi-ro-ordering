@@ -16,6 +16,7 @@ import {
   normalizeSpecialClosedPeriods,
   restaurantCalendarDate,
   sortOrderItemsForAdmin,
+  toAdminOptionLabel,
   toDisplayName,
 } from "@/lib/utils";
 import { acceptSecondsRemaining } from "@/lib/order-accept-window";
@@ -156,7 +157,7 @@ function OrderItems({
     const prev = index > 0 ? items[index - 1] : null;
     const prevIsGF = prev?.section_slug === "gluten-free";
     const optionSummary = (item.selected_options ?? [])
-      .map((o) => toDisplayName(o.name))
+      .map((o) => toAdminOptionLabel(o.name))
       .filter(Boolean)
       .join(", ");
     return {
@@ -174,9 +175,9 @@ function OrderItems({
           {showDivider && <div className="my-1.5 border-t border-stone-200" />}
           <div className={isGF ? "rounded-md bg-purple-50 px-1.5 py-1 text-purple-950" : "px-1.5 py-0.5"}>
             <p className="text-[15px] font-medium text-stone-800">
-              {item.quantity}x {toDisplayName(item.name)}
+              {item.quantity}x{toDisplayName(item.name)}
               {optionSummary ? (
-                <span className="font-normal text-stone-600"> — {optionSummary}</span>
+                <span className="font-normal text-sky-700"> - {optionSummary}</span>
               ) : null}
               {isGF && <span className="ml-1.5 text-xs font-normal text-purple-700">GF</span>}
             </p>
@@ -1074,31 +1075,6 @@ export function AdminPageClient() {
                         Missed — not accepted in 4 minutes
                       </p>
                     )}
-                    {isPending && acceptRemaining !== null && (
-                      <div
-                        className={`mb-2 rounded-xl px-3 py-2.5 text-center ${
-                          acceptRemaining <= 60
-                            ? "bg-red-100 ring-2 ring-red-300"
-                            : "bg-amber-100 ring-2 ring-amber-300"
-                        }`}
-                      >
-                        <p
-                          className={`text-[11px] font-bold uppercase tracking-wide ${
-                            acceptRemaining <= 60 ? "text-red-700" : "text-amber-900"
-                          }`}
-                        >
-                          Accept within
-                        </p>
-                        <p
-                          className={`font-mono text-3xl font-extrabold tabular-nums leading-none ${
-                            acceptRemaining <= 60 ? "text-red-700" : "text-amber-950"
-                          }`}
-                        >
-                          {Math.floor(acceptRemaining / 60)}:
-                          {String(acceptRemaining % 60).padStart(2, "0")}
-                        </p>
-                      </div>
-                    )}
                     {isPending && order.pickup_type === "scheduled" && (
                       <p className="mb-1 rounded-md bg-sky-50 px-2 py-1 text-xs font-bold text-sky-800">
                         Scheduled — accept when ready (no miss timer)
@@ -1237,9 +1213,23 @@ export function AdminPageClient() {
                             acceptDetails.prepMinutes
                           )
                         }
-                        className="min-h-12 rounded-xl bg-emerald-600 px-3 py-3 text-base font-bold text-white hover:bg-emerald-700"
+                        className={`min-h-14 rounded-xl px-3 py-2 text-base font-bold text-white ${
+                          acceptRemaining !== null && acceptRemaining <= 60
+                            ? "bg-amber-600 hover:bg-amber-700"
+                            : "bg-emerald-600 hover:bg-emerald-700"
+                        }`}
                       >
-                        Accept
+                        <span className="block leading-tight">Accept</span>
+                        {acceptRemaining !== null && (
+                          <span
+                            className={`mt-0.5 block font-mono text-lg font-extrabold tabular-nums leading-none ${
+                              acceptRemaining <= 60 ? "text-amber-100" : "text-emerald-100"
+                            }`}
+                          >
+                            {Math.floor(acceptRemaining / 60)}:
+                            {String(acceptRemaining % 60).padStart(2, "0")}
+                          </span>
+                        )}
                       </button>
                       <button
                         type="button"
@@ -1253,7 +1243,7 @@ export function AdminPageClient() {
                               : reasonInputs[order.id] ?? "Out of items"
                           )
                         }
-                        className="min-h-12 rounded-xl bg-red-600 px-3 py-3 text-base font-bold text-white hover:bg-red-700"
+                        className="min-h-14 rounded-xl bg-red-600 px-3 py-2 text-base font-bold text-white hover:bg-red-700"
                       >
                         Reject
                       </button>

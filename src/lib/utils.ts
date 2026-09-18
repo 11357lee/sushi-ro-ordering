@@ -85,6 +85,21 @@ export function toCustomerItemName(text: string): string {
     .trim();
 }
 
+/**
+ * Short kitchen label for admin order lines.
+ * "Tuna — Torched red tuna…" → "Tuna"
+ * "Chicken cutlet with spicy sauce" → "Chicken cutlet"
+ * "Tempura (3 vegetables and 1 Shrimp)" → "Tempura"
+ */
+export function toAdminOptionLabel(text: string): string {
+  if (!text) return "";
+  let short = text.split(/\s*[—–]\s*|\s+-\s+/)[0] ?? text;
+  short = short.replace(/\s*\([^)]*\)\s*/g, " ");
+  short = short.replace(/\s+with\s+.+$/i, "");
+  short = short.replace(/\s{2,}/g, " ").trim();
+  return toDisplayName(short);
+}
+
 export function calcLineTotal(
   price: number,
   quantity: number,

@@ -56,6 +56,17 @@ function OrderCard({
           </p>
           <p className="mt-1 text-sm text-stone-500">{formatOrderDate(order.created_at)}</p>
           <p className="mt-1 text-sm capitalize text-stone-600">{order.status}</p>
+          {(order.status === "cancelled" || order.status === "rejected") &&
+            order.status_reason && (
+              <p className="mt-2 rounded-lg bg-stone-100 px-2.5 py-2 text-sm text-stone-700">
+                Reason: {order.status_reason}
+              </p>
+            )}
+          {order.status === "missed" && (
+            <p className="mt-2 rounded-lg bg-orange-50 px-2.5 py-2 text-sm text-orange-800">
+              Not accepted in time — you can reorder from the confirmation page or below.
+            </p>
+          )}
         </div>
         <span className="font-semibold">{formatPrice(order.total ?? order.subtotal)}</span>
       </div>

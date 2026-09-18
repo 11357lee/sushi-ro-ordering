@@ -191,7 +191,7 @@ export async function PATCH(request: Request) {
       if (orderStatus === "accepted" && (existing.status === "missed" || isPastAcceptWindow(existing))) {
         updateDemoOrderStatus(orderId, "missed", null, MISS_STATUS_REASON);
         return NextResponse.json(
-          { error: "Order missed — not accepted within 3 minutes." },
+          { error: "Order missed — not accepted within 4 minutes." },
           { status: 409 }
         );
       }
@@ -243,7 +243,7 @@ export async function PATCH(request: Request) {
         .eq("id", orderId)
         .eq("status", "pending");
       return NextResponse.json(
-        { error: "Order missed — not accepted within 3 minutes." },
+        { error: "Order missed — not accepted within 4 minutes." },
         { status: 409 }
       );
     }

@@ -14,7 +14,7 @@ export const ORDERING_DISABLED_END = "06:00";
 export const CUSTOMER_SESSION_TIMEOUT_MS = 60 * 60 * 1000;
 export const CART_TIMEOUT_MS = 60 * 60 * 1000;
 /** Admin must accept ASAP orders within this window or they become missed. */
-export const ORDER_ACCEPT_WINDOW_MS = 3 * 60 * 1000;
+export const ORDER_ACCEPT_WINDOW_MS = 4 * 60 * 1000;
 
 export const CATEGORY_DESCRIPTION_FALLBACKS: Record<string, string> = {
   ramen: "Warm noodle bowls served with rich broth and fresh toppings.",

@@ -248,7 +248,22 @@ export async function fetchAdminOrders(): Promise<Order[]> {
     .order("created_at", { ascending: false });
 
   const orders = (data ?? []).map((order) => mapOrder(order as Record<string, unknown>));
-  return Promise.all(orders.map((order) => expireOrderIfNeeded(order)));
+
+  const withExpiry = await Promise.all(
+    orders.map(async (order) => {
+      try {
+        return await expireOrderIfNeeded(order);
+      } catch {
+        return order;
+      }
+    })
+  );
+
+  // Keep today's board plus any still-active orders so earlier cards do not vanish mid-shift.
+  return withExpiry.filter((order) => {
+    if (isOrderFromToday(order.created_at)) return true;
+    return order.status === "pending" || order.status === "accepted";
+  });
 }
 
 export async function fetchPendingOrders(): Promise<Order[]> {

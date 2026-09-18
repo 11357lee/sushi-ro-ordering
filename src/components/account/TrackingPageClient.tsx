@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { isLoggedInCustomer, useCustomerStore } from "@/lib/customer-store";
 import { useCartStore } from "@/lib/cart-store";
 import type { Order } from "@/types";
+import { PhoneInput } from "@/components/ui/PhoneInput";
 import {
   canCustomerCancelOrder,
   formatPhoneInput,
@@ -227,12 +228,9 @@ export function TrackingPageClient() {
 
       {!loggedIn && (
         <form onSubmit={handleSearch} className="mt-6 flex flex-col gap-2 sm:flex-row">
-          <input
-            type="tel"
+          <PhoneInput
             value={phone}
-            onChange={(e) => setPhone(formatPhoneInput(e.target.value))}
-            placeholder="(613) 724-6088"
-            inputMode="tel"
+            onChange={setPhone}
             required
             className="flex-1 rounded-lg border border-stone-200 px-3 py-2.5 focus:border-teal-500 focus:outline-none"
           />

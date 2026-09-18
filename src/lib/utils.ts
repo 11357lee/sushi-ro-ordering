@@ -42,6 +42,19 @@ export function formatPhoneInput(value: string): string {
   return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
 }
 
+/** Cursor index in a formatted phone string for N digits typed before the cursor. */
+export function phoneCursorForDigitCount(formatted: string, digitCount: number): number {
+  if (digitCount <= 0) return 0;
+  let seen = 0;
+  for (let i = 0; i < formatted.length; i += 1) {
+    if (/\d/.test(formatted[i]!)) {
+      seen += 1;
+      if (seen >= digitCount) return i + 1;
+    }
+  }
+  return formatted.length;
+}
+
 export function toDisplayName(text: string): string {
   if (!text) return "";
   return text

@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useCartStore } from "@/lib/cart-store";
 import { isLoggedInCustomer, useCustomerStore } from "@/lib/customer-store";
 import type { Order } from "@/types";
+import { PhoneInput } from "@/components/ui/PhoneInput";
 import {
   formatPhoneInput,
   formatOrderDate,
@@ -223,11 +224,9 @@ export function AccountPageClient() {
             </div>
             <label className="block text-sm font-medium text-stone-700">
               Phone number
-              <input
-                type="tel"
+              <PhoneInput
                 value={profilePhone}
-                onChange={(e) => setProfilePhone(formatPhoneInput(e.target.value))}
-                inputMode="tel"
+                onChange={setProfilePhone}
                 required
                 className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2 text-sm"
               />

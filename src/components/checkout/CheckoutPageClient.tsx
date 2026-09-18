@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { TAX_RATE } from "@/lib/constants";
 import { useCartStore } from "@/lib/cart-store";
 import { useCustomerStore } from "@/lib/customer-store";
+import { PhoneInput } from "@/components/ui/PhoneInput";
 import { formatPhoneInput, formatPickupTime, formatPrice, getWaitingTimeText } from "@/lib/utils";
 import type { CreateOrderPayload } from "@/types";
 
@@ -166,12 +167,9 @@ export function CheckoutPageClient() {
 
         <div>
           <label className="block text-sm font-medium text-stone-700">Phone number *</label>
-          <input
-            type="tel"
+          <PhoneInput
             value={phone}
-            onChange={(e) => setPhone(formatPhoneInput(e.target.value))}
-            placeholder="(613) 724-6088"
-            inputMode="tel"
+            onChange={setPhone}
             required
             className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2.5 focus:border-teal-500 focus:outline-none"
           />

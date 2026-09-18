@@ -87,25 +87,16 @@ export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientPr
   );
 
   const filteredItems = useMemo(() => {
+    // Browse and search only within the selected category — never the whole section.
+    if (!activeCategory) return [];
+
     let items = liveMenu.items.filter((item) => {
       const category = liveMenu.categories.find((c) => c.id === item.category_id);
       const section = liveMenu.sections.find((s) => s.id === category?.section_id);
-      return section?.slug === activeSection;
+      return section?.slug === activeSection && category?.slug === activeCategory;
     });
 
-    // When a category is selected, search (and browse) stay inside that category only.
-    if (activeCategory) {
-      items = items.filter((item) => {
-        const cat = liveMenu.categories.find((c) => c.id === item.category_id);
-        return cat?.slug === activeCategory;
-      });
-    }
-
-    // Search only within the selected category (not the whole menu).
     if (search.trim()) {
-      if (!activeCategory) {
-        return [];
-      }
       const q = search.toLowerCase();
       items = items.filter((item) => {
         if (item.name.toLowerCase().includes(q)) return true;
@@ -128,19 +119,6 @@ export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientPr
 
     return [...items].sort(compareBySortOrder);
   }, [liveMenu, activeSection, activeCategory, search]);
-
-  const groupedByCategory = useMemo(() => {
-    if (activeCategory || search.trim()) return null;
-
-    return sectionCategories
-      .map((cat) => ({
-        category: cat,
-        items: filteredItems
-          .filter((item) => item.category_id === cat.id)
-          .sort(compareBySortOrder),
-      }))
-      .filter((g) => g.items.length > 0);
-  }, [sectionCategories, filteredItems, activeCategory, search]);
 
   const activeCategoryDetails = useMemo(
     () => sectionCategories.find((cat) => cat.slug === activeCategory) ?? null,
@@ -188,28 +166,10 @@ export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientPr
       )}
 
       <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8">
-        {groupedByCategory ? (
-          groupedByCategory.map(({ category, items }) => (
-            <section key={category.id} id={category.slug} className="mb-10">
-              <h2 className="mb-4 text-xl font-semibold text-stone-900">
-                {toDisplayName(category.name)}
-              </h2>
-              {(category.description || CATEGORY_DESCRIPTION_FALLBACKS[category.slug]) && (
-                <p className="-mt-2 mb-4 max-w-2xl text-sm text-stone-600">
-                  {category.description || CATEGORY_DESCRIPTION_FALLBACKS[category.slug]}
-                </p>
-              )}
-              <div className={itemGridClass(category.slug)}>
-                {items.map((item) => (
-                  <MenuItemCard
-                    key={item.id}
-                    item={item}
-                    soldOut={soldOutIds.includes(item.id)}
-                  />
-                ))}
-              </div>
-            </section>
-          ))
+        {!activeCategory ? (
+          <p className="py-12 text-center text-stone-500">
+            Select a category to browse the menu.
+          </p>
         ) : (
           <>
             {activeCategoryDetails && (
@@ -235,11 +195,10 @@ export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientPr
                 />
               ))}
             </div>
+            {filteredItems.length === 0 && (
+              <p className="py-12 text-center text-stone-500">No items found.</p>
+            )}
           </>
-        )}
-
-        {filteredItems.length === 0 && (
-          <p className="py-12 text-center text-stone-500">No items found.</p>
         )}
       </div>
       <BackToTopButton />

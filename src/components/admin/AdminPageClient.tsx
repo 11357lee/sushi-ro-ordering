@@ -207,7 +207,6 @@ export function AdminPageClient() {
   const [closedEndDate, setClosedEndDate] = useState("");
   const [closedMessage, setClosedMessage] = useState("");
   const [closingTime, setClosingTime] = useState("21:00:00");
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [pickupInputs, setPickupInputs] = useState<Record<string, string>>({});
   const [reasonInputs, setReasonInputs] = useState<Record<string, string>>({});
   const [customReasonInputs, setCustomReasonInputs] = useState<Record<string, string>>({});
@@ -226,6 +225,7 @@ export function AdminPageClient() {
   const [settingsMessage, setSettingsMessage] = useState("");
   const [moreOpen, setMoreOpen] = useState(false);
   const [orderMenuOpenId, setOrderMenuOpenId] = useState<string | null>(null);
+  const [itemsPopupOrderId, setItemsPopupOrderId] = useState<string | null>(null);
 
   const headers = useCallback(
     () => ({
@@ -375,11 +375,13 @@ export function AdminPageClient() {
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.onended = null;
+        audioRef.current.loop = false;
         audioRef.current.currentTime = 0;
       }
       const audio = new Audio(src);
       audio.volume = SOUND_VOLUME;
       audio.dataset.kind = kind;
+      audio.loop = false;
       audioRef.current = audio;
       void audio.play().catch(() => {
         // Autoplay may be blocked until a user gesture unlocks audio.
@@ -388,6 +390,18 @@ export function AdminPageClient() {
     } catch {
       return null;
     }
+  }, []);
+
+  const stopPendingTone = useCallback(() => {
+    pendingToneKindRef.current = null;
+    const audio = audioRef.current;
+    if (!audio) return;
+    // Only stop looping pending tones — don't cut a cancel alert mid-play.
+    if (audio.dataset.kind === "customer-cancelled") return;
+    audio.pause();
+    audio.onended = null;
+    audio.loop = false;
+    audio.currentTime = 0;
   }, []);
 
   const playCancelAlertTwice = useCallback(() => {
@@ -514,6 +528,13 @@ export function AdminPageClient() {
     statusReason?: string,
     prepMinutes?: number
   ) => {
+    // Stop looping alert immediately when accepting/rejecting so sound does not continue.
+    if (status !== "pending") {
+      const stillPending = orders.some((o) => o.id !== orderId && o.status === "pending");
+      if (!stillPending) {
+        stopPendingTone();
+      }
+    }
     await fetch("/api/admin", {
       method: "PATCH",
       headers: headers(),
@@ -527,7 +548,7 @@ export function AdminPageClient() {
       }),
     });
     if (status !== "pending") {
-      setExpandedId((current) => (current === orderId ? null : current));
+      setItemsPopupOrderId((current) => (current === orderId ? null : current));
     }
     fetchOrders();
   };
@@ -653,6 +674,11 @@ export function AdminPageClient() {
     return map;
   }, [menu]);
 
+  const itemsPopupOrder = useMemo(
+    () => orders.find((order) => order.id === itemsPopupOrderId) ?? null,
+    [orders, itemsPopupOrderId]
+  );
+
   const restaurantOpen = isRestaurantOpen({
     pause_until: pauseUntil,
     closing_time: closingTime,
@@ -705,6 +731,7 @@ export function AdminPageClient() {
   useEffect(() => {
     if (!authenticated || !soundEnabled || !soundUnlocked || tab !== "orders") {
       pendingToneKindRef.current = null;
+      stopPendingTone();
       return;
     }
 
@@ -713,12 +740,13 @@ export function AdminPageClient() {
       : [];
     if (!pendingOrders.length) {
       pendingToneKindRef.current = null;
+      stopPendingTone();
       return;
     }
 
     const hasAsap = pendingOrders.some((order) => order.pickup_type === "asap");
     pendingToneKindRef.current = hasAsap ? "asap" : "scheduled";
-  }, [authenticated, orders, restaurantOpen, soundEnabled, soundUnlocked, tab]);
+  }, [authenticated, orders, restaurantOpen, soundEnabled, soundUnlocked, tab, stopPendingTone]);
 
   const hasPendingAlert =
     authenticated &&
@@ -728,54 +756,72 @@ export function AdminPageClient() {
     restaurantOpen &&
     orders.some((order) => order.status === "pending");
 
+  // One looping Audio element while pending orders exist — avoids mid-clip cuts from recreating Audio.
   useEffect(() => {
-    if (!hasPendingAlert) return;
+    if (!hasPendingAlert) {
+      stopPendingTone();
+      return;
+    }
 
     let cancelled = false;
-    let timeoutId = 0;
+    let retryId = 0;
 
-    const schedule = (delayMs: number) => {
-      window.clearTimeout(timeoutId);
-      timeoutId = window.setTimeout(tick, delayMs);
-    };
-
-    const tick = () => {
+    const ensureLooping = () => {
       if (cancelled) return;
       if (Date.now() < suppressPendingUntilRef.current) {
-        schedule(400);
+        retryId = window.setTimeout(ensureLooping, 400);
         return;
       }
       const kind = pendingToneKindRef.current;
       if (!kind) {
-        schedule(1000);
+        retryId = window.setTimeout(ensureLooping, 1000);
         return;
       }
-      const audio = playNotificationSound(kind);
-      if (!audio) {
-        schedule(5000);
+
+      const existing = audioRef.current;
+      if (
+        existing &&
+        existing.dataset.kind === kind &&
+        existing.loop &&
+        !existing.paused
+      ) {
         return;
       }
-      let settled = false;
-      const queueNext = () => {
-        if (cancelled || settled) return;
-        settled = true;
-        schedule(1200);
-      };
-      audio.onended = queueNext;
-      // Safety if onended never fires
-      window.setTimeout(queueNext, 15000);
+
+      try {
+        if (existing) {
+          existing.pause();
+          existing.onended = null;
+          existing.loop = false;
+        }
+        const audio = new Audio(SOUND_FILES[kind]);
+        audio.volume = SOUND_VOLUME;
+        audio.dataset.kind = kind;
+        audio.loop = true;
+        audioRef.current = audio;
+        void audio.play().catch(() => {
+          if (!cancelled) {
+            retryId = window.setTimeout(ensureLooping, 2000);
+          }
+        });
+      } catch {
+        if (!cancelled) {
+          retryId = window.setTimeout(ensureLooping, 2000);
+        }
+      }
     };
 
-    schedule(200);
+    ensureLooping();
+    // Re-check periodically in case iOS pauses the element or kind flips asap↔scheduled.
+    const watchId = window.setInterval(ensureLooping, 4000);
 
     return () => {
       cancelled = true;
-      window.clearTimeout(timeoutId);
-      if (audioRef.current) {
-        audioRef.current.onended = null;
-      }
+      window.clearTimeout(retryId);
+      window.clearInterval(watchId);
+      stopPendingTone();
     };
-  }, [hasPendingAlert, playNotificationSound]);
+  }, [hasPendingAlert, stopPendingTone]);
 
   if (!authenticated) {
     return (
@@ -976,7 +1022,6 @@ export function AdminPageClient() {
               orders.map((order) => {
                 const isPending = order.status === "pending";
                 const isMissed = order.status === "missed";
-                const expanded = isPending || expandedId === order.id;
                 const cancelled = order.status === "cancelled";
                 const rejected = order.status === "rejected";
                 const customerCancelled =
@@ -1054,33 +1099,26 @@ export function AdminPageClient() {
                   </>
                 );
 
+                const itemCount = (order.order_items ?? []).reduce(
+                  (sum, item) => sum + (item.quantity ?? 1),
+                  0
+                );
+
                 const itemsBlock = (
                   <div className={isPending ? "mt-3" : "mt-2 border-t border-stone-100 pt-2"}>
-                    <h3 className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">
-                      Items
-                    </h3>
                     <SpecialNotes order={order} />
-                    {expanded ? (
-                      <OrderItems order={order} menuItemsById={menuItemsById} />
-                    ) : (
+                    <div className="flex flex-wrap items-center justify-between gap-2">
                       <button
                         type="button"
-                        onClick={() => setExpandedId(order.id)}
-                        className="text-sm font-medium text-teal-700 hover:underline"
+                        onClick={() => setItemsPopupOrderId(order.id)}
+                        className="rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-sm font-bold text-teal-800 hover:bg-teal-100"
                       >
-                        View items
+                        View menu ({itemCount} item{itemCount === 1 ? "" : "s"})
                       </button>
-                    )}
-                    {isPending && (
-                      <div className="mt-2 text-left">
-                        <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">
-                          Total
-                        </p>
-                        <p className="text-lg font-extrabold text-stone-950">
-                          {formatPrice(order.total ?? order.subtotal)}
-                        </p>
-                      </div>
-                    )}
+                      <p className="text-lg font-extrabold text-stone-950">
+                        {formatPrice(order.total ?? order.subtotal)}
+                      </p>
+                    </div>
                   </div>
                 );
 
@@ -1219,28 +1257,12 @@ export function AdminPageClient() {
                       </>
                     ) : (
                       <>
-                        <div className="grid w-full grid-cols-1 gap-3 text-left sm:grid-cols-[minmax(0,1.1fr)_minmax(0,1.2fr)]">
-                          <button
-                            type="button"
-                            onClick={() => setExpandedId(expanded ? null : order.id)}
-                            className="text-left"
-                          >
-                            {orderHeader}
-                          </button>
+                        <div className="grid w-full grid-cols-1 gap-3 text-left sm:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+                          <div className="text-left">{orderHeader}</div>
 
-                          <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
+                          <div className="space-y-2">
                             {order.status === "accepted" && (
-                              <>
-                                <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">
-                                  Total
-                                </p>
-                                <p className="text-xl font-extrabold text-stone-950">
-                                  {formatPrice(order.total ?? order.subtotal)}
-                                </p>
-                                <p className="text-xs font-medium text-stone-600">
-                                  Sub {formatPrice(order.subtotal)} · Tax {formatPrice(order.tax ?? 0)}
-                                </p>
-                                <div className="relative">
+                              <div className="relative flex justify-end">
                                   <button
                                     type="button"
                                     onClick={() =>
@@ -1254,7 +1276,7 @@ export function AdminPageClient() {
                                     ⋯
                                   </button>
                                   {orderMenuOpenId === order.id && (
-                                    <div className="absolute right-0 z-10 mt-1 w-44 rounded-lg border border-stone-200 bg-white p-1 shadow-lg">
+                                    <div className="absolute right-0 z-10 mt-8 w-44 rounded-lg border border-stone-200 bg-white p-1 shadow-lg">
                                       <select
                                         value={reasonInputs[order.id] ?? "Customer cancellation"}
                                         onChange={(e) =>
@@ -1301,8 +1323,7 @@ export function AdminPageClient() {
                                       </button>
                                     </div>
                                   )}
-                                </div>
-                              </>
+                              </div>
                             )}
                           </div>
                         </div>
@@ -1314,6 +1335,51 @@ export function AdminPageClient() {
               })
             )}
           </div>
+
+          {itemsPopupOrder && (
+            <div
+              className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Order items"
+              onClick={() => setItemsPopupOrderId(null)}
+            >
+              <div
+                className="max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-4 shadow-xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-lg font-extrabold text-stone-950">
+                      {customerTitle(itemsPopupOrder)}
+                    </p>
+                    <p className="text-sm text-stone-600">
+                      {formatPickupTime(itemsPopupOrder.created_at)} ·{" "}
+                      <span className="capitalize">{itemsPopupOrder.status}</span>
+                    </p>
+                    <p className="mt-1 text-base font-extrabold text-stone-950">
+                      {formatPrice(itemsPopupOrder.total ?? itemsPopupOrder.subtotal)}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setItemsPopupOrderId(null)}
+                    className="rounded-lg border border-stone-200 px-3 py-1.5 text-sm font-semibold text-stone-700 hover:bg-stone-50"
+                  >
+                    Close
+                  </button>
+                </div>
+                <SpecialNotes order={itemsPopupOrder} />
+                <OrderItems order={itemsPopupOrder} menuItemsById={menuItemsById} />
+                <div className="mt-3">
+                  <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-stone-400">
+                    Extras
+                  </p>
+                  <OrderExtras order={itemsPopupOrder} />
+                </div>
+              </div>
+            </div>
+          )}
 
         </>
       )}

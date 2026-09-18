@@ -792,6 +792,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: true,
     sort_order: 3,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a1000001-0000-0000-0000-000000000045",

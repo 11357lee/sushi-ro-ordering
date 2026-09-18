@@ -13,10 +13,11 @@ export function isPastAcceptWindow(order: Pick<Order, "status" | "pickup_type" |
 }
 
 export function acceptSecondsRemaining(
-  order: Pick<Order, "status" | "pickup_type" | "created_at">
+  order: Pick<Order, "status" | "pickup_type" | "created_at">,
+  nowMs: number = Date.now()
 ): number | null {
   if (order.status !== "pending" || order.pickup_type !== "asap") return null;
   const created = new Date(order.created_at).getTime();
   if (Number.isNaN(created)) return null;
-  return Math.max(0, Math.ceil((created + ORDER_ACCEPT_WINDOW_MS - Date.now()) / 1000));
+  return Math.max(0, Math.ceil((created + ORDER_ACCEPT_WINDOW_MS - nowMs) / 1000));
 }

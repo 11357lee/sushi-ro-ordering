@@ -122,7 +122,7 @@ export function ConfirmationPageClient({
         <>
           <h1 className="text-2xl font-bold text-orange-700">Order timed out</h1>
           <p className="mt-3 text-stone-600">
-            The restaurant did not accept your order within 3 minutes. You can place the same
+            The restaurant did not accept your order within 4 minutes. You can place the same
             order again.
           </p>
           <p className="mt-2 text-sm text-stone-500">Order #{order.order_number}</p>

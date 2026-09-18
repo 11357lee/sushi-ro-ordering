@@ -16,24 +16,20 @@ import {
   normalizeSpecialClosedPeriods,
   restaurantCalendarDate,
   sortOrderItemsForAdmin,
+  toAdminOptionLabel,
   toDisplayName,
 } from "@/lib/utils";
 import { acceptSecondsRemaining } from "@/lib/order-accept-window";
+import { adminSound, ADMIN_SOUND_POST_CLEAR_MUTE_MS } from "@/lib/admin-sound";
 
 type AdminTab = "orders" | "settings";
-
-const SOUND_FILES = {
-  asap: "/sounds/order-asap.mp3",
-  scheduled: "/sounds/order-scheduled.mp3",
-  "customer-cancelled": "/sounds/order-cancelled.mp3",
-} as const;
 
 const CUSTOMER_CANCELLED_REASON = "Customer cancelled online";
 const PREP_MINUTE_OPTIONS_PRIMARY = ["5", "10", "15", "20", "25", "30", "35", "40", "45", "50"];
 const PREP_MINUTE_OPTIONS_EXTENDED = ["60", "70", "80", "90", "100", "120"];
 const CANCEL_ALERT_STORAGE_KEY = "sushi-ro-admin-cancel-alerts";
 const REMEMBER_DEVICE_KEY = "sushi-ro-admin-remembered-key";
-const SOUND_VOLUME = 0.85;
+const UNLOCK_SOUND = "/sounds/order-asap.mp3";
 
 type AdminAuthFailure = "empty" | "invalid" | "network";
 type AdminAuthResult = { ok: true } | { ok: false; reason: AdminAuthFailure };
@@ -155,32 +151,33 @@ function OrderItems({
     const isGF = item.section_slug === "gluten-free";
     const prev = index > 0 ? items[index - 1] : null;
     const prevIsGF = prev?.section_slug === "gluten-free";
+    const optionSummary = (item.selected_options ?? [])
+      .map((o) => toAdminOptionLabel(o.name))
+      .filter(Boolean)
+      .join(", ");
     return {
       item,
       isGF,
+      optionSummary,
       showDivider: prev !== null && prevIsGF !== isGF,
     };
   });
 
   return (
-    <ul className="space-y-1.5 rounded-lg bg-stone-100 px-2 py-2 text-sm">
-      {rows.map(({ item, isGF, showDivider }) => (
+    <ul className="space-y-2 rounded-lg bg-stone-50 px-2.5 py-2.5 text-sm leading-relaxed">
+      {rows.map(({ item, isGF, optionSummary, showDivider }) => (
         <li key={item.id}>
-          {showDivider && <div className="my-1.5 border-t border-stone-300" />}
+          {showDivider && <div className="my-1.5 border-t border-stone-200" />}
           <div className={isGF ? "rounded-md bg-purple-50 px-1.5 py-1 text-purple-950" : "px-1.5 py-0.5"}>
-            <span className="text-base font-bold text-stone-950">
-              {item.quantity}x {toDisplayName(item.name)}
-            </span>
-            {isGF && (
-              <span className="ml-1.5 text-xs font-medium text-purple-800">GF</span>
-            )}
-            {item.selected_options?.length > 0 && (
-              <p className="text-sm font-semibold text-teal-700">
-                {item.selected_options.map((o) => toDisplayName(o.name)).join(", ")}
-              </p>
-            )}
+            <p className="text-[15px] font-medium text-stone-800">
+              {item.quantity}x{toDisplayName(item.name)}
+              {optionSummary ? (
+                <span className="font-normal text-sky-700"> - {optionSummary}</span>
+              ) : null}
+              {isGF && <span className="ml-1.5 text-xs font-normal text-purple-700">GF</span>}
+            </p>
             {item.special_request && (
-              <p className="text-sm italic text-red-600">{item.special_request}</p>
+              <p className="text-sm font-normal italic text-red-600">{item.special_request}</p>
             )}
           </div>
         </li>
@@ -207,16 +204,13 @@ export function AdminPageClient() {
   const [closedEndDate, setClosedEndDate] = useState("");
   const [closedMessage, setClosedMessage] = useState("");
   const [closingTime, setClosingTime] = useState("21:00:00");
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [pickupInputs, setPickupInputs] = useState<Record<string, string>>({});
   const [reasonInputs, setReasonInputs] = useState<Record<string, string>>({});
   const [customReasonInputs, setCustomReasonInputs] = useState<Record<string, string>>({});
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioUnlockRef = useRef<HTMLAudioElement | null>(null);
   const cancellationAlertedIdsRef = useRef<Set<string>>(new Set());
   const cancellationAlertsReadyRef = useRef(false);
   const ordersReadyRef = useRef(false);
-  const pendingToneKindRef = useRef<"asap" | "scheduled" | null>(null);
-  const suppressPendingUntilRef = useRef(0);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [soundUnlocked, setSoundUnlocked] = useState(false);
   const [expandedSoldOutCategory, setExpandedSoldOutCategory] = useState<string | null>(null);
@@ -226,6 +220,7 @@ export function AdminPageClient() {
   const [settingsMessage, setSettingsMessage] = useState("");
   const [moreOpen, setMoreOpen] = useState(false);
   const [orderMenuOpenId, setOrderMenuOpenId] = useState<string | null>(null);
+  const [itemsPopupOrderId, setItemsPopupOrderId] = useState<string | null>(null);
 
   const headers = useCallback(
     () => ({
@@ -364,61 +359,25 @@ export function AdminPageClient() {
     return () => clearInterval(interval);
   }, [authenticated, fetchOrders, fetchSettings, fetchMenu]);
 
-  useEffect(() => {
-    const interval = setInterval(() => setNow(new Date()), 30000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const playNotificationSound = useCallback((kind: "asap" | "scheduled" | "customer-cancelled") => {
-    const src = SOUND_FILES[kind];
-    try {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.onended = null;
-        audioRef.current.currentTime = 0;
-      }
-      const audio = new Audio(src);
-      audio.volume = SOUND_VOLUME;
-      audio.dataset.kind = kind;
-      audioRef.current = audio;
-      void audio.play().catch(() => {
-        // Autoplay may be blocked until a user gesture unlocks audio.
-      });
-      return audio;
-    } catch {
-      return null;
-    }
-  }, []);
-
-  const playCancelAlertTwice = useCallback(() => {
-    const first = playNotificationSound("customer-cancelled");
-    const playSecond = () => {
-      playNotificationSound("customer-cancelled");
-    };
-    if (first) {
-      first.onended = () => {
-        window.setTimeout(playSecond, 200);
-      };
-    } else {
-      window.setTimeout(playSecond, 700);
-    }
-  }, [playNotificationSound]);
-
-  const playTestSound = useCallback(
-    (kind: "asap" | "scheduled" | "customer-cancelled") => {
-      setSoundEnabled(true);
-      setSoundUnlocked(true);
-      if (kind === "customer-cancelled") {
-        playCancelAlertTwice();
-      } else {
-        playNotificationSound(kind);
-      }
-    },
-    [playCancelAlertTwice, playNotificationSound]
+  const hasPendingAsap = orders.some(
+    (order) => order.status === "pending" && order.pickup_type === "asap"
   );
 
+  useEffect(() => {
+    // Tick every second while an ASAP accept timer is on screen; otherwise every 30s.
+    const interval = setInterval(() => setNow(new Date()), hasPendingAsap ? 1000 : 30000);
+    return () => clearInterval(interval);
+  }, [hasPendingAsap]);
+
+  const playTestSound = useCallback((kind: "asap" | "scheduled" | "customer-cancelled") => {
+    setSoundEnabled(true);
+    setSoundUnlocked(true);
+    adminSound.playTest(kind);
+  }, []);
+
   const unlockAudio = useCallback(() => {
-    const audio = new Audio(SOUND_FILES.asap);
+    const audio = audioUnlockRef.current ?? new Audio(UNLOCK_SOUND);
+    audioUnlockRef.current = audio;
     audio.volume = 0.01;
     void audio
       .play()
@@ -497,6 +456,7 @@ export function AdminPageClient() {
   };
 
   const handleLogout = () => {
+    adminSound.stopAll();
     setAuthenticated(false);
     setOrders([]);
     ordersReadyRef.current = false;
@@ -514,6 +474,28 @@ export function AdminPageClient() {
     statusReason?: string,
     prepMinutes?: number
   ) => {
+    // Optimistically clear pending and hard-stop sound before the network round-trip.
+    if (status !== "pending") {
+      let remainingPending = 0;
+      setOrders((prev) => {
+        const next = prev.map((order) =>
+          order.id === orderId
+            ? {
+                ...order,
+                status: status as Order["status"],
+                status_reason: statusReason ?? order.status_reason,
+                pickup_time: pickupTime ?? order.pickup_time,
+              }
+            : order
+        );
+        remainingPending = next.filter((o) => o.status === "pending").length;
+        return next;
+      });
+      if (remainingPending === 0) {
+        adminSound.setKind(null);
+        adminSound.stopPending({ muteMs: ADMIN_SOUND_POST_CLEAR_MUTE_MS });
+      }
+    }
     await fetch("/api/admin", {
       method: "PATCH",
       headers: headers(),
@@ -527,7 +509,7 @@ export function AdminPageClient() {
       }),
     });
     if (status !== "pending") {
-      setExpandedId((current) => (current === orderId ? null : current));
+      setItemsPopupOrderId((current) => (current === orderId ? null : current));
     }
     fetchOrders();
   };
@@ -653,6 +635,11 @@ export function AdminPageClient() {
     return map;
   }, [menu]);
 
+  const itemsPopupOrder = useMemo(
+    () => orders.find((order) => order.id === itemsPopupOrderId) ?? null,
+    [orders, itemsPopupOrderId]
+  );
+
   const restaurantOpen = isRestaurantOpen({
     pause_until: pauseUntil,
     closing_time: closingTime,
@@ -667,7 +654,7 @@ export function AdminPageClient() {
     if (!authenticated) {
       cancellationAlertsReadyRef.current = false;
       ordersReadyRef.current = false;
-      pendingToneKindRef.current = null;
+      adminSound.stopAll();
       return;
     }
 
@@ -696,29 +683,9 @@ export function AdminPageClient() {
     newCustomerCancelledIds.forEach((id) => cancellationAlertedIdsRef.current.add(id));
     persistCancelAlertedIds(cancellationAlertedIdsRef.current);
     if (soundEnabled && soundUnlocked) {
-      suppressPendingUntilRef.current = Date.now() + 2500;
-      playCancelAlertTwice();
+      adminSound.playCancelTwice();
     }
-  }, [authenticated, orders, soundEnabled, soundUnlocked, playCancelAlertTwice]);
-
-  // Keep pending tone kind in a ref so the loop is not reset by 5s order polls.
-  useEffect(() => {
-    if (!authenticated || !soundEnabled || !soundUnlocked || tab !== "orders") {
-      pendingToneKindRef.current = null;
-      return;
-    }
-
-    const pendingOrders = restaurantOpen
-      ? orders.filter((order) => order.status === "pending")
-      : [];
-    if (!pendingOrders.length) {
-      pendingToneKindRef.current = null;
-      return;
-    }
-
-    const hasAsap = pendingOrders.some((order) => order.pickup_type === "asap");
-    pendingToneKindRef.current = hasAsap ? "asap" : "scheduled";
-  }, [authenticated, orders, restaurantOpen, soundEnabled, soundUnlocked, tab]);
+  }, [authenticated, orders, soundEnabled, soundUnlocked]);
 
   const hasPendingAlert =
     authenticated &&
@@ -728,54 +695,29 @@ export function AdminPageClient() {
     restaurantOpen &&
     orders.some((order) => order.status === "pending");
 
+  const pendingKind: "asap" | "scheduled" | null = hasPendingAlert
+    ? orders.some((order) => order.status === "pending" && order.pickup_type === "asap")
+      ? "asap"
+      : "scheduled"
+    : null;
+
+  // Drive the singleton sound controller. startPending is idempotent — order polls won't restart it.
   useEffect(() => {
-    if (!hasPendingAlert) return;
+    if (!hasPendingAlert || !pendingKind) {
+      adminSound.setKind(null);
+      adminSound.stopPending();
+      return;
+    }
+    adminSound.setKind(pendingKind);
+    adminSound.startPending();
+  }, [hasPendingAlert, pendingKind]);
 
-    let cancelled = false;
-    let timeoutId = 0;
-
-    const schedule = (delayMs: number) => {
-      window.clearTimeout(timeoutId);
-      timeoutId = window.setTimeout(tick, delayMs);
-    };
-
-    const tick = () => {
-      if (cancelled) return;
-      if (Date.now() < suppressPendingUntilRef.current) {
-        schedule(400);
-        return;
-      }
-      const kind = pendingToneKindRef.current;
-      if (!kind) {
-        schedule(1000);
-        return;
-      }
-      const audio = playNotificationSound(kind);
-      if (!audio) {
-        schedule(5000);
-        return;
-      }
-      let settled = false;
-      const queueNext = () => {
-        if (cancelled || settled) return;
-        settled = true;
-        schedule(1200);
-      };
-      audio.onended = queueNext;
-      // Safety if onended never fires
-      window.setTimeout(queueNext, 15000);
-    };
-
-    schedule(200);
-
+  // Stop sound when leaving the page / unmounting.
+  useEffect(() => {
     return () => {
-      cancelled = true;
-      window.clearTimeout(timeoutId);
-      if (audioRef.current) {
-        audioRef.current.onended = null;
-      }
+      adminSound.stopAll();
     };
-  }, [hasPendingAlert, playNotificationSound]);
+  }, []);
 
   if (!authenticated) {
     return (
@@ -976,12 +918,11 @@ export function AdminPageClient() {
               orders.map((order) => {
                 const isPending = order.status === "pending";
                 const isMissed = order.status === "missed";
-                const expanded = isPending || expandedId === order.id;
                 const cancelled = order.status === "cancelled";
                 const rejected = order.status === "rejected";
                 const customerCancelled =
                   cancelled && order.status_reason === CUSTOMER_CANCELLED_REASON;
-                const acceptRemaining = acceptSecondsRemaining(order);
+                const acceptRemaining = acceptSecondsRemaining(order, now.getTime());
                 const countdown =
                   order.status === "accepted"
                     ? formatCountdown(order.pickup_time ?? null, now)
@@ -998,19 +939,12 @@ export function AdminPageClient() {
                     )}
                     {isMissed && (
                       <p className="mb-1 rounded-md bg-orange-50 px-2 py-1 text-xs font-bold text-orange-800">
-                        Missed — not accepted in 3 minutes
+                        Missed — not accepted in 4 minutes
                       </p>
                     )}
-                    {isPending && acceptRemaining !== null && (
-                      <p
-                        className={`mb-1 rounded-md px-2 py-1 text-xs font-bold ${
-                          acceptRemaining <= 30
-                            ? "bg-red-50 text-red-700"
-                            : "bg-amber-50 text-amber-900"
-                        }`}
-                      >
-                        Accept within {Math.floor(acceptRemaining / 60)}:
-                        {String(acceptRemaining % 60).padStart(2, "0")}
+                    {isPending && order.pickup_type === "scheduled" && (
+                      <p className="mb-1 rounded-md bg-sky-50 px-2 py-1 text-xs font-bold text-sky-800">
+                        Scheduled — accept when ready (no miss timer)
                       </p>
                     )}
                     <p className="text-lg font-extrabold tracking-tight text-stone-950">
@@ -1054,33 +988,26 @@ export function AdminPageClient() {
                   </>
                 );
 
+                const itemCount = (order.order_items ?? []).reduce(
+                  (sum, item) => sum + (item.quantity ?? 1),
+                  0
+                );
+
                 const itemsBlock = (
                   <div className={isPending ? "mt-3" : "mt-2 border-t border-stone-100 pt-2"}>
-                    <h3 className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">
-                      Items
-                    </h3>
                     <SpecialNotes order={order} />
-                    {expanded ? (
-                      <OrderItems order={order} menuItemsById={menuItemsById} />
-                    ) : (
+                    <div className="flex flex-wrap items-center justify-between gap-2">
                       <button
                         type="button"
-                        onClick={() => setExpandedId(order.id)}
-                        className="text-sm font-medium text-teal-700 hover:underline"
+                        onClick={() => setItemsPopupOrderId(order.id)}
+                        className="rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-sm font-bold text-teal-800 hover:bg-teal-100"
                       >
-                        View items
+                        View menu ({itemCount} item{itemCount === 1 ? "" : "s"})
                       </button>
-                    )}
-                    {isPending && (
-                      <div className="mt-2 text-left">
-                        <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">
-                          Total
-                        </p>
-                        <p className="text-lg font-extrabold text-stone-950">
-                          {formatPrice(order.total ?? order.subtotal)}
-                        </p>
-                      </div>
-                    )}
+                      <p className="text-lg font-extrabold text-stone-950">
+                        {formatPrice(order.total ?? order.subtotal)}
+                      </p>
+                    </div>
                   </div>
                 );
 
@@ -1141,43 +1068,59 @@ export function AdminPageClient() {
                         />
                       </div>
                     )}
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateOrder(
-                          order.id,
-                          "accepted",
-                          acceptDetails.pickupTime,
-                          undefined,
-                          acceptDetails.prepMinutes
-                        )
-                      }
-                      className="min-h-12 w-full rounded-xl bg-emerald-600 px-3 py-3 text-base font-bold text-white hover:bg-emerald-700"
-                    >
-                      Accept
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateOrder(
-                          order.id,
-                          "rejected",
-                          undefined,
-                          reasonInputs[order.id] === "Custom message"
-                            ? customReasonInputs[order.id] || "Custom message"
-                            : reasonInputs[order.id] ?? "Out of items"
-                        )
-                      }
-                      className="min-h-11 w-full rounded-xl bg-red-600 px-3 py-2.5 text-base font-bold text-white hover:bg-red-700"
-                    >
-                      Reject
-                    </button>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateOrder(
+                            order.id,
+                            "accepted",
+                            acceptDetails.pickupTime,
+                            undefined,
+                            acceptDetails.prepMinutes
+                          )
+                        }
+                        className={`min-h-14 rounded-xl px-3 py-2 text-base font-bold text-white ${
+                          acceptRemaining !== null && acceptRemaining <= 60
+                            ? "bg-amber-600 hover:bg-amber-700"
+                            : "bg-emerald-600 hover:bg-emerald-700"
+                        }`}
+                      >
+                        <span className="block leading-tight">Accept</span>
+                        {acceptRemaining !== null && (
+                          <span
+                            className={`mt-0.5 block font-mono text-lg font-extrabold tabular-nums leading-none ${
+                              acceptRemaining <= 60 ? "text-amber-100" : "text-emerald-100"
+                            }`}
+                          >
+                            {Math.floor(acceptRemaining / 60)}:
+                            {String(acceptRemaining % 60).padStart(2, "0")}
+                          </span>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateOrder(
+                            order.id,
+                            "rejected",
+                            undefined,
+                            reasonInputs[order.id] === "Custom message"
+                              ? customReasonInputs[order.id] || "Custom message"
+                              : reasonInputs[order.id] ?? "Out of items"
+                          )
+                        }
+                        className="min-h-14 rounded-xl bg-red-600 px-3 py-2 text-base font-bold text-white hover:bg-red-700"
+                      >
+                        Reject
+                      </button>
+                    </div>
                     <select
                       value={reasonInputs[order.id] ?? "Out of items"}
                       onChange={(e) =>
                         setReasonInputs((prev) => ({ ...prev, [order.id]: e.target.value }))
                       }
-                      className="w-full rounded border border-stone-200 px-2 py-1 text-xs font-medium text-stone-700"
+                      className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm font-medium text-stone-700"
                     >
                       <option>Out of items</option>
                       <option>Restaurant too busy</option>
@@ -1193,7 +1136,7 @@ export function AdminPageClient() {
                             [order.id]: e.target.value,
                           }))
                         }
-                        className="w-full rounded border border-stone-200 px-2 py-1 text-xs"
+                        className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm"
                       />
                     )}
                   </div>
@@ -1219,28 +1162,12 @@ export function AdminPageClient() {
                       </>
                     ) : (
                       <>
-                        <div className="grid w-full grid-cols-1 gap-3 text-left sm:grid-cols-[minmax(0,1.1fr)_minmax(0,1.2fr)]">
-                          <button
-                            type="button"
-                            onClick={() => setExpandedId(expanded ? null : order.id)}
-                            className="text-left"
-                          >
-                            {orderHeader}
-                          </button>
+                        <div className="grid w-full grid-cols-1 gap-3 text-left sm:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+                          <div className="text-left">{orderHeader}</div>
 
-                          <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
+                          <div className="space-y-2">
                             {order.status === "accepted" && (
-                              <>
-                                <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">
-                                  Total
-                                </p>
-                                <p className="text-xl font-extrabold text-stone-950">
-                                  {formatPrice(order.total ?? order.subtotal)}
-                                </p>
-                                <p className="text-xs font-medium text-stone-600">
-                                  Sub {formatPrice(order.subtotal)} · Tax {formatPrice(order.tax ?? 0)}
-                                </p>
-                                <div className="relative">
+                              <div className="relative flex justify-end">
                                   <button
                                     type="button"
                                     onClick={() =>
@@ -1254,7 +1181,7 @@ export function AdminPageClient() {
                                     ⋯
                                   </button>
                                   {orderMenuOpenId === order.id && (
-                                    <div className="absolute right-0 z-10 mt-1 w-44 rounded-lg border border-stone-200 bg-white p-1 shadow-lg">
+                                    <div className="absolute right-0 z-10 mt-8 w-44 rounded-lg border border-stone-200 bg-white p-1 shadow-lg">
                                       <select
                                         value={reasonInputs[order.id] ?? "Customer cancellation"}
                                         onChange={(e) =>
@@ -1301,8 +1228,7 @@ export function AdminPageClient() {
                                       </button>
                                     </div>
                                   )}
-                                </div>
-                              </>
+                              </div>
                             )}
                           </div>
                         </div>
@@ -1314,6 +1240,51 @@ export function AdminPageClient() {
               })
             )}
           </div>
+
+          {itemsPopupOrder && (
+            <div
+              className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Order items"
+              onClick={() => setItemsPopupOrderId(null)}
+            >
+              <div
+                className="max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-4 shadow-xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-lg font-semibold text-stone-900">
+                      {customerTitle(itemsPopupOrder)}
+                    </p>
+                    <p className="text-sm text-stone-600">
+                      {formatPickupTime(itemsPopupOrder.created_at)} ·{" "}
+                      <span className="capitalize">{itemsPopupOrder.status}</span>
+                    </p>
+                    <p className="mt-1 text-base font-semibold text-stone-900">
+                      {formatPrice(itemsPopupOrder.total ?? itemsPopupOrder.subtotal)}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setItemsPopupOrderId(null)}
+                    className="rounded-lg border border-stone-200 px-3 py-1.5 text-sm font-semibold text-stone-700 hover:bg-stone-50"
+                  >
+                    Close
+                  </button>
+                </div>
+                <SpecialNotes order={itemsPopupOrder} />
+                <OrderItems order={itemsPopupOrder} menuItemsById={menuItemsById} />
+                <div className="mt-3">
+                  <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-stone-400">
+                    Extras
+                  </p>
+                  <OrderExtras order={itemsPopupOrder} />
+                </div>
+              </div>
+            </div>
+          )}
 
         </>
       )}

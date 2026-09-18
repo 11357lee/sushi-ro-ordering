@@ -168,6 +168,14 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
         specialRequest
       )
     );
+    setSelectedOptions([]);
+    setSelectedRequiredOption(null);
+    setSelectedChoice(null);
+    setSelectedBentoMeat(null);
+    setSelectedBentoSide(null);
+    setFlavorCounts({});
+    setSpecialRequest("");
+    setQuantity(1);
     setOptionError("");
     setAdded(true);
     setTimeout(() => setAdded(false), 1500);

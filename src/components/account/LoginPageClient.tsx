@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useCartStore } from "@/lib/cart-store";
 import { isLoggedInCustomer, useCustomerStore } from "@/lib/customer-store";
 import { formatPhoneInput, toDisplayName } from "@/lib/utils";
+import { PhoneInput } from "@/components/ui/PhoneInput";
 
 export function LoginPageClient() {
   const router = useRouter();
@@ -158,11 +159,9 @@ export function LoginPageClient() {
               </div>
               <label className="block text-sm font-medium text-stone-700">
                 Phone number
-                <input
-                  type="tel"
+                <PhoneInput
                   value={profilePhone}
-                  onChange={(e) => setProfilePhone(formatPhoneInput(e.target.value))}
-                  inputMode="tel"
+                  onChange={setProfilePhone}
                   required
                   className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2 text-sm"
                 />
@@ -205,12 +204,9 @@ export function LoginPageClient() {
             </div>
             <div>
               <label className="block text-sm font-medium text-stone-700">Phone Number</label>
-              <input
-                type="tel"
+              <PhoneInput
                 value={phone}
-                onChange={(e) => setPhone(formatPhoneInput(e.target.value))}
-                placeholder="(613) 724-6088"
-                inputMode="tel"
+                onChange={setPhone}
                 required
                 className="mt-1 w-full rounded-lg border border-stone-200 px-3 py-2.5 focus:border-teal-500 focus:outline-none"
               />

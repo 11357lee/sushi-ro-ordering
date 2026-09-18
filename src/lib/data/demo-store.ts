@@ -84,7 +84,11 @@ export function listDemoOrdersByCustomerId(customerId: string): Order[] {
 export function listDemoAdminOrders(): Order[] {
   return Array.from(getStore().orders.values())
     .map(expireDemoOrderIfNeeded)
-    .filter((o) => !o.admin_dismissed)
+    .filter((o) => {
+      if (o.admin_dismissed) return false;
+      if (isOrderFromToday(o.created_at)) return true;
+      return o.status === "pending" || o.status === "accepted";
+    })
     .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 }
 

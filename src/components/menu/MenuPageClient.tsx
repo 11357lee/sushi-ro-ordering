@@ -93,7 +93,6 @@ export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientPr
       return section?.slug === activeSection;
     });
 
-    // When a category is selected, search (and browse) stay inside that category only.
     if (activeCategory) {
       items = items.filter((item) => {
         const cat = liveMenu.categories.find((c) => c.id === item.category_id);
@@ -101,11 +100,7 @@ export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientPr
       });
     }
 
-    // Search only within the selected category (not the whole menu).
     if (search.trim()) {
-      if (!activeCategory) {
-        return [];
-      }
       const q = search.toLowerCase();
       items = items.filter((item) => {
         if (item.name.toLowerCase().includes(q)) return true;
@@ -171,17 +166,20 @@ export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientPr
 
       {search.trim() && (
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-2 px-4 pt-2">
-          {!activeCategory ? (
-            <p className="text-sm text-amber-800">
-              Select a category above to search within it.
-            </p>
-          ) : (
+          <button
+            type="button"
+            onClick={() => setSearch("")}
+            className="rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold text-stone-700 hover:bg-stone-200"
+          >
+            Clear search
+          </button>
+          {activeCategory && (
             <button
               type="button"
-              onClick={() => setSearch("")}
+              onClick={() => setActiveCategory(null)}
               className="rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold text-stone-700 hover:bg-stone-200"
             >
-              Clear search
+              Clear category
             </button>
           )}
         </div>
@@ -212,7 +210,7 @@ export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientPr
           ))
         ) : (
           <>
-            {activeCategoryDetails && (
+            {activeCategoryDetails && !search.trim() && (
               <section className="mb-5">
                 <h2 className="mb-2 text-xl font-semibold text-stone-900">
                   {toDisplayName(activeCategoryDetails.name)}
@@ -225,6 +223,14 @@ export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientPr
                   </p>
                 )}
               </section>
+            )}
+            {search.trim() && (
+              <p className="mb-4 text-sm text-stone-600">
+                {filteredItems.length} result{filteredItems.length === 1 ? "" : "s"}
+                {activeCategoryDetails
+                  ? ` in ${toDisplayName(activeCategoryDetails.name)}`
+                  : " across the menu"}
+              </p>
             )}
             <div className={itemGridClass(activeCategoryDetails?.slug)}>
               {filteredItems.map((item) => (

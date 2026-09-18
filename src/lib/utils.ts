@@ -42,6 +42,19 @@ export function formatPhoneInput(value: string): string {
   return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
 }
 
+/** Cursor index in a formatted phone string for N digits typed before the cursor. */
+export function phoneCursorForDigitCount(formatted: string, digitCount: number): number {
+  if (digitCount <= 0) return 0;
+  let seen = 0;
+  for (let i = 0; i < formatted.length; i += 1) {
+    if (/\d/.test(formatted[i]!)) {
+      seen += 1;
+      if (seen >= digitCount) return i + 1;
+    }
+  }
+  return formatted.length;
+}
+
 export function toDisplayName(text: string): string {
   if (!text) return "";
   return text
@@ -70,6 +83,21 @@ export function toCustomerItemName(text: string): string {
     .replace(/\s*\(\s*gf\s*\)/gi, "")
     .replace(/\s{2,}/g, " ")
     .trim();
+}
+
+/**
+ * Short kitchen label for admin order lines.
+ * "Tuna — Torched red tuna…" → "Tuna"
+ * "Chicken cutlet with spicy sauce" → "Chicken cutlet"
+ * "Tempura (3 vegetables and 1 Shrimp)" → "Tempura"
+ */
+export function toAdminOptionLabel(text: string): string {
+  if (!text) return "";
+  let short = text.split(/\s*[—–]\s*|\s+-\s+/)[0] ?? text;
+  short = short.replace(/\s*\([^)]*\)\s*/g, " ");
+  short = short.replace(/\s+with\s+.+$/i, "");
+  short = short.replace(/\s{2,}/g, " ").trim();
+  return toDisplayName(short);
 }
 
 export function calcLineTotal(

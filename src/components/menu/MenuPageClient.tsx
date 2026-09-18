@@ -87,14 +87,18 @@ export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientPr
   );
 
   const filteredItems = useMemo(() => {
-    // Browse and search only within the selected category — never the whole section.
-    if (!activeCategory) return [];
-
     let items = liveMenu.items.filter((item) => {
       const category = liveMenu.categories.find((c) => c.id === item.category_id);
       const section = liveMenu.sections.find((s) => s.id === category?.section_id);
-      return section?.slug === activeSection && category?.slug === activeCategory;
+      return section?.slug === activeSection;
     });
+
+    if (activeCategory) {
+      items = items.filter((item) => {
+        const cat = liveMenu.categories.find((c) => c.id === item.category_id);
+        return cat?.slug === activeCategory;
+      });
+    }
 
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -119,6 +123,19 @@ export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientPr
 
     return [...items].sort(compareBySortOrder);
   }, [liveMenu, activeSection, activeCategory, search]);
+
+  const groupedByCategory = useMemo(() => {
+    if (activeCategory || search.trim()) return null;
+
+    return sectionCategories
+      .map((cat) => ({
+        category: cat,
+        items: filteredItems
+          .filter((item) => item.category_id === cat.id)
+          .sort(compareBySortOrder),
+      }))
+      .filter((g) => g.items.length > 0);
+  }, [sectionCategories, filteredItems, activeCategory, search]);
 
   const activeCategoryDetails = useMemo(
     () => sectionCategories.find((cat) => cat.slug === activeCategory) ?? null,
@@ -149,30 +166,51 @@ export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientPr
 
       {search.trim() && (
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-2 px-4 pt-2">
-          {!activeCategory ? (
-            <p className="text-sm text-amber-800">
-              Select a category above to search within it.
-            </p>
-          ) : (
+          <button
+            type="button"
+            onClick={() => setSearch("")}
+            className="rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold text-stone-700 hover:bg-stone-200"
+          >
+            Clear search
+          </button>
+          {activeCategory && (
             <button
               type="button"
-              onClick={() => setSearch("")}
+              onClick={() => setActiveCategory(null)}
               className="rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold text-stone-700 hover:bg-stone-200"
             >
-              Clear search
+              Clear category
             </button>
           )}
         </div>
       )}
 
       <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8">
-        {!activeCategory ? (
-          <p className="py-12 text-center text-stone-500">
-            Select a category to browse the menu.
-          </p>
+        {groupedByCategory ? (
+          groupedByCategory.map(({ category, items }) => (
+            <section key={category.id} id={category.slug} className="mb-10">
+              <h2 className="mb-4 text-xl font-semibold text-stone-900">
+                {toDisplayName(category.name)}
+              </h2>
+              {(category.description || CATEGORY_DESCRIPTION_FALLBACKS[category.slug]) && (
+                <p className="-mt-2 mb-4 max-w-2xl text-sm text-stone-600">
+                  {category.description || CATEGORY_DESCRIPTION_FALLBACKS[category.slug]}
+                </p>
+              )}
+              <div className={itemGridClass(category.slug)}>
+                {items.map((item) => (
+                  <MenuItemCard
+                    key={item.id}
+                    item={item}
+                    soldOut={soldOutIds.includes(item.id)}
+                  />
+                ))}
+              </div>
+            </section>
+          ))
         ) : (
           <>
-            {activeCategoryDetails && (
+            {activeCategoryDetails && !search.trim() && (
               <section className="mb-5">
                 <h2 className="mb-2 text-xl font-semibold text-stone-900">
                   {toDisplayName(activeCategoryDetails.name)}
@@ -186,6 +224,14 @@ export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientPr
                 )}
               </section>
             )}
+            {search.trim() && (
+              <p className="mb-4 text-sm text-stone-600">
+                {filteredItems.length} result{filteredItems.length === 1 ? "" : "s"}
+                {activeCategoryDetails
+                  ? ` in ${toDisplayName(activeCategoryDetails.name)}`
+                  : " across the menu"}
+              </p>
+            )}
             <div className={itemGridClass(activeCategoryDetails?.slug)}>
               {filteredItems.map((item) => (
                 <MenuItemCard
@@ -195,10 +241,11 @@ export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientPr
                 />
               ))}
             </div>
-            {filteredItems.length === 0 && (
-              <p className="py-12 text-center text-stone-500">No items found.</p>
-            )}
           </>
+        )}
+
+        {filteredItems.length === 0 && (
+          <p className="py-12 text-center text-stone-500">No items found.</p>
         )}
       </div>
       <BackToTopButton />

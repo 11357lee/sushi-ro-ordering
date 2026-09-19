@@ -304,6 +304,34 @@ export function getWaitingTimeText(minutes: number): string {
   return map[minutes] ?? `${minutes} min wait`;
 }
 
+/** Whole minutes until today's restaurant closing time (Toronto wall clock). */
+export function minutesUntilClosing(
+  closingTime = "21:00:00",
+  now = new Date()
+): number {
+  const localNow = restaurantWallClock(now);
+  const [h, m, s = 0] = closingTime.split(":").map(Number);
+  const close = setSeconds(setMinutes(setHours(localNow, h), m ?? 0), s || 0);
+  const diffMs = close.getTime() - localNow.getTime();
+  if (diffMs <= 0) return 0;
+  return Math.ceil(diffMs / 60000);
+}
+
+/**
+ * Last ~30 minutes before close (e.g. 8:30–8:45 when close is 9:00 and
+ * online ordering stops at 8:45). Used for the checkout closing reminder.
+ */
+export function isNearClosingForCheckout(
+  closingTime = "21:00:00",
+  now = new Date(),
+  settings?: Pick<RestaurantSettings, "test_mode"> | null
+): { near: boolean; minutesLeft: number } {
+  if (isTestModeOn(settings)) return { near: false, minutesLeft: 0 };
+  if (isOrderingDisabled(now, settings)) return { near: false, minutesLeft: 0 };
+  const minutesLeft = minutesUntilClosing(closingTime, now);
+  return { near: minutesLeft > 0 && minutesLeft <= 30, minutesLeft };
+}
+
 export function canCustomerCancelOrder(
   order: Order,
   waitingMinutes: number

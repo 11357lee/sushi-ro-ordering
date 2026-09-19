@@ -7,7 +7,13 @@ import { TAX_RATE } from "@/lib/constants";
 import { useCartStore } from "@/lib/cart-store";
 import { useCustomerStore } from "@/lib/customer-store";
 import { PhoneInput } from "@/components/ui/PhoneInput";
-import { formatPhoneInput, formatPickupTime, formatPrice, getWaitingTimeText } from "@/lib/utils";
+import {
+  formatPhoneInput,
+  formatPickupTime,
+  formatPrice,
+  getWaitingTimeText,
+  isNearClosingForCheckout,
+} from "@/lib/utils";
 import type { CreateOrderPayload } from "@/types";
 
 export function CheckoutPageClient() {
@@ -24,21 +30,34 @@ export function CheckoutPageClient() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [waitingMinutes, setWaitingMinutes] = useState<number | null>(null);
+  const [closingMinutesLeft, setClosingMinutesLeft] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    void fetch("/api/settings")
-      .then((res) => res.json())
-      .then((data) => {
-        if (!cancelled && data.waitingTime?.minutes != null) {
-          setWaitingMinutes(Number(data.waitingTime.minutes));
-        }
-      })
-      .catch(() => {
-        /* ignore */
-      });
+    const refresh = () => {
+      void fetch("/api/settings")
+        .then((res) => res.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (data.waitingTime?.minutes != null) {
+            setWaitingMinutes(Number(data.waitingTime.minutes));
+          }
+          const closingTime =
+            typeof data.settings?.closing_time === "string"
+              ? data.settings.closing_time
+              : "21:00:00";
+          const near = isNearClosingForCheckout(closingTime, new Date(), data.settings);
+          setClosingMinutesLeft(near.near ? near.minutesLeft : null);
+        })
+        .catch(() => {
+          /* ignore */
+        });
+    };
+    refresh();
+    const interval = setInterval(refresh, 30000);
     return () => {
       cancelled = true;
+      clearInterval(interval);
     };
   }, []);
 
@@ -107,6 +126,12 @@ export function CheckoutPageClient() {
           {pickupType === "asap" && (
             <p className="mt-1 text-teal-900">
               ASAP orders are prepared in about this time after the restaurant accepts your order.
+            </p>
+          )}
+          {closingMinutesLeft != null && pickupType === "asap" && (
+            <p className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-950">
+              Store is closing in {closingMinutesLeft} minute
+              {closingMinutesLeft === 1 ? "" : "s"}! Please come to pay before we close. Thank you.
             </p>
           )}
         </div>

@@ -104,6 +104,170 @@ function pickupIsoFromPrepMinutes(minutes: string): string {
   return addMinutes(new Date(), prepMinutes).toISOString();
 }
 
+function PopupPendingActions({
+  order,
+  pickupInputs,
+  setPickupInputs,
+  reasonInputs,
+  setReasonInputs,
+  customReasonInputs,
+  setCustomReasonInputs,
+  waitingMinutes,
+  now,
+  onUpdateOrder,
+}: {
+  order: Order;
+  pickupInputs: Record<string, string>;
+  setPickupInputs: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  reasonInputs: Record<string, string>;
+  setReasonInputs: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  customReasonInputs: Record<string, string>;
+  setCustomReasonInputs: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  waitingMinutes: number;
+  now: Date;
+  onUpdateOrder: (
+    orderId: string,
+    status: string,
+    pickupTime?: string,
+    statusReason?: string,
+    prepMinutes?: number
+  ) => void;
+}) {
+  const acceptDetails = acceptPickupDetails(order, pickupInputs, waitingMinutes);
+  const acceptRemaining = acceptSecondsRemaining(order, now.getTime());
+
+  return (
+    <div className="mt-4 space-y-2 border-t border-amber-100 pt-3">
+      {order.pickup_type === "asap" && (
+        <div>
+          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-stone-400">
+            Prep (min)
+          </p>
+          <div className="grid grid-cols-5 gap-1.5">
+            {PREP_MINUTE_OPTIONS_PRIMARY.map((minutes) => (
+              <button
+                key={minutes}
+                type="button"
+                onClick={() => {
+                  setPickupInputs((prev) => ({ ...prev, [order.id]: minutes }));
+                }}
+                className={`min-h-11 rounded-lg px-1 py-2.5 text-sm font-extrabold sm:text-base ${
+                  pickupInputs[order.id] === minutes
+                    ? "bg-stone-900 text-white"
+                    : "bg-stone-100 text-stone-800"
+                }`}
+              >
+                {minutes}
+              </button>
+            ))}
+          </div>
+          <div className="mt-1.5 grid grid-cols-6 gap-1.5">
+            {PREP_MINUTE_OPTIONS_EXTENDED.map((minutes) => (
+              <button
+                key={minutes}
+                type="button"
+                onClick={() => {
+                  setPickupInputs((prev) => ({ ...prev, [order.id]: minutes }));
+                }}
+                className={`min-h-11 rounded-lg px-1 py-2.5 text-sm font-extrabold sm:text-base ${
+                  pickupInputs[order.id] === minutes
+                    ? "bg-stone-900 text-white"
+                    : "bg-amber-100 text-amber-950"
+                }`}
+              >
+                {minutes}
+              </button>
+            ))}
+          </div>
+          <input
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            value={pickupInputs[order.id] ?? ""}
+            onChange={(e) => {
+              const value = e.target.value.replace(/\D/g, "").slice(0, 3);
+              setPickupInputs((prev) => ({ ...prev, [order.id]: value }));
+            }}
+            placeholder="Custom min"
+            className="mt-2 w-full rounded-lg border border-stone-200 px-3 py-2.5 text-base"
+          />
+        </div>
+      )}
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={() =>
+            onUpdateOrder(
+              order.id,
+              "accepted",
+              acceptDetails.pickupTime,
+              undefined,
+              acceptDetails.prepMinutes
+            )
+          }
+          className={`min-h-14 rounded-xl px-3 py-2 text-base font-bold text-white ${
+            acceptRemaining !== null && acceptRemaining <= 60
+              ? "bg-amber-600 hover:bg-amber-700"
+              : "bg-emerald-600 hover:bg-emerald-700"
+          }`}
+        >
+          <span className="block leading-tight">Accept</span>
+          {acceptRemaining !== null && (
+            <span
+              className={`mt-0.5 block font-mono text-lg font-extrabold tabular-nums leading-none ${
+                acceptRemaining <= 60 ? "text-amber-100" : "text-emerald-100"
+              }`}
+            >
+              {Math.floor(acceptRemaining / 60)}:
+              {String(acceptRemaining % 60).padStart(2, "0")}
+            </span>
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            onUpdateOrder(
+              order.id,
+              "rejected",
+              undefined,
+              reasonInputs[order.id] === "Custom message"
+                ? customReasonInputs[order.id] || "Custom message"
+                : reasonInputs[order.id] ?? "Out of items"
+            )
+          }
+          className="min-h-14 rounded-xl bg-red-600 px-3 py-2 text-base font-bold text-white hover:bg-red-700"
+        >
+          Reject
+        </button>
+      </div>
+      <select
+        value={reasonInputs[order.id] ?? "Out of items"}
+        onChange={(e) =>
+          setReasonInputs((prev) => ({ ...prev, [order.id]: e.target.value }))
+        }
+        className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm font-medium text-stone-700"
+      >
+        <option>Out of items</option>
+        <option>Restaurant too busy</option>
+        <option>Custom message</option>
+      </select>
+      {reasonInputs[order.id] === "Custom message" && (
+        <input
+          type="text"
+          placeholder="Reject message"
+          onChange={(e) =>
+            setCustomReasonInputs((prev) => ({
+              ...prev,
+              [order.id]: e.target.value,
+            }))
+          }
+          className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm"
+        />
+      )}
+    </div>
+  );
+}
+
 function OrderExtras({ order }: { order: Order }) {
   const extras: string[] = [];
   extras.push(order.cutlery ? `Cutlery x${order.cutlery_quantity}` : "No cutlery");
@@ -169,7 +333,7 @@ function OrderItems({
           {showDivider && <div className="my-1.5 border-t border-stone-200" />}
           <div className={isGF ? "rounded-md bg-purple-50 px-1.5 py-1 text-purple-950" : "px-1.5 py-0.5"}>
             <p className="text-[15px] font-medium text-stone-800">
-              {item.quantity} X {toDisplayName(item.name)}
+              {item.quantity} x {toDisplayName(item.name)}
               {optionSummary ? (
                 <span className="font-normal text-sky-700"> - {optionSummary}</span>
               ) : null}
@@ -932,13 +1096,10 @@ export function AdminPageClient() {
                 const rejected = order.status === "rejected";
                 const customerCancelled =
                   cancelled && order.status_reason === CUSTOMER_CANCELLED_REASON;
-                const acceptRemaining = acceptSecondsRemaining(order, now.getTime());
                 const countdown =
                   order.status === "accepted"
                     ? formatCountdown(order.pickup_time ?? null, now)
                     : null;
-
-                const acceptDetails = acceptPickupDetails(order, pickupInputs, waitingMinutes);
 
                 const orderHeader = (
                   <>
@@ -1012,7 +1173,9 @@ export function AdminPageClient() {
                         onClick={() => setItemsPopupOrderId(order.id)}
                         className="rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-sm font-bold text-teal-800 hover:bg-teal-100"
                       >
-                        View menu ({itemCount} item{itemCount === 1 ? "" : "s"})
+                        {isPending
+                          ? `Review & accept (${itemCount} item${itemCount === 1 ? "" : "s"})`
+                          : `View menu (${itemCount} item${itemCount === 1 ? "" : "s"})`}
                       </button>
                       <div className="text-right">
                         <p className="text-lg font-extrabold text-stone-950">
@@ -1023,137 +1186,6 @@ export function AdminPageClient() {
                         </p>
                       </div>
                     </div>
-                  </div>
-                );
-
-                const pendingActions = isPending && (
-                  <div className="mt-3 space-y-2 border-t border-amber-100 pt-3">
-                    {order.pickup_type === "asap" && (
-                      <div>
-                        <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-stone-400">
-                          Prep (min)
-                        </p>
-                        <div className="grid grid-cols-5 gap-1.5">
-                          {PREP_MINUTE_OPTIONS_PRIMARY.map((minutes) => (
-                            <button
-                              key={minutes}
-                              type="button"
-                              onClick={() => {
-                                setPickupInputs((prev) => ({ ...prev, [order.id]: minutes }));
-                              }}
-                              className={`min-h-11 rounded-lg px-1 py-2.5 text-sm font-extrabold sm:text-base ${
-                                pickupInputs[order.id] === minutes
-                                  ? "bg-stone-900 text-white"
-                                  : "bg-stone-100 text-stone-800"
-                              }`}
-                            >
-                              {minutes}
-                            </button>
-                          ))}
-                        </div>
-                        <div className="mt-1.5 grid grid-cols-6 gap-1.5">
-                          {PREP_MINUTE_OPTIONS_EXTENDED.map((minutes) => (
-                            <button
-                              key={minutes}
-                              type="button"
-                              onClick={() => {
-                                setPickupInputs((prev) => ({ ...prev, [order.id]: minutes }));
-                              }}
-                              className={`min-h-11 rounded-lg px-1 py-2.5 text-sm font-extrabold sm:text-base ${
-                                pickupInputs[order.id] === minutes
-                                  ? "bg-stone-900 text-white"
-                                  : "bg-amber-100 text-amber-950"
-                              }`}
-                            >
-                              {minutes}
-                            </button>
-                          ))}
-                        </div>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          pattern="[0-9]*"
-                          value={pickupInputs[order.id] ?? ""}
-                          onChange={(e) => {
-                            const value = e.target.value.replace(/\D/g, "").slice(0, 3);
-                            setPickupInputs((prev) => ({ ...prev, [order.id]: value }));
-                          }}
-                          placeholder="Custom min"
-                          className="mt-2 w-full rounded-lg border border-stone-200 px-3 py-2.5 text-base"
-                        />
-                      </div>
-                    )}
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          updateOrder(
-                            order.id,
-                            "accepted",
-                            acceptDetails.pickupTime,
-                            undefined,
-                            acceptDetails.prepMinutes
-                          )
-                        }
-                        className={`min-h-14 rounded-xl px-3 py-2 text-base font-bold text-white ${
-                          acceptRemaining !== null && acceptRemaining <= 60
-                            ? "bg-amber-600 hover:bg-amber-700"
-                            : "bg-emerald-600 hover:bg-emerald-700"
-                        }`}
-                      >
-                        <span className="block leading-tight">Accept</span>
-                        {acceptRemaining !== null && (
-                          <span
-                            className={`mt-0.5 block font-mono text-lg font-extrabold tabular-nums leading-none ${
-                              acceptRemaining <= 60 ? "text-amber-100" : "text-emerald-100"
-                            }`}
-                          >
-                            {Math.floor(acceptRemaining / 60)}:
-                            {String(acceptRemaining % 60).padStart(2, "0")}
-                          </span>
-                        )}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          updateOrder(
-                            order.id,
-                            "rejected",
-                            undefined,
-                            reasonInputs[order.id] === "Custom message"
-                              ? customReasonInputs[order.id] || "Custom message"
-                              : reasonInputs[order.id] ?? "Out of items"
-                          )
-                        }
-                        className="min-h-14 rounded-xl bg-red-600 px-3 py-2 text-base font-bold text-white hover:bg-red-700"
-                      >
-                        Reject
-                      </button>
-                    </div>
-                    <select
-                      value={reasonInputs[order.id] ?? "Out of items"}
-                      onChange={(e) =>
-                        setReasonInputs((prev) => ({ ...prev, [order.id]: e.target.value }))
-                      }
-                      className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm font-medium text-stone-700"
-                    >
-                      <option>Out of items</option>
-                      <option>Restaurant too busy</option>
-                      <option>Custom message</option>
-                    </select>
-                    {reasonInputs[order.id] === "Custom message" && (
-                      <input
-                        type="text"
-                        placeholder="Reject message"
-                        onChange={(e) =>
-                          setCustomReasonInputs((prev) => ({
-                            ...prev,
-                            [order.id]: e.target.value,
-                          }))
-                        }
-                        className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm"
-                      />
-                    )}
                   </div>
                 );
 
@@ -1173,7 +1205,6 @@ export function AdminPageClient() {
                       <>
                         <div className="text-left">{orderHeader}</div>
                         {itemsBlock}
-                        {pendingActions}
                       </>
                     ) : (
                       <>
@@ -1265,7 +1296,7 @@ export function AdminPageClient() {
               onClick={() => setItemsPopupOrderId(null)}
             >
               <div
-                className="max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-4 shadow-xl"
+                className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-4 shadow-xl"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="mb-3 flex items-start justify-between gap-3">
@@ -1301,6 +1332,20 @@ export function AdminPageClient() {
                   </p>
                   <OrderExtras order={itemsPopupOrder} />
                 </div>
+                {itemsPopupOrder.status === "pending" && (
+                  <PopupPendingActions
+                    order={itemsPopupOrder}
+                    pickupInputs={pickupInputs}
+                    setPickupInputs={setPickupInputs}
+                    reasonInputs={reasonInputs}
+                    setReasonInputs={setReasonInputs}
+                    customReasonInputs={customReasonInputs}
+                    setCustomReasonInputs={setCustomReasonInputs}
+                    waitingMinutes={waitingMinutes}
+                    now={now}
+                    onUpdateOrder={updateOrder}
+                  />
+                )}
               </div>
             </div>
           )}

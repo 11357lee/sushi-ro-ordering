@@ -29,7 +29,6 @@ const PREP_MINUTE_OPTIONS_PRIMARY = ["5", "10", "15", "20", "25", "30", "35", "4
 const PREP_MINUTE_OPTIONS_EXTENDED = ["60", "70", "80", "90", "100", "120"];
 const CANCEL_ALERT_STORAGE_KEY = "sushi-ro-admin-cancel-alerts";
 const REMEMBER_DEVICE_KEY = "sushi-ro-admin-remembered-key";
-const UNLOCK_SOUND = "/sounds/order-asap.mp3";
 
 type AdminAuthFailure = "empty" | "invalid" | "network";
 type AdminAuthResult = { ok: true } | { ok: false; reason: AdminAuthFailure };
@@ -170,7 +169,7 @@ function OrderItems({
           {showDivider && <div className="my-1.5 border-t border-stone-200" />}
           <div className={isGF ? "rounded-md bg-purple-50 px-1.5 py-1 text-purple-950" : "px-1.5 py-0.5"}>
             <p className="text-[15px] font-medium text-stone-800">
-              {item.quantity}x{toDisplayName(item.name)}
+              {item.quantity} X {toDisplayName(item.name)}
               {optionSummary ? (
                 <span className="font-normal text-sky-700"> - {optionSummary}</span>
               ) : null}
@@ -207,7 +206,6 @@ export function AdminPageClient() {
   const [pickupInputs, setPickupInputs] = useState<Record<string, string>>({});
   const [reasonInputs, setReasonInputs] = useState<Record<string, string>>({});
   const [customReasonInputs, setCustomReasonInputs] = useState<Record<string, string>>({});
-  const audioUnlockRef = useRef<HTMLAudioElement | null>(null);
   const cancellationAlertedIdsRef = useRef<Set<string>>(new Set());
   const cancellationAlertsReadyRef = useRef(false);
   const ordersReadyRef = useRef(false);
@@ -375,34 +373,24 @@ export function AdminPageClient() {
     adminSound.playTest(kind);
   }, []);
 
-  const unlockAudio = useCallback(() => {
-    const audio = audioUnlockRef.current ?? new Audio(UNLOCK_SOUND);
-    audioUnlockRef.current = audio;
-    audio.volume = 0.01;
-    void audio
-      .play()
-      .then(() => {
-        audio.pause();
-        audio.currentTime = 0;
-        setSoundUnlocked(true);
-        setSoundEnabled(true);
-      })
-      .catch(() => {
-        setSoundUnlocked(true);
-      });
+  const unlockAudio = useCallback(async () => {
+    const ok = await adminSound.unlock();
+    setSoundUnlocked(ok || adminSound.isUnlocked());
+    if (ok) setSoundEnabled(true);
   }, []);
 
   const enableSound = () => {
     setSoundEnabled(true);
-    unlockAudio();
-    playTestSound("asap");
+    void unlockAudio().then(() => {
+      playTestSound("asap");
+    });
   };
 
   useEffect(() => {
     if (!authenticated || soundUnlocked) return;
 
     const unlockOnGesture = () => {
-      unlockAudio();
+      void unlockAudio();
     };
 
     window.addEventListener("pointerdown", unlockOnGesture, { once: true });
@@ -414,6 +402,22 @@ export function AdminPageClient() {
       window.removeEventListener("keydown", unlockOnGesture);
     };
   }, [authenticated, soundUnlocked, unlockAudio]);
+
+  // iPad Safari suspends audio when the tab is backgrounded — resume on focus.
+  useEffect(() => {
+    if (!authenticated || !soundUnlocked) return;
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        adminSound.resumeIfNeeded();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, [authenticated, soundUnlocked]);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -438,7 +442,7 @@ export function AdminPageClient() {
     ordersReadyRef.current = false;
     cancellationAlertsReadyRef.current = false;
     // Unlock audio during this tap so order alerts work without a second touch.
-    unlockAudio();
+    void unlockAudio();
     const normalizedKey = normalizeAdminKey(apiKey);
     setApiKey(normalizedKey);
     const result = await authenticateWithKey(normalizedKey);
@@ -794,8 +798,14 @@ export function AdminPageClient() {
           onClick={enableSound}
           className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-3.5 text-base font-extrabold text-stone-950 shadow-sm"
         >
-          Tap to enable loud order sounds
+          Tap once to enable order sounds (required on iPad)
         </button>
+      )}
+      {authenticated && soundUnlocked && (
+        <p className="mb-2 text-xs text-stone-500">
+          Keep this admin tab open. iPad Safari only plays alerts after you unlock sound, and may
+          pause if the tab is in the background.
+        </p>
       )}
       <div className="sticky top-0 z-20 -mx-4 space-y-3 border-b border-stone-200 bg-stone-100 px-4 py-3">
         <div className="flex flex-wrap items-center gap-2">
@@ -1004,9 +1014,14 @@ export function AdminPageClient() {
                       >
                         View menu ({itemCount} item{itemCount === 1 ? "" : "s"})
                       </button>
-                      <p className="text-lg font-extrabold text-stone-950">
-                        {formatPrice(order.total ?? order.subtotal)}
-                      </p>
+                      <div className="text-right">
+                        <p className="text-lg font-extrabold text-stone-950">
+                          {formatPrice(order.total ?? order.subtotal)}
+                        </p>
+                        <p className="text-xs font-medium text-stone-500">
+                          Tax {formatPrice(order.tax ?? 0)}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 );
@@ -1264,6 +1279,10 @@ export function AdminPageClient() {
                     </p>
                     <p className="mt-1 text-base font-semibold text-stone-900">
                       {formatPrice(itemsPopupOrder.total ?? itemsPopupOrder.subtotal)}
+                    </p>
+                    <p className="text-sm text-stone-600">
+                      Sub {formatPrice(itemsPopupOrder.subtotal)} · Tax{" "}
+                      {formatPrice(itemsPopupOrder.tax ?? 0)}
                     </p>
                   </div>
                   <button

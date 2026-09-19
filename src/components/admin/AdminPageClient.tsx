@@ -724,7 +724,7 @@ export function AdminPageClient() {
       <div className="mx-auto max-w-md px-4 py-16">
         <h1 className="text-2xl font-bold text-stone-900">Admin panel</h1>
         <p className="mt-2 text-sm text-stone-600">
-          Order management for Sushi-Ro. Uses the same API as a future iOS app.
+          Order management for Sushi-Ro. Same board as the iPad Admin app.
         </p>
         <form
           method="post"

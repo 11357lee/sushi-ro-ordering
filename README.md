@@ -15,14 +15,15 @@ Responsive pickup-only online ordering for [Sushi-Ro](https://www.sushi-ro.com),
 - **Login** — first name + phone for reorder/history
 - **Tracking** — lookup orders by phone number
 
-### Admin API (iOS-ready)
+### Admin API (iPad App Store shell)
 Protected by `x-admin-key` header. Endpoints at `/api/admin`:
 - List pending/accepted orders
 - Accept / reject / complete orders
 - Update waiting time (15 / 30 / 60 / 120 min)
 - Toggle open/closed status
 
-Web admin panel: `/admin`
+Web admin panel: `/admin`  
+Native iPad shell (Capacitor, portrait, App Store): see **[docs/ADMIN_IPAD_APP_STORE.md](docs/ADMIN_IPAD_APP_STORE.md)**
 
 ## Tech Stack
 

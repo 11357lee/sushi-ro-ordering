@@ -137,13 +137,13 @@ function PopupPendingActions({
   const acceptRemaining = acceptSecondsRemaining(order, now.getTime());
 
   return (
-    <div className="mt-3 space-y-2">
+    <div className="mt-2 space-y-1.5">
       {order.pickup_type === "asap" && (
         <div>
-          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-stone-400">
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-stone-400">
             Prep (min)
           </p>
-          <div className="grid grid-cols-5 gap-1.5">
+          <div className="grid grid-cols-5 gap-1">
             {PREP_MINUTE_OPTIONS_PRIMARY.map((minutes) => (
               <button
                 key={minutes}
@@ -151,7 +151,7 @@ function PopupPendingActions({
                 onClick={() => {
                   setPickupInputs((prev) => ({ ...prev, [order.id]: minutes }));
                 }}
-                className={`min-h-11 rounded-lg px-1 py-2.5 text-sm font-extrabold sm:text-base ${
+                className={`min-h-8 rounded-md px-0.5 py-1.5 text-xs font-bold sm:text-sm ${
                   pickupInputs[order.id] === minutes
                     ? "bg-stone-900 text-white"
                     : "bg-stone-100 text-stone-800"
@@ -161,7 +161,7 @@ function PopupPendingActions({
               </button>
             ))}
           </div>
-          <div className="mt-1.5 grid grid-cols-6 gap-1.5">
+          <div className="mt-1 grid grid-cols-6 gap-1">
             {PREP_MINUTE_OPTIONS_EXTENDED.map((minutes) => (
               <button
                 key={minutes}
@@ -169,7 +169,7 @@ function PopupPendingActions({
                 onClick={() => {
                   setPickupInputs((prev) => ({ ...prev, [order.id]: minutes }));
                 }}
-                className={`min-h-11 rounded-lg px-1 py-2.5 text-sm font-extrabold sm:text-base ${
+                className={`min-h-8 rounded-md px-0.5 py-1.5 text-xs font-bold sm:text-sm ${
                   pickupInputs[order.id] === minutes
                     ? "bg-stone-900 text-white"
                     : "bg-amber-100 text-amber-950"
@@ -189,11 +189,11 @@ function PopupPendingActions({
               setPickupInputs((prev) => ({ ...prev, [order.id]: value }));
             }}
             placeholder="Custom min"
-            className="mt-2 w-full rounded-lg border border-stone-200 px-3 py-2.5 text-base"
+            className="mt-1.5 w-full rounded-md border border-stone-200 px-2 py-1.5 text-sm"
           />
         </div>
       )}
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-1.5">
         <button
           type="button"
           onClick={() =>
@@ -205,16 +205,16 @@ function PopupPendingActions({
               acceptDetails.prepMinutes
             )
           }
-          className={`min-h-14 rounded-xl px-3 py-2 text-base font-bold text-white ${
+          className={`min-h-10 rounded-lg px-2 py-1.5 text-sm font-bold text-white ${
             acceptRemaining !== null && acceptRemaining <= 60
               ? "bg-amber-600 hover:bg-amber-700"
               : "bg-emerald-600 hover:bg-emerald-700"
           }`}
         >
-          <span className="block leading-tight">Accept</span>
+          <span className="leading-tight">Accept</span>
           {acceptRemaining !== null && (
             <span
-              className={`mt-0.5 block font-mono text-lg font-extrabold tabular-nums leading-none ${
+              className={`ml-1.5 font-mono text-sm font-extrabold tabular-nums ${
                 acceptRemaining <= 60 ? "text-amber-100" : "text-emerald-100"
               }`}
             >
@@ -235,7 +235,7 @@ function PopupPendingActions({
                 : reasonInputs[order.id] ?? "Out of items"
             )
           }
-          className="min-h-14 rounded-xl bg-red-600 px-3 py-2 text-base font-bold text-white hover:bg-red-700"
+          className="min-h-10 rounded-lg bg-red-600 px-2 py-1.5 text-sm font-bold text-white hover:bg-red-700"
         >
           Reject
         </button>
@@ -245,7 +245,7 @@ function PopupPendingActions({
         onChange={(e) =>
           setReasonInputs((prev) => ({ ...prev, [order.id]: e.target.value }))
         }
-        className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm font-medium text-stone-700"
+        className="w-full rounded-md border border-stone-200 px-2 py-1.5 text-xs font-medium text-stone-700"
       >
         <option>Out of items</option>
         <option>Restaurant too busy</option>
@@ -261,7 +261,7 @@ function PopupPendingActions({
               [order.id]: e.target.value,
             }))
           }
-          className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm"
+          className="w-full rounded-md border border-stone-200 px-2 py-1.5 text-xs"
         />
       )}
     </div>
@@ -327,12 +327,12 @@ function OrderItems({
   });
 
   return (
-    <ul className="space-y-2 rounded-lg bg-stone-50 px-2.5 py-2.5 text-sm leading-relaxed">
+    <ul className="space-y-1 rounded-lg bg-stone-50 px-2 py-2 text-sm leading-snug">
       {rows.map(({ item, isGF, optionSummary, showDivider }) => (
         <li key={item.id}>
-          {showDivider && <div className="my-1.5 border-t border-stone-200" />}
-          <div className={isGF ? "rounded-md bg-purple-50 px-1.5 py-1 text-purple-950" : "px-1.5 py-0.5"}>
-            <p className="text-[15px] font-medium text-stone-800">
+          {showDivider && <div className="my-1 border-t border-stone-200" />}
+          <div className={isGF ? "rounded-md bg-purple-50 px-1.5 py-0.5 text-purple-950" : "px-1.5 py-0.5"}>
+            <p className="text-sm font-medium text-stone-800">
               {item.quantity} x {toDisplayName(item.name)}
               {optionSummary ? (
                 <span className="font-normal text-sky-700"> - {optionSummary}</span>
@@ -340,7 +340,7 @@ function OrderItems({
               {isGF && <span className="ml-1.5 text-xs font-normal text-purple-700">GF</span>}
             </p>
             {item.special_request && (
-              <p className="text-sm font-normal italic text-red-600">{item.special_request}</p>
+              <p className="text-xs font-normal italic text-red-600">{item.special_request}</p>
             )}
           </div>
         </li>
@@ -1296,23 +1296,25 @@ export function AdminPageClient() {
               onClick={() => setItemsPopupOrderId(null)}
             >
               <div
-                className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-xl"
+                className="flex h-[90vh] max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-xl"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="shrink-0 border-b border-stone-100 px-4 pb-3 pt-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-lg font-semibold text-stone-900">
+                <div className="shrink-0 border-b border-stone-100 px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-stone-900">
                         {customerTitle(itemsPopupOrder)}
+                        <span className="ml-1.5 font-normal text-stone-500">
+                          {formatPickupTime(itemsPopupOrder.created_at)} ·{" "}
+                          <span className="capitalize">{itemsPopupOrder.status}</span>
+                        </span>
                       </p>
-                      <p className="text-sm text-stone-600">
-                        {formatPickupTime(itemsPopupOrder.created_at)} ·{" "}
-                        <span className="capitalize">{itemsPopupOrder.status}</span>
-                      </p>
-                      <p className="mt-1 text-base font-semibold text-stone-900">
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="text-sm font-semibold tabular-nums text-stone-900">
                         {formatPrice(itemsPopupOrder.total ?? itemsPopupOrder.subtotal)}
                       </p>
-                      <p className="text-sm text-stone-600">
+                      <p className="text-[10px] leading-tight text-stone-500">
                         Sub {formatPrice(itemsPopupOrder.subtotal)} · Tax{" "}
                         {formatPrice(itemsPopupOrder.tax ?? 0)}
                       </p>
@@ -1320,26 +1322,23 @@ export function AdminPageClient() {
                     <button
                       type="button"
                       onClick={() => setItemsPopupOrderId(null)}
-                      className="rounded-lg border border-stone-200 px-3 py-1.5 text-sm font-semibold text-stone-700 hover:bg-stone-50"
+                      className="shrink-0 rounded-md border border-stone-200 px-2 py-1 text-xs font-semibold text-stone-700 hover:bg-stone-50"
                     >
                       Close
                     </button>
                   </div>
-                  <div className="mt-3">
-                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-stone-400">
-                      Extras
-                    </p>
+                  <div className="mt-1.5">
                     <OrderExtras order={itemsPopupOrder} />
                   </div>
                 </div>
 
-                <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+                <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2">
                   <SpecialNotes order={itemsPopupOrder} />
                   <OrderItems order={itemsPopupOrder} menuItemsById={menuItemsById} />
                 </div>
 
                 {itemsPopupOrder.status === "pending" && (
-                  <div className="shrink-0 border-t border-amber-100 bg-white px-4 pb-4 pt-1">
+                  <div className="shrink-0 border-t border-amber-100 bg-white px-3 pb-3 pt-1">
                     <PopupPendingActions
                       order={itemsPopupOrder}
                       pickupInputs={pickupInputs}

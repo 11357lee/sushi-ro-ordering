@@ -1296,55 +1296,63 @@ export function AdminPageClient() {
               onClick={() => setItemsPopupOrderId(null)}
             >
               <div
-                className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-4 shadow-xl"
+                className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-xl"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="mb-3 flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-lg font-semibold text-stone-900">
-                      {customerTitle(itemsPopupOrder)}
-                    </p>
-                    <p className="text-sm text-stone-600">
-                      {formatPickupTime(itemsPopupOrder.created_at)} ·{" "}
-                      <span className="capitalize">{itemsPopupOrder.status}</span>
-                    </p>
-                    <p className="mt-1 text-base font-semibold text-stone-900">
-                      {formatPrice(itemsPopupOrder.total ?? itemsPopupOrder.subtotal)}
-                    </p>
-                    <p className="text-sm text-stone-600">
-                      Sub {formatPrice(itemsPopupOrder.subtotal)} · Tax{" "}
-                      {formatPrice(itemsPopupOrder.tax ?? 0)}
-                    </p>
+                <div className="shrink-0 border-b border-stone-100 px-4 pb-3 pt-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-lg font-semibold text-stone-900">
+                        {customerTitle(itemsPopupOrder)}
+                      </p>
+                      <p className="text-sm text-stone-600">
+                        {formatPickupTime(itemsPopupOrder.created_at)} ·{" "}
+                        <span className="capitalize">{itemsPopupOrder.status}</span>
+                      </p>
+                      <p className="mt-1 text-base font-semibold text-stone-900">
+                        {formatPrice(itemsPopupOrder.total ?? itemsPopupOrder.subtotal)}
+                      </p>
+                      <p className="text-sm text-stone-600">
+                        Sub {formatPrice(itemsPopupOrder.subtotal)} · Tax{" "}
+                        {formatPrice(itemsPopupOrder.tax ?? 0)}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setItemsPopupOrderId(null)}
+                      className="rounded-lg border border-stone-200 px-3 py-1.5 text-sm font-semibold text-stone-700 hover:bg-stone-50"
+                    >
+                      Close
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setItemsPopupOrderId(null)}
-                    className="rounded-lg border border-stone-200 px-3 py-1.5 text-sm font-semibold text-stone-700 hover:bg-stone-50"
-                  >
-                    Close
-                  </button>
+                  <div className="mt-3">
+                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-stone-400">
+                      Extras
+                    </p>
+                    <OrderExtras order={itemsPopupOrder} />
+                  </div>
                 </div>
-                <SpecialNotes order={itemsPopupOrder} />
-                <OrderItems order={itemsPopupOrder} menuItemsById={menuItemsById} />
-                <div className="mt-3">
-                  <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-stone-400">
-                    Extras
-                  </p>
-                  <OrderExtras order={itemsPopupOrder} />
+
+                <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+                  <SpecialNotes order={itemsPopupOrder} />
+                  <OrderItems order={itemsPopupOrder} menuItemsById={menuItemsById} />
                 </div>
+
                 {itemsPopupOrder.status === "pending" && (
-                  <PopupPendingActions
-                    order={itemsPopupOrder}
-                    pickupInputs={pickupInputs}
-                    setPickupInputs={setPickupInputs}
-                    reasonInputs={reasonInputs}
-                    setReasonInputs={setReasonInputs}
-                    customReasonInputs={customReasonInputs}
-                    setCustomReasonInputs={setCustomReasonInputs}
-                    waitingMinutes={waitingMinutes}
-                    now={now}
-                    onUpdateOrder={updateOrder}
-                  />
+                  <div className="shrink-0 border-t border-amber-100 bg-white px-4 pb-4 pt-1">
+                    <PopupPendingActions
+                      order={itemsPopupOrder}
+                      pickupInputs={pickupInputs}
+                      setPickupInputs={setPickupInputs}
+                      reasonInputs={reasonInputs}
+                      setReasonInputs={setReasonInputs}
+                      customReasonInputs={customReasonInputs}
+                      setCustomReasonInputs={setCustomReasonInputs}
+                      waitingMinutes={waitingMinutes}
+                      now={now}
+                      onUpdateOrder={updateOrder}
+                    />
+                  </div>
                 )}
               </div>
             </div>

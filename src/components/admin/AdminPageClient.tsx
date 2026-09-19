@@ -137,7 +137,7 @@ function PopupPendingActions({
   const acceptRemaining = acceptSecondsRemaining(order, now.getTime());
 
   return (
-    <div className="mt-4 space-y-2 border-t border-amber-100 pt-3">
+    <div className="mt-3 space-y-2">
       {order.pickup_type === "asap" && (
         <div>
           <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-stone-400">

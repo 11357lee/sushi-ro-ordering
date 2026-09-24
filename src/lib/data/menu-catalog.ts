@@ -1158,8 +1158,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     id: "a1000001-0000-0000-0000-000000000025",
     category_id: CAT.bento,
     name: "VEGGIE BENTO",
-    description:
-      "Rice, grilled veggie, orange, agedashi tofu. Choose one side: Maki (6 cucumber-avocado), Vegetable Tempura, Vegetable gyoza, or vegetable spring roll",
+    description: "Rice, grilled veggie, orange, agedashi tofu, and choice of one side",
     price: 17,
     is_available: true,
     has_roll_options: false,

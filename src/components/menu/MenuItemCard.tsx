@@ -36,8 +36,13 @@ const BENTO_SIDE_NAMES = new Set([
   "Tempura (3 vegetables and 1 Shrimp)",
   "Vegetable Gyoza",
   "Vegetable Spring Roll",
+]);
+
+const VEGGIE_BENTO_SIDE_NAMES = new Set([
   "Maki (6 cucumber-avocado)",
   "Vegetable Tempura",
+  "Vegetable Gyoza",
+  "Vegetable Spring Roll",
 ]);
 
 export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
@@ -68,26 +73,33 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
     { id: "bento-side-spring-roll", name: "Vegetable Spring Roll", price_modifier: 0 },
   ];
   const fallbackVeggieBentoSides: SelectedOption[] = [
-    { id: "veggie-bento-maki", name: "Maki (6 cucumber-avocado)", price_modifier: 0 },
-    { id: "veggie-bento-tempura", name: "Vegetable Tempura", price_modifier: 0 },
-    { id: "veggie-bento-gyoza", name: "Vegetable Gyoza", price_modifier: 0 },
-    { id: "veggie-bento-spring-roll", name: "Vegetable Spring Roll", price_modifier: 0 },
+    { id: "33333333-3333-3333-3333-333333333605", name: "Maki (6 cucumber-avocado)", price_modifier: 0 },
+    { id: "33333333-3333-3333-3333-333333333606", name: "Vegetable Tempura", price_modifier: 0 },
+    { id: "33333333-3333-3333-3333-333333333603", name: "Vegetable Gyoza", price_modifier: 0 },
+    { id: "33333333-3333-3333-3333-333333333604", name: "Vegetable Spring Roll", price_modifier: 0 },
   ];
   const optionChoices = item.options ?? [];
   const bentoMeats = optionChoices.filter((option) => BENTO_MEAT_NAMES.has(option.name));
-  const bentoSidesFromOptions = optionChoices.filter((option) => BENTO_SIDE_NAMES.has(option.name));
-  const bentoSides =
-    bentoSidesFromOptions.length > 0
-      ? bentoSidesFromOptions
-      : isVeggieBento
-        ? fallbackVeggieBentoSides
-        : fallbackBentoSides;
+  const regularBentoSidesFromOptions = optionChoices.filter((option) =>
+    BENTO_SIDE_NAMES.has(option.name)
+  );
+  const veggieBentoSidesFromOptions = optionChoices.filter((option) =>
+    VEGGIE_BENTO_SIDE_NAMES.has(option.name)
+  );
+  const bentoSides = isVeggieBento
+    ? veggieBentoSidesFromOptions.length === 4
+      ? veggieBentoSidesFromOptions
+      : fallbackVeggieBentoSides
+    : regularBentoSidesFromOptions.length > 0
+      ? regularBentoSidesFromOptions
+      : fallbackBentoSides;
   const isBentoBuilder =
     isBento &&
     !isVeggieBento &&
     !isSushiPizza &&
     (item.name.toLowerCase() === "bento box" || bentoMeats.length > 0);
-  const needsBentoSide = (isBentoBuilder || isVeggieBento) && !isSushiPizza;
+  // Same choose-one side flow as regular bento (veggie has sides only, no meat).
+  const needsBentoSide = isBentoBuilder || isVeggieBento;
   const nigiriSashimiOptions = isNigiriSashimi ? optionChoices : [];
   const requiredChoices = optionChoices.filter((option) => isRequiredChoiceOption(option));
   const multiMax2Options = optionChoices.filter((option) => isMultiMax2Option(option));
@@ -95,6 +107,7 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
     (option) =>
       !BENTO_MEAT_NAMES.has(option.name) &&
       !BENTO_SIDE_NAMES.has(option.name) &&
+      !VEGGIE_BENTO_SIDE_NAMES.has(option.name) &&
       !isRequiredChoiceOption(option) &&
       !isMultiMax2Option(option) &&
       !(isNigiriSashimi && ["2 pcs Nigiri", "3 pcs Sashimi"].includes(option.name))
@@ -455,7 +468,7 @@ export function MenuItemCard({ item, featured, soldOut }: MenuItemCardProps) {
         </div>
       )}
 
-      {(isBentoBuilder || needsBentoSide) && (
+      {needsBentoSide && (
         <div className="mt-1.5 space-y-0.5 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5">
           <p className="text-[11px] font-semibold text-amber-900">Choose one side *</p>
           {bentoSides.map((side) => (

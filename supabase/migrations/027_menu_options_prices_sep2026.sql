@@ -16,7 +16,7 @@ ON CONFLICT (id) DO UPDATE SET
   sort_order = EXCLUDED.sort_order;
 
 UPDATE menu_items
-SET description = 'Rice, grilled veggie, orange, agedashi tofu. Choose one side: Maki (6 cucumber-avocado), Vegetable Tempura, Vegetable gyoza, or vegetable spring roll'
+SET description = 'Rice, grilled veggie, orange, agedashi tofu, and choice of one side'
 WHERE id = CAST('a1000001-0000-0000-0000-000000000025' AS uuid);
 
 DELETE FROM menu_item_options

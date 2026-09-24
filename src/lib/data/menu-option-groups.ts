@@ -66,16 +66,16 @@ export const REQUIRED_CHOICE_OPTION_IDS = new Set<string>([
   "33333333-3333-3333-3333-333333333752",
   "33333333-3333-3333-3333-333333333753",
   "33333333-3333-3333-3333-333333333754",
-]);
-
-/** Sweet-roll flavours: choose exactly 2 (duplicates allowed). */
-export const MULTI_MAX2_OPTION_IDS = new Set<string>([
+  // Sweet roll flavours (choose one)
   "33333333-3333-3333-3333-333333333801",
   "33333333-3333-3333-3333-333333333802",
   "33333333-3333-3333-3333-333333333803",
 ]);
 
-export const SWEET_ROLL_REQUIRED_FLAVOUR_COUNT = 2;
+/** @deprecated Sweet roll now uses single-select required choices. */
+export const MULTI_MAX2_OPTION_IDS = new Set<string>();
+
+export const SWEET_ROLL_REQUIRED_FLAVOUR_COUNT = 1;
 
 export const SOY_SHEET_OPTION_ID = "33333333-3333-3333-3333-333333333302";
 export const SOY_SHEET_MAKI_MORI_OPTION_ID = "33333333-3333-3333-3333-333333333307";

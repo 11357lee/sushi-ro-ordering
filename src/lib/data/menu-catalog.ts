@@ -193,14 +193,15 @@ export const SASHIMI_MODIFIER_BY_ITEM_ID: Record<string, number> = {
   "a1000001-0000-0000-0000-00000000001b": 3,
   "a1000001-0000-0000-0000-00000000001c": 2.5,
   "a1000001-0000-0000-0000-00000000001d": 3,
-  "a1000001-0000-0000-0000-00000000001e": 3,
-  "a1000001-0000-0000-0000-00000000001f": 3.5,
-  "a1000001-0000-0000-0000-000000000003": 3.5,
+  "a1000001-0000-0000-0000-00000000001e": 3.5,
+  "a1000001-0000-0000-0000-00000000001f": 4,
+  "a1000001-0000-0000-0000-000000000003": 4,
   "a1000001-0000-0000-0000-000000000020": 1.5,
-  "a1000001-0000-0000-0000-000000000021": 3.5,
+  "a1000001-0000-0000-0000-000000000021": 4,
   "a1000001-0000-0000-0000-000000000022": 1.5,
   "a1000001-0000-0000-0000-000000000023": 1.5,
   "a1000001-0000-0000-0000-000000000024": 1.5,
+  "a1000001-0000-0000-0000-000000000062": 2,
   // GF nigiri
   "a2000001-0000-0000-0000-000000000008": 2,
   "a2000001-0000-0000-0000-000000000009": 1.5,
@@ -210,10 +211,10 @@ export const SASHIMI_MODIFIER_BY_ITEM_ID: Record<string, number> = {
   "a2000001-0000-0000-0000-00000000000d": 3,
   "a2000001-0000-0000-0000-00000000000e": 2.5,
   "a2000001-0000-0000-0000-00000000000f": 3,
-  "a2000001-0000-0000-0000-000000000010": 3,
-  "a2000001-0000-0000-0000-000000000011": 3.5,
-  "a2000001-0000-0000-0000-000000000012": 3.5,
-  "a2000001-0000-0000-0000-000000000013": 3.5,
+  "a2000001-0000-0000-0000-000000000010": 3.5,
+  "a2000001-0000-0000-0000-000000000011": 4,
+  "a2000001-0000-0000-0000-000000000012": 4,
+  "a2000001-0000-0000-0000-000000000013": 4,
 };
 
 export const CATALOG_ITEMS: CatalogMenuItem[] = [
@@ -229,6 +230,17 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     sort_order: 1,
   },
   {
+    id: "a1000001-0000-0000-0000-000000000062",
+    category_id: CAT.nigiri,
+    name: "AMAEBI",
+    description: "Sweet Shrimp",
+    price: 6,
+    is_available: true,
+    has_roll_options: false,
+    sort_order: 2,
+    labels: withLabels(undefined, LABEL.raw),
+  },
+  {
     id: "a1000001-0000-0000-0000-000000000018",
     category_id: CAT.nigiri,
     name: "TAI",
@@ -236,7 +248,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     price: 6.5,
     is_available: true,
     has_roll_options: false,
-    sort_order: 2,
+    sort_order: 3,
     labels: withLabels(undefined, LABEL.raw),
   },
   {
@@ -247,7 +259,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     price: 7,
     is_available: true,
     has_roll_options: false,
-    sort_order: 3,
+    sort_order: 4,
   },
   {
     id: "a1000001-0000-0000-0000-00000000001a",
@@ -257,7 +269,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     price: 7,
     is_available: true,
     has_roll_options: false,
-    sort_order: 4,
+    sort_order: 5,
   },
   {
     id: "a1000001-0000-0000-0000-000000000002",
@@ -267,7 +279,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     price: 7,
     is_available: true,
     has_roll_options: false,
-    sort_order: 5,
+    sort_order: 6,
     labels: withLabels(undefined, LABEL.raw),
   },
   {
@@ -278,7 +290,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     price: 7,
     is_available: true,
     has_roll_options: false,
-    sort_order: 6,
+    sort_order: 7,
     labels: withLabels(undefined, LABEL.raw),
   },
   {
@@ -289,7 +301,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     price: 7.5,
     is_available: true,
     has_roll_options: false,
-    sort_order: 7,
+    sort_order: 8,
   },
   {
     id: "a1000001-0000-0000-0000-00000000001d",
@@ -299,7 +311,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     price: 7,
     is_available: true,
     has_roll_options: false,
-    sort_order: 8,
+    sort_order: 9,
     labels: withLabels(undefined, LABEL.raw),
   },
   {
@@ -310,7 +322,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     price: 7.5,
     is_available: true,
     has_roll_options: false,
-    sort_order: 9,
+    sort_order: 10,
     labels: withLabels(undefined, LABEL.raw),
   },
   {
@@ -321,7 +333,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     price: 7.5,
     is_available: true,
     has_roll_options: false,
-    sort_order: 10,
+    sort_order: 11,
     labels: withLabels(undefined, LABEL.raw),
   },
   {
@@ -332,7 +344,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     price: 7.5,
     is_available: true,
     has_roll_options: false,
-    sort_order: 11,
+    sort_order: 12,
     labels: withLabels(undefined, LABEL.raw),
   },
   {
@@ -343,7 +355,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     price: 7.5,
     is_available: true,
     has_roll_options: false,
-    sort_order: 12,
+    sort_order: 13,
   },
   {
     id: "a1000001-0000-0000-0000-000000000021",
@@ -353,7 +365,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     price: 7.5,
     is_available: true,
     has_roll_options: false,
-    sort_order: 13,
+    sort_order: 14,
     labels: withLabels(undefined, LABEL.raw),
   },
   {
@@ -364,7 +376,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     price: 7,
     is_available: true,
     has_roll_options: false,
-    sort_order: 14,
+    sort_order: 15,
     labels: withLabels(undefined, LABEL.raw),
   },
   {
@@ -375,7 +387,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     price: 7.5,
     is_available: true,
     has_roll_options: false,
-    sort_order: 15,
+    sort_order: 16,
     labels: withLabels(undefined, LABEL.raw),
   },
   {
@@ -386,7 +398,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     price: 13.5,
     is_available: true,
     has_roll_options: false,
-    sort_order: 16,
+    sort_order: 17,
     labels: withLabels(undefined, LABEL.raw),
   },
 
@@ -495,6 +507,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 9,
+    labels: [{ id: "l2", name: "Vegetarian", slug: "vegetarian" }],
   },
   {
     id: "a1000001-0000-0000-0000-000000000006",
@@ -1145,7 +1158,8 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     id: "a1000001-0000-0000-0000-000000000025",
     category_id: CAT.bento,
     name: "VEGGIE BENTO",
-    description: "Rice, grilled veggie, orange, agedashi tofu, vegetable tempura",
+    description:
+      "Rice, grilled veggie, orange, agedashi tofu. Choose one side: Maki (6 cucumber-avocado), Vegetable Tempura, Vegetable gyoza, or vegetable spring roll",
     price: 17,
     is_available: true,
     has_roll_options: false,
@@ -1178,7 +1192,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     id: "a1000001-0000-0000-0000-00000000005d",
     category_id: CAT.dessert,
     name: "JAPANESE SWEET ROLL",
-    description: "2 pcs — Choose exactly 2 flavours (Chocolate, Milk, Strawberry). Duplicates allowed",
+    description: "2 pcs — Choose one flavour (Chocolate, Milk, or Strawberry)",
     price: 4.5,
     is_available: true,
     has_roll_options: false,

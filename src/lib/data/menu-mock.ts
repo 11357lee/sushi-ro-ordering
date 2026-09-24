@@ -35,6 +35,7 @@ const OPTIONS: MenuOption[] = [
   { id: "33333333-3333-3333-3333-333333333301", name: "Deep-fried", price_modifier: 1, sort_order: 1 },
   { id: SOY_SHEET_OPTION_ID, name: "Replace with Soy Sheet", price_modifier: 1, sort_order: 2 },
   { id: "33333333-3333-3333-3333-333333333303", name: "Spicy", price_modifier: 1.5, sort_order: 3 },
+  { id: "33333333-3333-3333-3333-333333333304", name: "Spicy", price_modifier: 1, sort_order: 4 },
   { id: "33333333-3333-3333-3333-333333333401", name: "2 pcs Nigiri", price_modifier: 0, sort_order: 10 },
   { id: SASHIMI_OPTION_ID, name: "3 pcs Sashimi", price_modifier: 0, sort_order: 11 },
   { id: "33333333-3333-3333-3333-333333333501", name: "Chicken Teriyaki", price_modifier: 17, sort_order: 20 },
@@ -50,6 +51,8 @@ const OPTIONS: MenuOption[] = [
   { id: "33333333-3333-3333-3333-333333333602", name: "Tempura (3 vegetables and 1 Shrimp)", price_modifier: 0, sort_order: 31 },
   { id: "33333333-3333-3333-3333-333333333603", name: "Vegetable Gyoza", price_modifier: 0, sort_order: 32 },
   { id: "33333333-3333-3333-3333-333333333604", name: "Vegetable Spring Roll", price_modifier: 0, sort_order: 33 },
+  { id: "33333333-3333-3333-3333-333333333605", name: "Maki (6 cucumber-avocado)", price_modifier: 0, sort_order: 34 },
+  { id: "33333333-3333-3333-3333-333333333606", name: "Vegetable Tempura", price_modifier: 0, sort_order: 35 },
 
   // Dragon toppings (relative to base $13 / GF base $14)
   { id: "33333333-3333-3333-3333-333333333701", name: "Green (Avocado)", price_modifier: 0, sort_order: 40 },
@@ -112,6 +115,7 @@ const OPTIONS: MenuOption[] = [
 const NIGIRI_OPTION_ID = "33333333-3333-3333-3333-333333333401";
 const DEEP_FRIED_OPTION_ID = "33333333-3333-3333-3333-333333333301";
 const SPICY_OPTION_ID = "33333333-3333-3333-3333-333333333303";
+const MISO_SPICY_OPTION_ID = "33333333-3333-3333-3333-333333333304";
 
 const BENTO_OPTION_IDS = [
   "33333333-3333-3333-3333-333333333501",
@@ -125,6 +129,13 @@ const BENTO_OPTION_IDS = [
   "33333333-3333-3333-3333-333333333509",
   "33333333-3333-3333-3333-333333333601",
   "33333333-3333-3333-3333-333333333602",
+  "33333333-3333-3333-3333-333333333603",
+  "33333333-3333-3333-3333-333333333604",
+];
+
+const VEGGIE_BENTO_OPTION_IDS = [
+  "33333333-3333-3333-3333-333333333605",
+  "33333333-3333-3333-3333-333333333606",
   "33333333-3333-3333-3333-333333333603",
   "33333333-3333-3333-3333-333333333604",
 ];
@@ -201,6 +212,7 @@ function optionsForItem(item: MenuItem): MenuOption[] {
   }
 
   if (item.id === "a1000001-0000-0000-0000-000000000016") return optionsByIds(BENTO_OPTION_IDS);
+  if (item.id === "a1000001-0000-0000-0000-000000000025") return optionsByIds(VEGGIE_BENTO_OPTION_IDS);
 
   if (item.id === "a1000001-0000-0000-0000-000000000041") return optionsByIds(PIZZA_OPTION_IDS);
 
@@ -278,8 +290,11 @@ function optionsForItem(item: MenuItem): MenuOption[] {
     ]);
   }
 
-  if (item.id === "a1000001-0000-0000-0000-000000000007" || item.id === "a1000001-0000-0000-0000-00000000000b") {
+  if (item.id === "a1000001-0000-0000-0000-000000000007") {
     return optionsByIds([SPICY_OPTION_ID]);
+  }
+  if (item.id === "a1000001-0000-0000-0000-00000000000b") {
+    return optionsByIds([MISO_SPICY_OPTION_ID]);
   }
 
   if (!item.has_roll_options || INARI_ITEM_IDS.has(item.id)) return [];

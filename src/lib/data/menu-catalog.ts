@@ -215,6 +215,7 @@ export const SASHIMI_MODIFIER_BY_ITEM_ID: Record<string, number> = {
   "a2000001-0000-0000-0000-000000000011": 4,
   "a2000001-0000-0000-0000-000000000012": 4,
   "a2000001-0000-0000-0000-000000000013": 4,
+  "a2000001-0000-0000-0000-000000000014": 2,
 };
 
 export const CATALOG_ITEMS: CatalogMenuItem[] = [
@@ -636,7 +637,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     description: "5 pcs — Avocado, smoked salmon, cream cheese, fish roe, crab meat, mayo, wrapped with cucumber",
     price: 14,
     is_available: true,
-    has_roll_options: false,
+    has_roll_options: true,
     sort_order: 11,
     labels: withLabels([{ id: "l3", name: "Cheese", slug: "cheese" }], LABEL.raw),
   },
@@ -1272,6 +1273,17 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     sort_order: 1,
   },
   {
+    id: "a2000001-0000-0000-0000-000000000014",
+    category_id: CAT.gfNigiri,
+    name: "AMAEBI (GF)",
+    description: "Sweet Shrimp",
+    price: 6,
+    is_available: true,
+    has_roll_options: false,
+    sort_order: 2,
+    labels: withLabels(undefined, LABEL.raw),
+  },
+  {
     id: "a2000001-0000-0000-0000-000000000009",
     category_id: CAT.gfNigiri,
     name: "TAI (GF)",
@@ -1279,7 +1291,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     price: 6.5,
     is_available: true,
     has_roll_options: false,
-    sort_order: 2,
+    sort_order: 3,
     labels: withLabels(undefined, LABEL.raw),
   },
   {
@@ -1290,7 +1302,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     price: 7,
     is_available: true,
     has_roll_options: false,
-    sort_order: 3,
+    sort_order: 4,
   },
   {
     id: "a2000001-0000-0000-0000-00000000000b",
@@ -1300,7 +1312,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     price: 7,
     is_available: true,
     has_roll_options: false,
-    sort_order: 4,
+    sort_order: 5,
   },
   {
     id: "a2000001-0000-0000-0000-00000000000c",
@@ -1310,7 +1322,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     price: 7,
     is_available: true,
     has_roll_options: false,
-    sort_order: 5,
+    sort_order: 6,
     labels: withLabels(undefined, LABEL.raw),
   },
   {
@@ -1321,7 +1333,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     price: 7,
     is_available: true,
     has_roll_options: false,
-    sort_order: 6,
+    sort_order: 7,
     labels: withLabels(undefined, LABEL.raw),
   },
   {
@@ -1332,7 +1344,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     price: 7.5,
     is_available: true,
     has_roll_options: false,
-    sort_order: 7,
+    sort_order: 8,
   },
   {
     id: "a2000001-0000-0000-0000-00000000000f",
@@ -1342,7 +1354,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     price: 7,
     is_available: true,
     has_roll_options: false,
-    sort_order: 8,
+    sort_order: 9,
     labels: withLabels(undefined, LABEL.raw),
   },
   {
@@ -1353,7 +1365,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     price: 7.5,
     is_available: true,
     has_roll_options: false,
-    sort_order: 9,
+    sort_order: 10,
     labels: withLabels(undefined, LABEL.raw),
   },
   {
@@ -1364,7 +1376,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     price: 7.5,
     is_available: true,
     has_roll_options: false,
-    sort_order: 10,
+    sort_order: 11,
     labels: withLabels(undefined, LABEL.raw),
   },
   {
@@ -1375,7 +1387,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     price: 7.5,
     is_available: true,
     has_roll_options: false,
-    sort_order: 11,
+    sort_order: 12,
     labels: withLabels(undefined, LABEL.raw),
   },
   {
@@ -1386,7 +1398,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     price: 7.5,
     is_available: true,
     has_roll_options: false,
-    sort_order: 12,
+    sort_order: 13,
     labels: withLabels(undefined, LABEL.raw),
   },
 
@@ -1618,7 +1630,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     description: "5 pcs — Avocado, smoked salmon, cream cheese, mayo, wrapped with cucumber",
     price: 14,
     is_available: true,
-    has_roll_options: false,
+    has_roll_options: true,
     sort_order: 2,
     labels: withLabels([{ id: "l3", name: "Cheese", slug: "cheese" }], LABEL.raw),
   },

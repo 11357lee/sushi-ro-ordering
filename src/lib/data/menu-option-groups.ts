@@ -89,11 +89,15 @@ export function isMultiMax2Option(option: Pick<MenuOption, "id">): boolean {
 }
 
 export function formatChoicePriceLabel(
-  option: Pick<MenuOption, "price_modifier">,
+  option: Pick<MenuOption, "name" | "price_modifier">,
   itemBasePrice: number
 ): string {
   if (itemBasePrice === 0) {
     return option.price_modifier > 0 ? `$${option.price_modifier.toFixed(2)}` : "";
+  }
+  // Nigiri / sashimi: show absolute price (e.g. Amaebi $6 / $8)
+  if (option.name.includes("Nigiri") || option.name.includes("Sashimi")) {
+    return `$${(itemBasePrice + option.price_modifier).toFixed(2)}`;
   }
   if (option.price_modifier === 0) return "";
   const sign = option.price_modifier > 0 ? "+" : "";

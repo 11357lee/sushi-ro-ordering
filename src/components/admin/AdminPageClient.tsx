@@ -327,20 +327,20 @@ function OrderItems({
   });
 
   return (
-    <ul className="space-y-1 rounded-lg bg-stone-50 px-2 py-2 text-sm leading-snug">
+    <ul className="space-y-1 rounded-lg bg-stone-50 px-2 py-2 text-base leading-snug">
       {rows.map(({ item, isGF, optionSummary, showDivider }) => (
         <li key={item.id}>
           {showDivider && <div className="my-1 border-t border-stone-200" />}
           <div className={isGF ? "rounded-md bg-purple-50 px-1.5 py-0.5 text-purple-950" : "px-1.5 py-0.5"}>
-            <p className="text-sm font-medium text-stone-800">
+            <p className="text-base font-medium text-stone-800">
               {item.quantity} x {toDisplayName(item.name)}
               {optionSummary ? (
                 <span className="font-normal text-sky-700"> - {optionSummary}</span>
               ) : null}
-              {isGF && <span className="ml-1.5 text-xs font-normal text-purple-700">GF</span>}
+              {isGF && <span className="ml-1.5 text-sm font-normal text-purple-700">GF</span>}
             </p>
             {item.special_request && (
-              <p className="text-xs font-normal italic text-red-600">{item.special_request}</p>
+              <p className="text-sm font-normal italic text-red-600">{item.special_request}</p>
             )}
           </div>
         </li>
@@ -1118,33 +1118,33 @@ export function AdminPageClient() {
                         Scheduled — accept when ready (no miss timer)
                       </p>
                     )}
-                    <p className="text-lg font-extrabold tracking-tight text-stone-950">
+                    <p className="text-xl font-extrabold tracking-tight text-stone-950">
                       {customerTitle(order)}
                     </p>
-                    <p className="text-sm font-medium text-stone-600">
+                    <p className="text-base font-medium text-stone-600">
                       {formatPickupTime(order.created_at)}
                     </p>
-                    <p className="text-sm font-medium text-stone-700">
+                    <p className="text-base font-medium text-stone-700">
                       {order.customer?.phone ? formatPhoneDisplay(order.customer.phone) : ""} ·{" "}
                       <span className="capitalize">{order.status}</span>
                     </p>
                     {order.pickup_type === "asap" ? (
-                      <p className="text-sm font-bold text-amber-700">ASAP pickup</p>
+                      <p className="text-base font-bold text-amber-700">ASAP pickup</p>
                     ) : (
-                      <p className="text-sm font-bold text-sky-700">
+                      <p className="text-base font-bold text-sky-700">
                         Pickup {formatPickupTime(order.pickup_time)}
                         {countdown && (
-                          <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-bold text-amber-800">
+                          <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-sm font-bold text-amber-800">
                             {countdown}
                           </span>
                         )}
                       </p>
                     )}
                     {order.pickup_type === "asap" && order.status === "accepted" && order.pickup_time && (
-                      <p className="text-sm font-bold text-stone-800">
+                      <p className="text-base font-bold text-stone-800">
                         Ready {formatPickupTime(order.pickup_time)}
                         {countdown && (
-                          <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-bold text-amber-800">
+                          <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-sm font-bold text-amber-800">
                             {countdown}
                           </span>
                         )}
@@ -1178,10 +1178,10 @@ export function AdminPageClient() {
                           : `View menu (${itemCount} item${itemCount === 1 ? "" : "s"})`}
                       </button>
                       <div className="text-right">
-                        <p className="text-lg font-extrabold text-stone-950">
+                        <p className="text-xl font-extrabold text-stone-950">
                           {formatPrice(order.total ?? order.subtotal)}
                         </p>
-                        <p className="text-xs font-medium text-stone-500">
+                        <p className="text-sm font-medium text-stone-500">
                           Tax {formatPrice(order.tax ?? 0)}
                         </p>
                       </div>

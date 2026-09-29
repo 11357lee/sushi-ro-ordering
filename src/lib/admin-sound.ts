@@ -16,9 +16,11 @@ const SOUND_FILES = {
 const SILENT_WAV =
   "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
 
-const SOUND_VOLUME = 0.85;
-const PENDING_GAP_MS = 5000;
-const POST_CLEAR_MUTE_MS = 10000;
+const SOUND_VOLUME = 1;
+const PENDING_GAP_MS = 2500;
+const POST_CLEAR_MUTE_MS = 3000;
+const KEEPALIVE_HEARTBEAT_MS = 12000;
+const PLAY_FAIL_RETRY_MS = 1500;
 
 type PendingKind = "asap" | "scheduled";
 type SoundKind = PendingKind | "customer-cancelled";
@@ -29,6 +31,7 @@ class AdminSoundController {
   private unlocked = false;
   private gapTimer = 0;
   private muteTimer = 0;
+  private heartbeatTimer = 0;
   private generation = 0;
   private active = false;
   private kind: PendingKind | null = null;
@@ -60,6 +63,7 @@ class AdminSoundController {
         el.volume = SOUND_VOLUME;
       }
       await this.startKeepalive();
+      this.startHeartbeat();
       this.unlocked = true;
       return true;
     } catch {
@@ -90,6 +94,25 @@ class AdminSoundController {
     void this.playPendingCycle(gen);
   }
 
+  /**
+   * New pending order arrived: clear post-accept mute and restart the alert
+   * cycle immediately (even if already looping).
+   */
+  alertNewPending(kind: PendingKind) {
+    if (!this.unlocked) return;
+    this.kind = kind;
+    this.mutedUntil = 0;
+    window.clearTimeout(this.muteTimer);
+    this.muteTimer = 0;
+    this.active = false;
+    this.generation += 1;
+    window.clearTimeout(this.gapTimer);
+    this.gapTimer = 0;
+    this.stopPlayingPending();
+    void this.startKeepalive();
+    this.startPending();
+  }
+
   stopPending(opts?: { muteMs?: number }) {
     this.active = false;
     this.generation += 1;
@@ -106,6 +129,7 @@ class AdminSoundController {
   stopAll() {
     this.stopPending();
     this.mutedUntil = 0;
+    this.stopHeartbeat();
     this.stopKeepalive();
     this.unlocked = false;
   }
@@ -114,9 +138,12 @@ class AdminSoundController {
   resumeIfNeeded() {
     if (!this.unlocked) return;
     void this.startKeepalive();
+    this.startHeartbeat();
     if (this.active && this.kind && !this.playingKind) {
       const gen = this.generation;
       void this.playPendingCycle(gen);
+    } else if (this.kind && !this.active && Date.now() >= this.mutedUntil) {
+      this.startPending();
     }
   }
 
@@ -186,6 +213,19 @@ class AdminSoundController {
     }
   }
 
+  private startHeartbeat() {
+    window.clearInterval(this.heartbeatTimer);
+    this.heartbeatTimer = window.setInterval(() => {
+      if (!this.unlocked) return;
+      void this.startKeepalive();
+    }, KEEPALIVE_HEARTBEAT_MS);
+  }
+
+  private stopHeartbeat() {
+    window.clearInterval(this.heartbeatTimer);
+    this.heartbeatTimer = 0;
+  }
+
   private stopKeepalive() {
     if (!this.keepalive) return;
     try {
@@ -197,9 +237,6 @@ class AdminSoundController {
   }
 
   private stopPlayingPending() {
-    if (!this.playingKind || this.playingKind === "customer-cancelled") {
-      // Don't cut cancel mid-play from stopPending path unless generation bumped already.
-    }
     for (const kind of ["asap", "scheduled"] as PendingKind[]) {
       const el = this.elements[kind];
       if (!el) continue;
@@ -235,11 +272,18 @@ class AdminSoundController {
     }
     el.volume = SOUND_VOLUME;
     return new Promise((resolve, reject) => {
+      const failSafe = window.setTimeout(() => {
+        el.onended = null;
+        // Some iOS builds never fire ended; treat long play as success.
+        resolve();
+      }, 20000);
       el.onended = () => {
+        window.clearTimeout(failSafe);
         el.onended = null;
         resolve();
       };
       void el.play().then(undefined, (err) => {
+        window.clearTimeout(failSafe);
         el.onended = null;
         reject(err);
       });
@@ -267,7 +311,10 @@ class AdminSoundController {
       if (!this.active || gen !== this.generation) return;
       // Retry unlock path — often means iOS suspended audio.
       void this.startKeepalive();
-      this.gapTimer = window.setTimeout(() => void this.playPendingCycle(gen), 5000);
+      this.gapTimer = window.setTimeout(
+        () => void this.playPendingCycle(gen),
+        PLAY_FAIL_RETRY_MS
+      );
       return;
     }
 

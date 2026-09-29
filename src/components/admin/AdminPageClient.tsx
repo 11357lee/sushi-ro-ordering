@@ -281,9 +281,9 @@ function OrderExtras({ order }: { order: Order }) {
   if (!extras.length) return null;
 
   return (
-    <ul className="flex flex-wrap gap-1 text-xs">
+    <ul className="flex flex-wrap gap-1.5 text-sm">
       {extras.map((line) => (
-        <li key={line} className="rounded-full bg-blue-50 px-2 py-0.5 font-medium text-blue-800">
+        <li key={line} className="rounded-full bg-blue-50 px-2.5 py-1 font-medium text-blue-800">
           {line}
         </li>
       ))}
@@ -296,7 +296,7 @@ function SpecialNotes({ order }: { order: Order }) {
   if (!notes.length) return null;
 
   return (
-    <div className="my-1 rounded-md bg-red-50 px-2 py-1 text-xs font-semibold text-red-700">
+    <div className="my-1 rounded-md bg-red-50 px-2 py-1.5 text-base font-semibold text-red-700">
       {notes.join(" · ")}
     </div>
   );
@@ -327,20 +327,20 @@ function OrderItems({
   });
 
   return (
-    <ul className="space-y-1.5 rounded-lg bg-stone-50 px-2.5 py-2.5 text-lg leading-snug">
+    <ul className="space-y-1.5 rounded-lg bg-stone-50 px-2.5 py-2.5 text-xl leading-snug">
       {rows.map(({ item, isGF, optionSummary, showDivider }) => (
         <li key={item.id}>
           {showDivider && <div className="my-1.5 border-t border-stone-200" />}
           <div className={isGF ? "rounded-md bg-purple-50 px-1.5 py-1 text-purple-950" : "px-1.5 py-0.5"}>
-            <p className="text-lg font-medium text-stone-800">
+            <p className="text-xl font-medium text-stone-800">
               {item.quantity} x {toDisplayName(item.name)}
               {optionSummary ? (
                 <span className="font-normal text-sky-700"> - {optionSummary}</span>
               ) : null}
-              {isGF && <span className="ml-1.5 text-base font-normal text-purple-700">GF</span>}
+              {isGF && <span className="ml-1.5 text-lg font-normal text-purple-700">GF</span>}
             </p>
             {item.special_request && (
-              <p className="text-base font-normal italic text-red-600">{item.special_request}</p>
+              <p className="text-lg font-normal italic text-red-600">{item.special_request}</p>
             )}
           </div>
         </li>
@@ -373,6 +373,8 @@ export function AdminPageClient() {
   const cancellationAlertedIdsRef = useRef<Set<string>>(new Set());
   const cancellationAlertsReadyRef = useRef(false);
   const ordersReadyRef = useRef(false);
+  const knownOrderIdsRef = useRef<Set<string>>(new Set());
+  const knownOrdersSeededRef = useRef(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [soundUnlocked, setSoundUnlocked] = useState(false);
   const [expandedSoldOutCategory, setExpandedSoldOutCategory] = useState<string | null>(null);
@@ -629,9 +631,12 @@ export function AdminPageClient() {
     setOrders([]);
     ordersReadyRef.current = false;
     cancellationAlertsReadyRef.current = false;
+    knownOrdersSeededRef.current = false;
+    knownOrderIdsRef.current = new Set();
     setApiKey("");
     setSoundUnlocked(false);
     setRememberDevice(false);
+    setItemsPopupOrderId(null);
     window.localStorage.removeItem(REMEMBER_DEVICE_KEY);
   };
 
@@ -880,6 +885,52 @@ export function AdminPageClient() {
     adminSound.startPending();
   }, [hasPendingAlert, pendingKind]);
 
+  // New orders: close item popup + jump to orders (never interrupt Settings),
+  // and force an immediate sound alert so iPad doesn't stay silent.
+  useEffect(() => {
+    if (!authenticated || !ordersReadyRef.current) {
+      knownOrdersSeededRef.current = false;
+      knownOrderIdsRef.current = new Set();
+      return;
+    }
+
+    const ids = orders.map((order) => order.id);
+    if (!knownOrdersSeededRef.current) {
+      knownOrderIdsRef.current = new Set(ids);
+      knownOrdersSeededRef.current = true;
+      return;
+    }
+
+    const newOrders = orders.filter((order) => !knownOrderIdsRef.current.has(order.id));
+    if (newOrders.length === 0) return;
+
+    newOrders.forEach((order) => knownOrderIdsRef.current.add(order.id));
+
+    const newPending = newOrders.filter((order) => order.status === "pending");
+    if (newPending.length === 0) return;
+
+    // Settings page stays undisturbed.
+    if (tab === "settings") return;
+
+    setItemsPopupOrderId(null);
+    setOrderMenuOpenId(null);
+    setTab("orders");
+
+    if (soundEnabled && soundUnlocked && restaurantOpen) {
+      const kind = newPending.some((order) => order.pickup_type === "asap")
+        ? "asap"
+        : "scheduled";
+      adminSound.alertNewPending(kind);
+    }
+  }, [
+    authenticated,
+    orders,
+    tab,
+    soundEnabled,
+    soundUnlocked,
+    restaurantOpen,
+  ]);
+
   // Stop sound when leaving the page / unmounting.
   useEffect(() => {
     return () => {
@@ -1118,40 +1169,40 @@ export function AdminPageClient() {
                         Scheduled — accept when ready (no miss timer)
                       </p>
                     )}
-                    <p className="text-xl font-extrabold tracking-tight text-stone-950">
+                    <p className="text-2xl font-extrabold tracking-tight text-stone-950">
                       {customerTitle(order)}
                     </p>
-                    <p className="text-base font-medium text-stone-600">
+                    <p className="text-lg font-medium text-stone-600">
                       {formatPickupTime(order.created_at)}
                     </p>
-                    <p className="text-base font-medium text-stone-700">
+                    <p className="text-lg font-medium text-stone-700">
                       {order.customer?.phone ? formatPhoneDisplay(order.customer.phone) : ""} ·{" "}
                       <span className="capitalize">{order.status}</span>
                     </p>
                     {order.pickup_type === "asap" ? (
-                      <p className="text-base font-bold text-amber-700">ASAP pickup</p>
+                      <p className="text-lg font-bold text-amber-700">ASAP pickup</p>
                     ) : (
-                      <p className="text-base font-bold text-sky-700">
+                      <p className="text-lg font-bold text-sky-700">
                         Pickup {formatPickupTime(order.pickup_time)}
                         {countdown && (
-                          <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-sm font-bold text-amber-800">
+                          <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-base font-bold text-amber-800">
                             {countdown}
                           </span>
                         )}
                       </p>
                     )}
                     {order.pickup_type === "asap" && order.status === "accepted" && order.pickup_time && (
-                      <p className="text-base font-bold text-stone-800">
+                      <p className="text-lg font-bold text-stone-800">
                         Ready {formatPickupTime(order.pickup_time)}
                         {countdown && (
-                          <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-sm font-bold text-amber-800">
+                          <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-base font-bold text-amber-800">
                             {countdown}
                           </span>
                         )}
                       </p>
                     )}
                     <div className="mt-2">
-                      <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-stone-400">
+                      <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-stone-400">
                         Extras
                       </p>
                       <OrderExtras order={order} />
@@ -1171,17 +1222,17 @@ export function AdminPageClient() {
                       <button
                         type="button"
                         onClick={() => setItemsPopupOrderId(order.id)}
-                        className="rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-sm font-bold text-teal-800 hover:bg-teal-100"
+                        className="rounded-lg border border-teal-200 bg-teal-50 px-3 py-2.5 text-base font-bold text-teal-800 hover:bg-teal-100"
                       >
                         {isPending
                           ? `Review & accept (${itemCount} item${itemCount === 1 ? "" : "s"})`
                           : `View menu (${itemCount} item${itemCount === 1 ? "" : "s"})`}
                       </button>
                       <div className="text-right">
-                        <p className="text-xl font-extrabold text-stone-950">
+                        <p className="text-2xl font-extrabold text-stone-950">
                           {formatPrice(order.total ?? order.subtotal)}
                         </p>
-                        <p className="text-sm font-medium text-stone-500">
+                        <p className="text-base font-medium text-stone-500">
                           Tax {formatPrice(order.tax ?? 0)}
                         </p>
                       </div>
@@ -1302,7 +1353,7 @@ export function AdminPageClient() {
                 <div className="shrink-0 border-b border-stone-100 px-3 py-2.5">
                   <div className="flex items-center gap-2">
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-base font-semibold text-stone-900">
+                      <p className="truncate text-lg font-semibold text-stone-900">
                         {customerTitle(itemsPopupOrder)}
                         <span className="ml-1.5 font-normal text-stone-500">
                           {formatPickupTime(itemsPopupOrder.created_at)} ·{" "}
@@ -1311,10 +1362,10 @@ export function AdminPageClient() {
                       </p>
                     </div>
                     <div className="shrink-0 text-right">
-                      <p className="text-base font-semibold tabular-nums text-stone-900">
+                      <p className="text-lg font-semibold tabular-nums text-stone-900">
                         {formatPrice(itemsPopupOrder.total ?? itemsPopupOrder.subtotal)}
                       </p>
-                      <p className="text-xs leading-tight text-stone-500">
+                      <p className="text-sm leading-tight text-stone-500">
                         Sub {formatPrice(itemsPopupOrder.subtotal)} · Tax{" "}
                         {formatPrice(itemsPopupOrder.tax ?? 0)}
                       </p>
@@ -1322,7 +1373,7 @@ export function AdminPageClient() {
                     <button
                       type="button"
                       onClick={() => setItemsPopupOrderId(null)}
-                      className="shrink-0 rounded-md border border-stone-200 px-2.5 py-1 text-sm font-semibold text-stone-700 hover:bg-stone-50"
+                      className="shrink-0 rounded-md border border-stone-200 px-2.5 py-1.5 text-base font-semibold text-stone-700 hover:bg-stone-50"
                     >
                       Close
                     </button>

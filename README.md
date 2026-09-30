@@ -22,7 +22,8 @@ Protected by `x-admin-key` header. Endpoints at `/api/admin`:
 - Update waiting time (15 / 30 / 60 / 120 min)
 - Toggle open/closed status
 
-Web admin panel: `/admin`
+Native iPad kitchen app: **[docs/IOS_ADMIN_APP.md](docs/IOS_ADMIN_APP.md)** (`ios/SushiRoAdmin`)  
+Web admin panel (fallback): `/admin`
 
 ## Tech Stack
 

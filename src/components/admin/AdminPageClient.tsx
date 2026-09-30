@@ -139,13 +139,13 @@ function PopupPendingActions({
   const acceptRemaining = acceptSecondsRemaining(order, now.getTime());
 
   return (
-    <div className="mt-2 space-y-1.5">
+    <div className="mt-2 space-y-2">
       {order.pickup_type === "asap" && (
         <div>
-          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-stone-400">
+          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-stone-400">
             Prep (min)
           </p>
-          <div className="grid grid-cols-5 gap-1">
+          <div className="grid grid-cols-5 gap-1.5">
             {PREP_MINUTE_OPTIONS_PRIMARY.map((minutes) => (
               <button
                 key={minutes}
@@ -153,7 +153,7 @@ function PopupPendingActions({
                 onClick={() => {
                   setPickupInputs((prev) => ({ ...prev, [order.id]: minutes }));
                 }}
-                className={`min-h-8 rounded-md px-0.5 py-1.5 text-xs font-bold sm:text-sm ${
+                className={`min-h-11 rounded-lg px-0.5 py-2 text-sm font-bold ${
                   pickupInputs[order.id] === minutes
                     ? "bg-stone-900 text-white"
                     : "bg-stone-100 text-stone-800"
@@ -163,7 +163,7 @@ function PopupPendingActions({
               </button>
             ))}
           </div>
-          <div className="mt-1 grid grid-cols-6 gap-1">
+          <div className="mt-1.5 grid grid-cols-6 gap-1.5">
             {PREP_MINUTE_OPTIONS_EXTENDED.map((minutes) => (
               <button
                 key={minutes}
@@ -171,7 +171,7 @@ function PopupPendingActions({
                 onClick={() => {
                   setPickupInputs((prev) => ({ ...prev, [order.id]: minutes }));
                 }}
-                className={`min-h-8 rounded-md px-0.5 py-1.5 text-xs font-bold sm:text-sm ${
+                className={`min-h-11 rounded-lg px-0.5 py-2 text-sm font-bold ${
                   pickupInputs[order.id] === minutes
                     ? "bg-stone-900 text-white"
                     : "bg-amber-100 text-amber-950"
@@ -191,11 +191,11 @@ function PopupPendingActions({
               setPickupInputs((prev) => ({ ...prev, [order.id]: value }));
             }}
             placeholder="Custom min"
-            className="mt-1.5 w-full rounded-md border border-stone-200 px-2 py-1.5 text-sm"
+            className="mt-2 w-full rounded-lg border border-stone-200 px-3 py-2.5 text-base"
           />
         </div>
       )}
-      <div className="grid grid-cols-2 gap-1.5">
+      <div className="grid grid-cols-2 gap-2">
         <button
           type="button"
           onClick={() =>
@@ -207,7 +207,7 @@ function PopupPendingActions({
               acceptDetails.prepMinutes
             )
           }
-          className={`min-h-10 rounded-lg px-2 py-1.5 text-sm font-bold text-white ${
+          className={`min-h-12 rounded-xl px-2 py-2.5 text-base font-bold text-white ${
             acceptRemaining !== null && acceptRemaining <= 60
               ? "bg-amber-600 hover:bg-amber-700"
               : "bg-emerald-600 hover:bg-emerald-700"
@@ -216,7 +216,7 @@ function PopupPendingActions({
           <span className="leading-tight">Accept</span>
           {acceptRemaining !== null && (
             <span
-              className={`ml-1.5 font-mono text-sm font-extrabold tabular-nums ${
+              className={`ml-1.5 font-mono text-base font-extrabold tabular-nums ${
                 acceptRemaining <= 60 ? "text-amber-100" : "text-emerald-100"
               }`}
             >
@@ -237,7 +237,7 @@ function PopupPendingActions({
                 : reasonInputs[order.id] ?? "Out of items"
             )
           }
-          className="min-h-10 rounded-lg bg-red-600 px-2 py-1.5 text-sm font-bold text-white hover:bg-red-700"
+          className="min-h-12 rounded-xl bg-red-600 px-2 py-2.5 text-base font-bold text-white hover:bg-red-700"
         >
           Reject
         </button>
@@ -247,7 +247,7 @@ function PopupPendingActions({
         onChange={(e) =>
           setReasonInputs((prev) => ({ ...prev, [order.id]: e.target.value }))
         }
-        className="w-full rounded-md border border-stone-200 px-2 py-1.5 text-xs font-medium text-stone-700"
+        className="min-h-11 w-full rounded-lg border border-stone-200 px-3 py-2.5 text-base font-medium text-stone-700"
       >
         <option>Out of items</option>
         <option>Restaurant too busy</option>
@@ -263,7 +263,7 @@ function PopupPendingActions({
               [order.id]: e.target.value,
             }))
           }
-          className="w-full rounded-md border border-stone-200 px-2 py-1.5 text-xs"
+          className="min-h-11 w-full rounded-lg border border-stone-200 px-3 py-2.5 text-base"
         />
       )}
     </div>
@@ -283,9 +283,9 @@ function OrderExtras({ order }: { order: Order }) {
   if (!extras.length) return null;
 
   return (
-    <ul className="flex flex-wrap gap-1.5 text-sm">
+    <ul className="flex flex-wrap gap-1.5 text-base">
       {extras.map((line) => (
-        <li key={line} className="rounded-full bg-blue-50 px-2.5 py-1 font-medium text-blue-800">
+        <li key={line} className="rounded-lg bg-blue-50 px-2.5 py-1.5 font-medium text-blue-800">
           {line}
         </li>
       ))}
@@ -377,7 +377,7 @@ export function AdminPageClient() {
   const ordersReadyRef = useRef(false);
   const knownOrderIdsRef = useRef<Set<string>>(new Set());
   const knownOrdersSeededRef = useRef(false);
-  const lastInteractionAtRef = useRef<number>(Date.now());
+  const lastInteractionAtRef = useRef<number>(0);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [soundUnlocked, setSoundUnlocked] = useState(false);
   const [expandedSoldOutCategory, setExpandedSoldOutCategory] = useState<string | null>(null);
@@ -966,16 +966,16 @@ export function AdminPageClient() {
 
   if (!authenticated) {
     return (
-      <div className="mx-auto max-w-md px-4 py-16">
-        <h1 className="text-2xl font-bold text-stone-900">Admin panel</h1>
-        <p className="mt-2 text-sm text-stone-600">
-          Order management for Sushi-Ro. Uses the same API as a future iOS app.
+      <div className="mx-auto flex min-h-dvh max-w-lg flex-col justify-center px-5 py-10 sm:px-8">
+        <h1 className="text-3xl font-bold tracking-tight text-stone-900">Sushi-Ro Admin</h1>
+        <p className="mt-2 text-base text-stone-600">
+          Kitchen order board for this iPad. Add to Home Screen for a full-screen app.
         </p>
         <form
           method="post"
           action="#"
           onSubmit={handleLogin}
-          className="mt-6 space-y-4"
+          className="mt-8 space-y-5"
         >
           <div className="space-y-2">
             <input
@@ -995,34 +995,34 @@ export function AdminPageClient() {
               autoCapitalize="off"
               spellCheck={false}
               enterKeyHint="go"
-              className="w-full rounded-lg border border-stone-200 px-3 py-2.5 text-base"
+              className="min-h-12 w-full rounded-xl border border-stone-200 px-4 py-3 text-base"
             />
             <button
               type="button"
               onClick={() => setShowApiKey((current) => !current)}
-              className="text-sm font-medium text-teal-700"
+              className="min-h-11 px-1 text-base font-medium text-teal-700"
             >
               {showApiKey ? "Hide key" : "Show key"}
             </button>
           </div>
-          <label className="flex items-start gap-2 text-sm text-stone-600">
+          <label className="flex items-start gap-3 text-base text-stone-600">
             <input
               type="checkbox"
               checked={rememberDevice}
               onChange={(e) => setRememberDevice(e.target.checked)}
-              className="mt-1 rounded border-stone-300 text-teal-600 focus:ring-teal-500"
+              className="mt-1 h-5 w-5 rounded border-stone-300 text-teal-600 focus:ring-teal-500"
             />
             <span>
               Remember this iPad — stay signed in after refresh on this device only. Use Logout to
               forget it.
             </span>
           </label>
-          {loginError && <p className="text-sm text-red-600">{loginError}</p>}
+          {loginError && <p className="text-base text-red-600">{loginError}</p>}
           <button
             type="button"
             disabled={loading}
             onClick={handleLogin}
-            className="w-full rounded-lg bg-stone-900 py-3 font-semibold text-white"
+            className="min-h-12 w-full rounded-xl bg-stone-900 py-3.5 text-base font-semibold text-white"
           >
             {loading ? "..." : "Enter"}
           </button>
@@ -1032,32 +1032,32 @@ export function AdminPageClient() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-4 text-base sm:py-6">
+    <div className="mx-auto flex min-h-dvh max-w-6xl flex-col px-3 pb-4 pt-[max(0.5rem,env(safe-area-inset-top))] text-base sm:px-5 sm:pb-6">
       {authenticated && !soundUnlocked && (
         <button
           type="button"
           onClick={enableSound}
-          className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-3.5 text-base font-extrabold text-stone-950 shadow-sm"
+          className="mb-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-3.5 text-base font-extrabold text-stone-950 shadow-sm"
         >
           Tap once to enable order sounds (required on iPad)
         </button>
       )}
       {authenticated && soundUnlocked && (
-        <p className="mb-2 text-xs text-stone-500">
-          Keep this admin tab open. iPad Safari only plays alerts after you unlock sound, and may
-          pause if the tab is in the background.
+        <p className="mb-2 text-sm text-stone-500">
+          Keep this admin open. iPad Safari only plays alerts after you unlock sound, and may pause
+          if the tab is in the background. Add to Home Screen for a standalone app.
         </p>
       )}
-      <div className="sticky top-0 z-20 -mx-4 space-y-3 border-b border-stone-200 bg-stone-100 px-4 py-3">
+      <div className="sticky top-0 z-20 -mx-3 space-y-3 border-b border-stone-200 bg-stone-100/95 px-3 py-3 backdrop-blur-sm sm:-mx-5 sm:px-5">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-semibold text-stone-700">Waiting:</span>
+          <span className="text-base font-semibold text-stone-700">Waiting:</span>
           {([15, 30, 60, 120] as const).map((m) => (
             <button
               key={m}
               type="button"
               disabled={!restaurantOpen}
               onClick={() => updateWaitingTime(m)}
-              className={`rounded-lg px-3 py-2 text-sm font-bold ${
+              className={`min-h-11 min-w-[4.25rem] rounded-xl px-3.5 py-2.5 text-base font-bold ${
                 waitingMinutes === m
                   ? m <= 15
                     ? "bg-emerald-600 text-white"
@@ -1074,20 +1074,20 @@ export function AdminPageClient() {
             <button
               type="button"
               onClick={() => setMoreOpen((open) => !open)}
-              className="rounded-lg border border-stone-300 bg-white px-3 py-2 text-lg font-bold leading-none text-stone-700 hover:bg-stone-50"
+              className="flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-stone-300 bg-white text-xl font-bold leading-none text-stone-700 hover:bg-stone-50"
               aria-label="More admin options"
             >
               ⋯
             </button>
             {moreOpen && (
-              <div className="absolute right-0 z-30 mt-2 w-52 rounded-xl border border-stone-200 bg-white p-1 shadow-lg">
+              <div className="absolute right-0 z-30 mt-2 w-56 rounded-xl border border-stone-200 bg-white p-1.5 shadow-lg">
                 <button
                   type="button"
                   onClick={() => {
                     setTab("orders");
                     setMoreOpen(false);
                   }}
-                  className="block w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-stone-800 hover:bg-stone-50"
+                  className="block min-h-11 w-full rounded-lg px-3 py-2.5 text-left text-base font-medium text-stone-800 hover:bg-stone-50"
                 >
                   Orders
                 </button>
@@ -1097,7 +1097,7 @@ export function AdminPageClient() {
                     setTab("settings");
                     setMoreOpen(false);
                   }}
-                  className="block w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-stone-800 hover:bg-stone-50"
+                  className="block min-h-11 w-full rounded-lg px-3 py-2.5 text-left text-base font-medium text-stone-800 hover:bg-stone-50"
                 >
                   Settings
                 </button>
@@ -1108,7 +1108,7 @@ export function AdminPageClient() {
                       enableSound();
                       setMoreOpen(false);
                     }}
-                    className="block w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-amber-800 hover:bg-amber-50"
+                    className="block min-h-11 w-full rounded-lg px-3 py-2.5 text-left text-base font-medium text-amber-800 hover:bg-amber-50"
                   >
                     Enable order sounds
                   </button>
@@ -1119,7 +1119,7 @@ export function AdminPageClient() {
                     setMoreOpen(false);
                     void dismissOrders();
                   }}
-                  className="block w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-stone-800 hover:bg-stone-50"
+                  className="block min-h-11 w-full rounded-lg px-3 py-2.5 text-left text-base font-medium text-stone-800 hover:bg-stone-50"
                 >
                   Clear orders
                 </button>
@@ -1129,11 +1129,11 @@ export function AdminPageClient() {
                     setMoreOpen(false);
                     handleLogout();
                   }}
-                  className="block w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-red-700 hover:bg-red-50"
+                  className="block min-h-11 w-full rounded-lg px-3 py-2.5 text-left text-base font-medium text-red-700 hover:bg-red-50"
                 >
                   Logout
                 </button>
-                <p className="border-t border-stone-100 px-3 py-2 text-xs text-stone-500">
+                <p className="border-t border-stone-100 px-3 py-2.5 text-sm text-stone-500">
                   {paused && !testMode
                     ? "Service paused"
                     : testMode
@@ -1148,13 +1148,13 @@ export function AdminPageClient() {
         </div>
 
         {testMode && (
-          <p className="rounded-lg bg-amber-100 px-3 py-2 text-sm font-semibold text-amber-950">
+          <p className="rounded-xl bg-amber-100 px-3 py-2.5 text-base font-semibold text-amber-950">
             Test mode is on. Hours are ignored so you can place and accept a test order. Turn it off
             in Settings when you finish.
           </p>
         )}
         {!restaurantOpen && (
-          <p className="text-xs text-stone-500">
+          <p className="text-sm text-stone-500">
             Waiting time controls are disabled while the restaurant is closed or paused.
           </p>
         )}
@@ -1162,9 +1162,9 @@ export function AdminPageClient() {
 
       {tab === "orders" && (
         <>
-          <div className="mt-4 space-y-4">
+          <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2 lg:gap-4">
             {orders.length === 0 ? (
-              <p className="text-stone-500">No orders on screen.</p>
+              <p className="text-lg text-stone-500 lg:col-span-2">No orders on screen.</p>
             ) : (
               orders.map((order) => {
                 const isPending = order.status === "pending";
@@ -1248,7 +1248,7 @@ export function AdminPageClient() {
                       <button
                         type="button"
                         onClick={() => setItemsPopupOrderId(order.id)}
-                        className="rounded-lg border border-teal-200 bg-teal-50 px-3 py-2.5 text-base font-bold text-teal-800 hover:bg-teal-100"
+                        className="min-h-11 rounded-xl border border-teal-200 bg-teal-50 px-3.5 py-2.5 text-base font-bold text-teal-800 hover:bg-teal-100"
                       >
                         {isPending
                           ? `Review & accept (${itemCount} item${itemCount === 1 ? "" : "s"})`
@@ -1270,7 +1270,7 @@ export function AdminPageClient() {
                   <div
                     id={`admin-order-${order.id}`}
                     key={order.id}
-                    className={`rounded-xl border-2 bg-white p-3 shadow-sm ${
+                    className={`rounded-2xl border-2 bg-white p-3.5 shadow-sm sm:p-4 ${
                       cancelled || rejected || isMissed
                         ? "border-red-500 ring-2 ring-red-100"
                         : isPending
@@ -1298,13 +1298,13 @@ export function AdminPageClient() {
                                         current === order.id ? null : order.id
                                       )
                                     }
-                                    className="rounded-lg border border-stone-300 bg-white px-2.5 py-1.5 text-sm font-bold text-stone-700 hover:bg-stone-50"
+                                    className="flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-stone-300 bg-white text-base font-bold text-stone-700 hover:bg-stone-50"
                                     aria-label="Order actions"
                                   >
                                     ⋯
                                   </button>
                                   {orderMenuOpenId === order.id && (
-                                    <div className="absolute right-0 z-10 mt-8 w-44 rounded-lg border border-stone-200 bg-white p-1 shadow-lg">
+                                    <div className="absolute right-0 z-10 mt-12 w-52 rounded-xl border border-stone-200 bg-white p-1.5 shadow-lg">
                                       <select
                                         value={reasonInputs[order.id] ?? "Customer cancellation"}
                                         onChange={(e) =>
@@ -1313,7 +1313,7 @@ export function AdminPageClient() {
                                             [order.id]: e.target.value,
                                           }))
                                         }
-                                        className="mb-1 w-full rounded border border-stone-200 px-2 py-1 text-xs"
+                                        className="mb-1.5 min-h-11 w-full rounded-lg border border-stone-200 px-2.5 py-2 text-base"
                                       >
                                         <option>Customer cancellation</option>
                                         <option>Out of items</option>
@@ -1329,7 +1329,7 @@ export function AdminPageClient() {
                                               [order.id]: e.target.value,
                                             }))
                                           }
-                                          className="mb-1 w-full rounded border border-stone-200 px-2 py-1 text-xs"
+                                          className="mb-1.5 min-h-11 w-full rounded-lg border border-stone-200 px-2.5 py-2 text-base"
                                         />
                                       )}
                                       <button
@@ -1345,7 +1345,7 @@ export function AdminPageClient() {
                                               : reasonInputs[order.id] ?? "Customer cancellation"
                                           );
                                         }}
-                                        className="block w-full rounded px-2 py-1.5 text-left text-xs font-medium text-red-700 hover:bg-red-50"
+                                        className="block min-h-11 w-full rounded-lg px-2.5 py-2.5 text-left text-base font-medium text-red-700 hover:bg-red-50"
                                       >
                                         Cancel order
                                       </button>
@@ -1366,20 +1366,20 @@ export function AdminPageClient() {
 
           {itemsPopupOrder && (
             <div
-              className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center"
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3 sm:p-6"
               role="dialog"
               aria-modal="true"
               aria-label="Order items"
               onClick={() => setItemsPopupOrderId(null)}
             >
               <div
-                className="flex h-[90vh] max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-xl"
+                className="flex h-[min(92dvh,920px)] max-h-[92dvh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="shrink-0 border-b border-stone-100 px-3 py-2.5">
+                <div className="shrink-0 border-b border-stone-100 px-4 py-3">
                   <div className="flex items-center gap-2">
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-lg font-semibold text-stone-900">
+                      <p className="truncate text-xl font-semibold text-stone-900">
                         {customerTitle(itemsPopupOrder)}
                         <span className="ml-1.5 font-normal text-stone-500">
                           {formatPickupTime(itemsPopupOrder.created_at)} ·{" "}
@@ -1388,7 +1388,7 @@ export function AdminPageClient() {
                       </p>
                     </div>
                     <div className="shrink-0 text-right">
-                      <p className="text-lg font-semibold tabular-nums text-stone-900">
+                      <p className="text-xl font-semibold tabular-nums text-stone-900">
                         {formatPrice(itemsPopupOrder.total ?? itemsPopupOrder.subtotal)}
                       </p>
                       <p className="text-sm leading-tight text-stone-500">
@@ -1399,23 +1399,23 @@ export function AdminPageClient() {
                     <button
                       type="button"
                       onClick={() => setItemsPopupOrderId(null)}
-                      className="shrink-0 rounded-md border border-stone-200 px-2.5 py-1.5 text-base font-semibold text-stone-700 hover:bg-stone-50"
+                      className="min-h-11 shrink-0 rounded-xl border border-stone-200 px-3.5 py-2 text-base font-semibold text-stone-700 hover:bg-stone-50"
                     >
                       Close
                     </button>
                   </div>
-                  <div className="mt-1.5">
+                  <div className="mt-2">
                     <OrderExtras order={itemsPopupOrder} />
                   </div>
                 </div>
 
-                <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3">
                   <SpecialNotes order={itemsPopupOrder} />
                   <OrderItems order={itemsPopupOrder} menuItemsById={menuItemsById} />
                 </div>
 
                 {itemsPopupOrder.status === "pending" && (
-                  <div className="shrink-0 border-t border-amber-100 bg-white px-3 pb-3 pt-1">
+                  <div className="shrink-0 border-t border-amber-100 bg-white px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2">
                     <PopupPendingActions
                       order={itemsPopupOrder}
                       pickupInputs={pickupInputs}
@@ -1440,11 +1440,11 @@ export function AdminPageClient() {
       {tab === "settings" && (
         <div className="mt-6 space-y-8">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-xl font-bold text-stone-900">Settings</h2>
+            <h2 className="text-2xl font-bold text-stone-900">Settings</h2>
             <button
               type="button"
               onClick={() => setTab("orders")}
-              className="rounded-lg border border-stone-300 px-3 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50"
+              className="min-h-11 rounded-xl border border-stone-300 px-4 py-2.5 text-base font-semibold text-stone-700 hover:bg-stone-50"
             >
               Back to orders
             </button>
@@ -1459,7 +1459,7 @@ export function AdminPageClient() {
               type="button"
               disabled={testModeSaving}
               onClick={() => void updateTestMode(!testMode)}
-              className={`mt-3 rounded-lg px-4 py-2.5 text-sm font-semibold disabled:cursor-wait disabled:opacity-70 ${
+              className={`mt-3 min-h-11 rounded-xl px-4 py-2.5 text-base font-semibold disabled:cursor-wait disabled:opacity-70 ${
                 testMode
                   ? "bg-amber-400 text-stone-950 hover:bg-amber-300"
                   : "bg-stone-900 text-white hover:bg-stone-800"
@@ -1514,7 +1514,7 @@ export function AdminPageClient() {
                   type="button"
                   disabled={!withinBusinessHours && !testMode && value !== "clear"}
                   onClick={() => pauseService(value)}
-                  className="rounded-lg bg-stone-100 px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="min-h-11 rounded-xl bg-stone-100 px-3.5 py-2.5 text-base font-medium text-stone-700 hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {label}
                 </button>
@@ -1597,7 +1597,7 @@ export function AdminPageClient() {
                 setClosedMessage("");
                 setSettingsMessage("Closed period saved.");
               }}
-              className="mt-3 rounded-lg bg-stone-900 px-4 py-2.5 text-sm font-semibold text-white"
+              className="mt-3 min-h-11 rounded-xl bg-stone-900 px-4 py-2.5 text-base font-semibold text-white"
             >
               Add closed period
             </button>
@@ -1618,7 +1618,7 @@ export function AdminPageClient() {
                       )
                     )
                   }
-                  className="rounded-full bg-red-50 px-3 py-1.5 text-left text-sm font-medium text-red-700"
+                  className="min-h-11 rounded-xl bg-red-50 px-3.5 py-2 text-left text-base font-medium text-red-700"
                 >
                   {formatSpecialClosureLabel(period)}
                   {period.message ? ` · ${period.message}` : ""} ×
@@ -1665,7 +1665,7 @@ export function AdminPageClient() {
                       onClick={() =>
                         setExpandedSoldOutCategory(expanded ? null : category.id)
                       }
-                      className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+                      className="flex min-h-12 w-full items-center justify-between gap-3 px-4 py-3.5 text-left"
                     >
                       <span className={`font-semibold ${isGFCategory ? "text-blue-950" : "text-stone-900"}`}>
                         {toDisplayName(category.name)}
@@ -1684,7 +1684,7 @@ export function AdminPageClient() {
                               key={item.id}
                               type="button"
                               onClick={() => toggleSoldOut(item.id)}
-                              className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
+                              className={`min-h-11 rounded-xl px-3.5 py-2 text-base font-medium ${
                                 soldOut
                                   ? isGFCategory
                                     ? "bg-blue-200 text-blue-950 ring-1 ring-blue-400"

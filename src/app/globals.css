@@ -26,3 +26,32 @@ body {
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* Kitchen iPad admin shell (iPad mini + iPad 7th gen / 10.2"). */
+.admin-app {
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.admin-app button,
+.admin-app [role="button"],
+.admin-app a,
+.admin-app label,
+.admin-app select,
+.admin-app input,
+.admin-app textarea {
+  touch-action: manipulation;
+}
+
+.admin-app input,
+.admin-app select,
+.admin-app textarea {
+  font-size: 16px; /* avoid iOS focus zoom */
+}

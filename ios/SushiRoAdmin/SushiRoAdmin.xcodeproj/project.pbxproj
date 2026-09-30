@@ -1,0 +1,350 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		B65F1B56FA514BC3BD5741E1 /* OrderSoundPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A115BC8C1CD4A7B9209BA87 /* OrderSoundPlayer.swift */; };
+		661A4FF6C0264238B77498A5 /* AdminModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C31157ADEB2343C696EED9F2 /* AdminModels.swift */; };
+		B3B1525650124514A5E91707 /* AdminAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83F262D0AF0848C4AB64DC72 /* AdminAPIClient.swift */; };
+		21355CEE4E59481B92764C76 /* AdminSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 925B1182F7834B5F95DC987D /* AdminSession.swift */; };
+		A21C2929374B49F8A9300FE2 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36729792B414406EA54B2E16 /* KeychainStore.swift */; };
+		70F401E2E5424AC99B5385C7 /* SushiRoAdminApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04C4FEB5465C459EB08973FA /* SushiRoAdminApp.swift */; };
+		5691A1417377443AA94C2873 /* AdminFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D203C836074416DA580EF46 /* AdminFormat.swift */; };
+		37C8A932DCC940DEBC40070F /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D91FBFB933B4602ACD4148B /* LoginView.swift */; };
+		998EFD708A7B4B819441FCAE /* OrderDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F5EA3E5CB604786B6FDF155 /* OrderDetailView.swift */; };
+		FF71FB83B2FC4940A490B613 /* OrdersBoardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C3FC173C9FB4479989E16A5 /* OrdersBoardView.swift */; };
+		C9B03ED303114BE085F7B1DC /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38D108A6CA964122ADC82A5B /* RootView.swift */; };
+		51F36913AD4E4AAD811E108D /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 573E42414BC94929AFFC0CDB /* SettingsView.swift */; };
+		172E63A42EA14C75A0163D8B /* order-asap.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 639790788B1E47B9B2BEFDF5 /* order-asap.mp3 */; };
+		A2DBD41378AF42FBB9433D71 /* order-cancelled.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 7B3461172B22414BBC9354DE /* order-cancelled.mp3 */; };
+		D0729301897C4D3CB65730BA /* order-scheduled.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 7030AC99711A417391FAF1EB /* order-scheduled.mp3 */; };
+		FA84FEE507624876B0441FF9 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 38AE433FEE014D6BB059D157 /* Assets.xcassets */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		E7B082E26D3F457083ACA043 /* SushiRoAdmin.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SushiRoAdmin.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		63FE3AED8C684FF4B07CE4D4 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		8A115BC8C1CD4A7B9209BA87 /* OrderSoundPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrderSoundPlayer.swift; sourceTree = "<group>"; };
+		C31157ADEB2343C696EED9F2 /* AdminModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdminModels.swift; sourceTree = "<group>"; };
+		83F262D0AF0848C4AB64DC72 /* AdminAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdminAPIClient.swift; sourceTree = "<group>"; };
+		925B1182F7834B5F95DC987D /* AdminSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdminSession.swift; sourceTree = "<group>"; };
+		36729792B414406EA54B2E16 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
+		04C4FEB5465C459EB08973FA /* SushiRoAdminApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SushiRoAdminApp.swift; sourceTree = "<group>"; };
+		4D203C836074416DA580EF46 /* AdminFormat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdminFormat.swift; sourceTree = "<group>"; };
+		1D91FBFB933B4602ACD4148B /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
+		0F5EA3E5CB604786B6FDF155 /* OrderDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrderDetailView.swift; sourceTree = "<group>"; };
+		6C3FC173C9FB4479989E16A5 /* OrdersBoardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrdersBoardView.swift; sourceTree = "<group>"; };
+		38D108A6CA964122ADC82A5B /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		573E42414BC94929AFFC0CDB /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		639790788B1E47B9B2BEFDF5 /* order-asap.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = order-asap.mp3; sourceTree = "<group>"; };
+		7B3461172B22414BBC9354DE /* order-cancelled.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = order-cancelled.mp3; sourceTree = "<group>"; };
+		7030AC99711A417391FAF1EB /* order-scheduled.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = order-scheduled.mp3; sourceTree = "<group>"; };
+		38AE433FEE014D6BB059D157 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		24568FC3A4F54BE39D8B7E7D = {
+			isa = PBXGroup;
+			children = (
+				7E16377840B143F4B8640F50 /* SushiRoAdmin */,
+				D0CE2EF459284D6899F5C814 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		D0CE2EF459284D6899F5C814 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				E7B082E26D3F457083ACA043 /* SushiRoAdmin.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		7E16377840B143F4B8640F50 /* SushiRoAdmin */ = {
+			isa = PBXGroup;
+			children = (
+				38AE433FEE014D6BB059D157 /* Assets.xcassets */,
+				04C4FEB5465C459EB08973FA /* SushiRoAdminApp.swift */,
+				D103D2F311C94EBEBD728A8A /* Models */,
+				8BD95BE1BA4C45EBA6A9024D /* Services */,
+				75FA0EA3824B4CFAAFB5E505 /* Views */,
+				46F32D8C24234DAA8524FF4D /* Audio */,
+				63FE3AED8C684FF4B07CE4D4 /* Info.plist */,
+			);
+			path = SushiRoAdmin;
+			sourceTree = "<group>";
+		};
+		D103D2F311C94EBEBD728A8A /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				C31157ADEB2343C696EED9F2 /* AdminModels.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		8BD95BE1BA4C45EBA6A9024D /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				83F262D0AF0848C4AB64DC72 /* AdminAPIClient.swift */,
+				925B1182F7834B5F95DC987D /* AdminSession.swift */,
+				36729792B414406EA54B2E16 /* KeychainStore.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		75FA0EA3824B4CFAAFB5E505 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				4D203C836074416DA580EF46 /* AdminFormat.swift */,
+				1D91FBFB933B4602ACD4148B /* LoginView.swift */,
+				0F5EA3E5CB604786B6FDF155 /* OrderDetailView.swift */,
+				6C3FC173C9FB4479989E16A5 /* OrdersBoardView.swift */,
+				38D108A6CA964122ADC82A5B /* RootView.swift */,
+				573E42414BC94929AFFC0CDB /* SettingsView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		46F32D8C24234DAA8524FF4D /* Audio */ = {
+			isa = PBXGroup;
+			children = (
+				8A115BC8C1CD4A7B9209BA87 /* OrderSoundPlayer.swift */,
+				639790788B1E47B9B2BEFDF5 /* order-asap.mp3 */,
+				7B3461172B22414BBC9354DE /* order-cancelled.mp3 */,
+				7030AC99711A417391FAF1EB /* order-scheduled.mp3 */,
+			);
+			path = Audio;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		963B485E134845FBB82BF612 /* SushiRoAdmin */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8B0F2C068E774CC4AA1D8BA0 /* Build configuration list for PBXNativeTarget "SushiRoAdmin" */;
+			buildPhases = (
+				5FF2C750B679421AA2803759 /* Sources */,
+				1CC5491FE6B048AC83D698B6 /* Frameworks */,
+				15459D7AC716496FA5CB6DE5 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = SushiRoAdmin;
+			productName = SushiRoAdmin;
+			productReference = E7B082E26D3F457083ACA043 /* SushiRoAdmin.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		BA788CBEAA724439A61E1B9A /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					963B485E134845FBB82BF612 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+				};
+			};
+			buildConfigurationList = 49988E9B9AA148BEA8D90508 /* Build configuration list for PBXProject "SushiRoAdmin" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 24568FC3A4F54BE39D8B7E7D;
+			productRefGroup = D0CE2EF459284D6899F5C814 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				963B485E134845FBB82BF612 /* SushiRoAdmin */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		5FF2C750B679421AA2803759 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B65F1B56FA514BC3BD5741E1 /* OrderSoundPlayer.swift in Sources */,
+				661A4FF6C0264238B77498A5 /* AdminModels.swift in Sources */,
+				B3B1525650124514A5E91707 /* AdminAPIClient.swift in Sources */,
+				21355CEE4E59481B92764C76 /* AdminSession.swift in Sources */,
+				A21C2929374B49F8A9300FE2 /* KeychainStore.swift in Sources */,
+				70F401E2E5424AC99B5385C7 /* SushiRoAdminApp.swift in Sources */,
+				5691A1417377443AA94C2873 /* AdminFormat.swift in Sources */,
+				37C8A932DCC940DEBC40070F /* LoginView.swift in Sources */,
+				998EFD708A7B4B819441FCAE /* OrderDetailView.swift in Sources */,
+				FF71FB83B2FC4940A490B613 /* OrdersBoardView.swift in Sources */,
+				C9B03ED303114BE085F7B1DC /* RootView.swift in Sources */,
+				51F36913AD4E4AAD811E108D /* SettingsView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		1CC5491FE6B048AC83D698B6 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXResourcesBuildPhase section */
+		15459D7AC716496FA5CB6DE5 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				172E63A42EA14C75A0163D8B /* order-asap.mp3 in Resources */,
+				A2DBD41378AF42FBB9433D71 /* order-cancelled.mp3 in Resources */,
+				D0729301897C4D3CB65730BA /* order-scheduled.mp3 in Resources */,
+				FA84FEE507624876B0441FF9 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		DB502DC7590140ABB742054A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_TESTABILITY = YES;
+				GCC_DYNAMIC_NO_PIC = NO;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+
+			};
+			name = Debug;
+		};
+		390DA8BD3E39449496DB0AC5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+
+			};
+			name = Release;
+		};
+		ABBE763A01F74200BA451F67 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = SushiRoAdmin/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Sushi-Ro Admin";
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.sushi-ro.admin;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 2;
+
+			};
+			name = Debug;
+		};
+		D012796A6CC54AEB8C773F83 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = SushiRoAdmin/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Sushi-Ro Admin";
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.sushi-ro.admin;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 2;
+
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		49988E9B9AA148BEA8D90508 /* Build configuration list for PBXProject "SushiRoAdmin" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DB502DC7590140ABB742054A /* Debug */,
+				390DA8BD3E39449496DB0AC5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		8B0F2C068E774CC4AA1D8BA0 /* Build configuration list for PBXNativeTarget "SushiRoAdmin" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				ABBE763A01F74200BA451F67 /* Debug */,
+				D012796A6CC54AEB8C773F83 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = BA788CBEAA724439A61E1B9A /* Project object */;
+}

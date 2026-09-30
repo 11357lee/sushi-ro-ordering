@@ -84,6 +84,11 @@ final class AdminAPIClient {
         return try JSONDecoder().decode(SettingsResponse.self, from: data)
     }
 
+    func fetchMenu() async throws -> MenuResponse {
+        let data = try await request(path: "/api/menu", requiresAuth: false)
+        return try JSONDecoder().decode(MenuResponse.self, from: data)
+    }
+
     func updateWaitingTime(_ minutes: Int) async throws {
         _ = try await request(
             path: "/api/admin",
@@ -135,6 +140,32 @@ final class AdminAPIClient {
             path: "/api/admin",
             method: "PATCH",
             body: ["action": "update_test_mode", "testMode": enabled]
+        )
+    }
+
+    func updateSoldOut(_ ids: [String]) async throws {
+        _ = try await request(
+            path: "/api/admin",
+            method: "PATCH",
+            body: ["action": "update_sold_out", "soldOutItemIds": ids]
+        )
+    }
+
+    func updateSpecialClosedDates(_ periods: [SpecialClosedPeriod]) async throws {
+        let payload: [[String: Any]] = periods.map { period in
+            var entry: [String: Any] = [
+                "start": period.start,
+                "end": period.end,
+            ]
+            if let message = period.message, !message.isEmpty {
+                entry["message"] = message
+            }
+            return entry
+        }
+        _ = try await request(
+            path: "/api/admin",
+            method: "PATCH",
+            body: ["action": "update_special_closed_dates", "specialClosedDates": payload]
         )
     }
 }

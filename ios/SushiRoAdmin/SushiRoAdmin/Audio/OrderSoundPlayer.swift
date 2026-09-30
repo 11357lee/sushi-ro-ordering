@@ -3,8 +3,19 @@ import Foundation
 
 @MainActor
 final class OrderSoundPlayer {
+    private enum Mode {
+        case idle
+        case pending
+        case cancel
+    }
+
     private var player: AVAudioPlayer?
     private var loopTimer: Timer?
+    private var mode: Mode = .idle
+    /// Extra silence after each alert clip so repeats feel calmer.
+    private let pendingGapSeconds: TimeInterval = 2.2
+    /// Slightly slower than realtime.
+    private let pendingRate: Float = 0.9
 
     func configureSession() {
         let session = AVAudioSession.sharedInstance()
@@ -14,28 +25,25 @@ final class OrderSoundPlayer {
 
     func playNewOrder(kind: String) {
         stop()
-        let name = kind == "scheduled" ? "order-scheduled" : "order-asap"
-        guard let url = Bundle.main.url(forResource: name, withExtension: "mp3"),
-              let audio = try? AVAudioPlayer(contentsOf: url)
-        else { return }
-        audio.numberOfLoops = -1
-        audio.prepareToPlay()
-        audio.play()
-        player = audio
+        mode = .pending
+        playPendingClip(kind: kind, looping: true)
     }
 
     func playCancel() {
         stop()
+        mode = .cancel
         guard let url = Bundle.main.url(forResource: "order-cancelled", withExtension: "mp3"),
               let audio = try? AVAudioPlayer(contentsOf: url)
         else { return }
         audio.numberOfLoops = 0
+        audio.enableRate = true
+        audio.rate = 0.95
         audio.prepareToPlay()
         audio.play()
         player = audio
-        // Play twice like the web admin
-        loopTimer = Timer.scheduledTimer(withTimeInterval: 1.2, repeats: false) { [weak self] _ in
+        loopTimer = Timer.scheduledTimer(withTimeInterval: 1.6, repeats: false) { [weak self] _ in
             Task { @MainActor in
+                guard self?.mode == .cancel else { return }
                 audio.currentTime = 0
                 audio.play()
                 self?.player = audio
@@ -43,11 +51,10 @@ final class OrderSoundPlayer {
         }
     }
 
-    /// Stops looping new-order alerts without interrupting a one-shot cancel chirp mid-play.
+    /// Stops looping new-order alerts only — never cuts off a cancel chirp.
     func stopPendingLoop() {
-        if let player, player.numberOfLoops == -1 {
-            stop()
-        }
+        guard mode == .pending else { return }
+        stop()
     }
 
     func stop() {
@@ -55,5 +62,29 @@ final class OrderSoundPlayer {
         loopTimer = nil
         player?.stop()
         player = nil
+        mode = .idle
+    }
+
+    private func playPendingClip(kind: String, looping: Bool) {
+        let name = kind == "scheduled" ? "order-scheduled" : "order-asap"
+        guard let url = Bundle.main.url(forResource: name, withExtension: "mp3"),
+              let audio = try? AVAudioPlayer(contentsOf: url)
+        else { return }
+        mode = .pending
+        audio.numberOfLoops = 0
+        audio.enableRate = true
+        audio.rate = pendingRate
+        audio.prepareToPlay()
+        audio.play()
+        player = audio
+
+        guard looping else { return }
+        let wait = (audio.duration / Double(pendingRate)) + pendingGapSeconds
+        loopTimer = Timer.scheduledTimer(withTimeInterval: wait, repeats: false) { [weak self] _ in
+            Task { @MainActor in
+                guard self?.mode == .pending else { return }
+                self?.playPendingClip(kind: kind, looping: true)
+            }
+        }
     }
 }

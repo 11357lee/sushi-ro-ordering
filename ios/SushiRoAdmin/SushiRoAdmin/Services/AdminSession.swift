@@ -19,12 +19,17 @@ final class AdminSession: ObservableObject {
     @Published var pauseUntil: String?
     @Published var testMode = false
     @Published var closingTime: String = "21:00:00"
+    @Published var soldOutIds: [String] = []
+    @Published var specialClosedPeriods: [SpecialClosedPeriod] = []
+    @Published var menu: MenuResponse?
     @Published var selectedOrderId: String?
     @Published var statusMessage: String?
+    @Published var now = Date()
 
     private var client: AdminAPIClient
     private let sound = OrderSoundPlayer()
     private var pollTask: Task<Void, Never>?
+    private var clockTask: Task<Void, Never>?
     private var knownOrderIds = Set<String>()
     private var seeded = false
     private var cancelAlerted = Set<String>()
@@ -48,6 +53,7 @@ final class AdminSession: ObservableObject {
 
         sound.configureSession()
         UIApplication.shared.isIdleTimerDisabled = true
+        startClock()
     }
 
     var selectedOrder: AdminOrder? {
@@ -62,7 +68,27 @@ final class AdminSession: ObservableObject {
         {
             return false
         }
+        let today = AdminFormat.dayString(Date())
+        if specialClosedPeriods.contains(where: { today >= $0.start && today <= $0.end }) {
+            return false
+        }
         return true
+    }
+
+    func menuGroups() -> [(section: MenuSection, category: MenuCategory, items: [MenuItemPayload])] {
+        guard let menu else { return [] }
+        let sectionMap = Dictionary(uniqueKeysWithValues: menu.sections.map { ($0.id, $0) })
+        return menu.categories
+            .sorted {
+                ($0.sortOrder ?? 0, $0.name) < ($1.sortOrder ?? 0, $1.name)
+            }
+            .compactMap { category in
+                guard let section = sectionMap[category.sectionId] else { return nil }
+                let items = menu.items
+                    .filter { $0.categoryId == category.id }
+                    .sorted { ($0.sortOrder ?? 0, $0.name) < ($1.sortOrder ?? 0, $1.name) }
+                return (section, category, items)
+            }
     }
 
     func saveServerURL() {
@@ -105,6 +131,7 @@ final class AdminSession: ObservableObject {
                 KeychainStore.delete(account: Self.rememberKeyAccount)
             }
             await refreshSettings()
+            await refreshMenu()
             startPolling()
         } catch {
             authenticated = false
@@ -123,6 +150,9 @@ final class AdminSession: ObservableObject {
         authenticated = false
         orders = []
         selectedOrderId = nil
+        menu = nil
+        soldOutIds = []
+        specialClosedPeriods = []
         KeychainStore.delete(account: Self.rememberKeyAccount)
         apiKey = ""
         rememberDevice = false
@@ -134,6 +164,16 @@ final class AdminSession: ObservableObject {
             while !Task.isCancelled {
                 await self?.refresh()
                 try? await Task.sleep(nanoseconds: 3_000_000_000)
+            }
+        }
+    }
+
+    private func startClock() {
+        clockTask?.cancel()
+        clockTask = Task { [weak self] in
+            while !Task.isCancelled {
+                await MainActor.run { self?.now = Date() }
+                try? await Task.sleep(nanoseconds: 15_000_000_000)
             }
         }
     }
@@ -157,6 +197,20 @@ final class AdminSession: ObservableObject {
             pauseUntil = settings.settings?.pauseUntil
             testMode = settings.settings?.testMode ?? false
             closingTime = settings.settings?.closingTime ?? closingTime
+            soldOutIds = settings.settings?.soldOutItemIds ?? []
+            let today = AdminFormat.dayString(Date())
+            specialClosedPeriods = (settings.settings?.specialClosedDates ?? [])
+                .map(\.asPeriod)
+                .filter { $0.end >= today }
+                .sorted { $0.start < $1.start }
+        } catch {
+            // ignore
+        }
+    }
+
+    private func refreshMenu() async {
+        do {
+            menu = try await client.fetchMenu()
         } catch {
             // ignore
         }
@@ -167,6 +221,12 @@ final class AdminSession: ObservableObject {
         if !seeded {
             knownOrderIds = ids
             seeded = true
+            // Don't alert for cancels that were already on screen at login.
+            cancelAlerted = Set(
+                fetched
+                    .filter { $0.status == "cancelled" && Self.isCustomerCancelled($0) }
+                    .map(\.id)
+            )
             if !fetched.contains(where: \.isPending) {
                 sound.stopPendingLoop()
             }
@@ -183,19 +243,22 @@ final class AdminSession: ObservableObject {
             }
         }
 
-        for order in fetched where order.status == "cancelled" {
-            if order.statusReason == "Customer cancelled online", !cancelAlerted.contains(order.id) {
+        for order in fetched where order.status == "cancelled" && Self.isCustomerCancelled(order) {
+            if !cancelAlerted.contains(order.id) {
                 cancelAlerted.insert(order.id)
                 sound.playCancel()
             }
         }
 
-        if !fetched.contains(where: \.isPending) || !restaurantOpen {
-            // Leave cancel chirp alone; stop looping pending alert when queue is clear.
-            if !fetched.contains(where: \.isPending) {
-                sound.stopPendingLoop()
-            }
+        if !fetched.contains(where: \.isPending) {
+            sound.stopPendingLoop()
         }
+    }
+
+    private static func isCustomerCancelled(_ order: AdminOrder) -> Bool {
+        let reason = (order.statusReason ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return reason.caseInsensitiveCompare("Customer cancelled online") == .orderedSame
     }
 
     func setWaitingMinutes(_ minutes: Int) async {
@@ -291,8 +354,67 @@ final class AdminSession: ObservableObject {
         }
     }
 
-    func stopSound() {
-        sound.stop()
+    func toggleSoldOut(_ itemId: String) async {
+        var next = soldOutIds
+        if let idx = next.firstIndex(of: itemId) {
+            next.remove(at: idx)
+        } else {
+            next.append(itemId)
+        }
+        do {
+            try await client.updateSoldOut(next)
+            soldOutIds = next
+        } catch {
+            statusMessage = (error as? LocalizedError)?.errorDescription
+        }
+    }
+
+    func addSpecialClosed(start: Date, end: Date, message: String) async {
+        let startKey = AdminFormat.dayString(start)
+        let endKey = AdminFormat.dayString(end)
+        guard endKey >= startKey else {
+            statusMessage = "Choose a valid start and end date."
+            return
+        }
+        let period = SpecialClosedPeriod(
+            start: startKey,
+            end: endKey,
+            message: message.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        )
+        let today = AdminFormat.dayString(Date())
+        let next = (specialClosedPeriods + [period])
+            .filter { $0.end >= today }
+            .sorted { $0.start < $1.start }
+        do {
+            try await client.updateSpecialClosedDates(next)
+            specialClosedPeriods = next
+            statusMessage = "Closed period saved."
+        } catch {
+            statusMessage = (error as? LocalizedError)?.errorDescription
+        }
+    }
+
+    func removeSpecialClosed(_ period: SpecialClosedPeriod) async {
+        let next = specialClosedPeriods.filter { $0 != period }
+        do {
+            try await client.updateSpecialClosedDates(next)
+            specialClosedPeriods = next
+        } catch {
+            statusMessage = (error as? LocalizedError)?.errorDescription
+        }
+    }
+
+    func ensureMenuLoaded() async {
+        if menu == nil {
+            await refreshMenu()
+        }
+    }
+}
+
+private extension String {
+    var nilIfEmpty: String? {
+        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 }
 

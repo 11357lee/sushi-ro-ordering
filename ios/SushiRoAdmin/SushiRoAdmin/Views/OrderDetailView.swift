@@ -2,11 +2,12 @@ import SwiftUI
 
 struct OrderDetailView: View {
     @EnvironmentObject private var session: AdminSession
-    @Environment(\.dismiss) private var dismiss
 
     let order: AdminOrder
+    var onClose: () -> Void = {}
 
     @State private var prepMinutes: Int
+    @State private var customPrepText = ""
     @State private var rejectReason = "Out of items"
     @State private var customReason = ""
     @State private var cancelReason = "Customer cancellation"
@@ -16,9 +17,21 @@ struct OrderDetailView: View {
     private let rejectReasons = ["Out of items", "Restaurant too busy", "Custom message"]
     private let cancelReasons = ["Customer cancellation", "Out of items", "Custom message"]
 
-    init(order: AdminOrder) {
+    init(order: AdminOrder, onClose: @escaping () -> Void = {}) {
         self.order = order
+        self.onClose = onClose
         _prepMinutes = State(initialValue: 15)
+    }
+
+    private var liveOrder: AdminOrder {
+        session.orders.first(where: { $0.id == order.id }) ?? order
+    }
+
+    private var effectivePrepMinutes: Int {
+        if let custom = Int(customPrepText), custom > 0 {
+            return custom
+        }
+        return max(1, prepMinutes)
     }
 
     var body: some View {
@@ -27,107 +40,170 @@ struct OrderDetailView: View {
                 header
                 Divider()
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 14) {
+                    VStack(alignment: .leading, spacing: 12) {
                         if let notes = notesText {
                             Text(notes)
-                                .font(.body.weight(.semibold))
+                                .font(.title3.weight(.semibold))
                                 .foregroundStyle(.red)
-                                .padding(12)
+                                .padding(14)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .background(Color.red.opacity(0.1))
                                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                         }
 
-                        FlexibleChipWrap(items: order.extras)
+                        FlexibleChipWrap(items: liveOrder.extras)
 
-                        ForEach(order.orderItems ?? []) { item in
-                            VStack(alignment: .leading, spacing: 4) {
-                                HStack(alignment: .firstTextBaseline) {
-                                    Text("\(item.quantity) x \(item.name)")
-                                        .font(.title3.weight(.medium))
-                                    if item.isGF {
-                                        Text("GF")
-                                            .font(.subheadline)
-                                            .foregroundStyle(.purple)
-                                    }
-                                }
-                                if !item.optionSummary.isEmpty {
-                                    Text(item.optionSummary)
-                                        .foregroundStyle(.blue)
-                                }
-                                if let special = item.specialRequest, !special.isEmpty {
-                                    Text(special)
-                                        .italic()
-                                        .foregroundStyle(.red)
-                                }
-                            }
-                            .padding(10)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(item.isGF ? Color.purple.opacity(0.08) : Color(uiColor: .secondarySystemBackground))
-                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        ForEach(sortedItems) { item in
+                            itemRow(item)
                         }
                     }
-                    .padding(16)
+                    .padding(20)
                 }
 
-                if order.isPending {
+                if liveOrder.isPending {
                     Divider()
                     pendingActions
                         .padding(16)
                         .background(Color(uiColor: .systemBackground))
-                } else if order.status == "accepted" {
-                    Divider()
-                    cancelActions
-                        .padding(16)
-                        .background(Color(uiColor: .systemBackground))
                 }
             }
-            .navigationTitle(order.customerTitle)
+            .navigationTitle(liveOrder.customerTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") { dismiss() }
+                    Button("Close") { onClose() }
                         .frame(minHeight: 44)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    if liveOrder.isAccepted {
+                        Menu {
+                            Picker("Cancel reason", selection: $cancelReason) {
+                                ForEach(cancelReasons, id: \.self) { Text($0).tag($0) }
+                            }
+                            if cancelReason == "Custom message" {
+                                TextField("Cancel message", text: $customReason)
+                            }
+                            Button("Cancel order", role: .destructive) {
+                                Task {
+                                    let reason = cancelReason == "Custom message"
+                                        ? (customReason.isEmpty ? "Custom message" : customReason)
+                                        : cancelReason
+                                    await session.cancel(liveOrder, reason: reason)
+                                    onClose()
+                                }
+                            }
+                        } label: {
+                            Text("Cancel")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.red)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(Color.red.opacity(0.12))
+                                .clipShape(Capsule())
+                        }
+                    }
                 }
             }
             .onAppear {
                 prepMinutes = session.waitingMinutes
+                customPrepText = ""
             }
         }
-        .presentationDetents([.large])
-        .presentationDragIndicator(.visible)
+    }
+
+    private var sortedItems: [AdminOrderItem] {
+        let items = liveOrder.orderItems ?? []
+        return items.sorted { lhs, rhs in
+            if lhs.isGF != rhs.isGF { return !lhs.isGF && rhs.isGF }
+            return lhs.name < rhs.name
+        }
     }
 
     private var header: some View {
         HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("\(AdminFormat.time(order.createdAt)) · \(order.status.capitalized)")
+            VStack(alignment: .leading, spacing: 6) {
+                Text("\(AdminFormat.time(liveOrder.createdAt)) · \(liveOrder.status.capitalized)")
+                    .font(.title3)
                     .foregroundStyle(.secondary)
-                Text(AdminFormat.phoneDisplay(order.customer?.phone))
+                Text(AdminFormat.phoneDisplay(liveOrder.customer?.phone))
+                    .font(.title3)
+                if let countdown = liveOrder.countdown(now: session.now) {
+                    Text(countdown)
+                        .font(.headline.bold())
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Color.orange.opacity(0.2))
+                        .foregroundStyle(.orange)
+                        .clipShape(Capsule())
+                }
             }
             Spacer()
-            VStack(alignment: .trailing) {
-                Text(AdminFormat.money(order.total ?? order.subtotal))
-                    .font(.title3.bold())
-                Text("Sub \(AdminFormat.money(order.subtotal)) · Tax \(AdminFormat.money(order.tax))")
-                    .font(.footnote)
+            VStack(alignment: .trailing, spacing: 4) {
+                Text(AdminFormat.money(liveOrder.total ?? liveOrder.subtotal))
+                    .font(.title.bold())
+                Text("Sub \(AdminFormat.money(liveOrder.subtotal)) · Tax \(AdminFormat.money(liveOrder.tax))")
+                    .font(.body)
                     .foregroundStyle(.secondary)
             }
         }
         .padding(16)
+        .background(Color(uiColor: .systemBackground))
     }
 
     private var notesText: String? {
-        let parts = [order.allergyNotes, order.specialInstructions].compactMap { value -> String? in
+        let parts = [liveOrder.allergyNotes, liveOrder.specialInstructions].compactMap { value -> String? in
             guard let value, !value.isEmpty else { return nil }
             return value
         }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
+    private func itemRow(_ item: AdminOrderItem) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                (
+                    Text("\(item.quantity) x \(item.displayName)")
+                        .font(.title2.weight(.semibold))
+                    + (
+                        item.optionSummary.isEmpty
+                            ? Text("")
+                            : Text(" - \(item.optionSummary)")
+                                .font(.title2.weight(.regular))
+                                .foregroundColor(.blue)
+                    )
+                )
+                .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 8)
+                if item.isGF {
+                    Text("GF")
+                        .font(.headline.bold())
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(AdminColors.gfBadge)
+                        .clipShape(Capsule())
+                }
+            }
+            if let special = item.specialRequest, !special.isEmpty {
+                Text(special)
+                    .font(.body)
+                    .italic()
+                    .foregroundStyle(.red)
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(item.isGF ? AdminColors.gfFill : AdminColors.regularFill)
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(item.isGF ? AdminColors.gfStroke : Color.clear, lineWidth: 2)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
     private var pendingActions: some View {
         VStack(alignment: .leading, spacing: 12) {
-            if order.isASAP {
+            if liveOrder.isASAP {
                 Text("Prep (min)")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
@@ -141,15 +217,27 @@ struct OrderDetailView: View {
                         prepButton(minutes, extended: true)
                     }
                 }
+                TextField("Custom min", text: $customPrepText)
+                    .keyboardType(.numberPad)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.title3)
+                    .frame(minHeight: 48)
+                    .onChange(of: customPrepText) { value in
+                        let digits = String(value.filter(\.isNumber).prefix(3))
+                        if digits != value { customPrepText = digits }
+                        if let n = Int(digits), n > 0 {
+                            prepMinutes = n
+                        }
+                    }
             }
 
             HStack(spacing: 12) {
                 Button {
-                    Task { await session.accept(order, prepMinutes: prepMinutes) }
+                    Task { await session.accept(liveOrder, prepMinutes: effectivePrepMinutes) }
                 } label: {
                     Text("Accept")
                         .font(.headline)
-                        .frame(maxWidth: .infinity, minHeight: 48)
+                        .frame(maxWidth: .infinity, minHeight: 52)
                         .background(Color.green)
                         .foregroundStyle(.white)
                         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -159,12 +247,12 @@ struct OrderDetailView: View {
                         let reason = rejectReason == "Custom message"
                             ? (customReason.isEmpty ? "Custom message" : customReason)
                             : rejectReason
-                        await session.reject(order, reason: reason)
+                        await session.reject(liveOrder, reason: reason)
                     }
                 } label: {
                     Text("Reject")
                         .font(.headline)
-                        .frame(maxWidth: .infinity, minHeight: 48)
+                        .frame(maxWidth: .infinity, minHeight: 52)
                         .background(Color.red)
                         .foregroundStyle(.white)
                         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -185,50 +273,24 @@ struct OrderDetailView: View {
         }
     }
 
-    private var cancelActions: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Picker("Cancel reason", selection: $cancelReason) {
-                ForEach(cancelReasons, id: \.self) { Text($0).tag($0) }
-            }
-            .pickerStyle(.menu)
-            .frame(minHeight: 44)
-
-            if cancelReason == "Custom message" {
-                TextField("Cancel message", text: $customReason)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(minHeight: 44)
-            }
-
-            Button(role: .destructive) {
-                Task {
-                    let reason = cancelReason == "Custom message"
-                        ? (customReason.isEmpty ? "Custom message" : customReason)
-                        : cancelReason
-                    await session.cancel(order, reason: reason)
-                }
-            } label: {
-                Text("Cancel order")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity, minHeight: 48)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(.red)
-        }
-    }
-
     private func prepButton(_ minutes: Int, extended: Bool = false) -> some View {
         Button {
             prepMinutes = minutes
+            customPrepText = ""
         } label: {
             Text("\(minutes)")
                 .font(.headline)
                 .frame(maxWidth: .infinity, minHeight: 44)
                 .background(
-                    prepMinutes == minutes
+                    customPrepText.isEmpty && prepMinutes == minutes
                         ? Color.primary
                         : (extended ? Color.orange.opacity(0.2) : Color(uiColor: .secondarySystemBackground))
                 )
-                .foregroundStyle(prepMinutes == minutes ? Color(uiColor: .systemBackground) : .primary)
+                .foregroundStyle(
+                    customPrepText.isEmpty && prepMinutes == minutes
+                        ? Color(uiColor: .systemBackground)
+                        : .primary
+                )
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
     }

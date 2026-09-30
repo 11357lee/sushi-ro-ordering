@@ -24,14 +24,9 @@ struct OrdersBoardView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     ScrollView {
-                        LazyVGrid(
-                            columns: [
-                                GridItem(.adaptive(minimum: 340, maximum: 560), spacing: 16)
-                            ],
-                            spacing: 16
-                        ) {
+                        LazyVStack(spacing: 12) {
                             ForEach(session.orders) { order in
-                                OrderCardView(order: order) {
+                                OrderCardView(order: order, now: session.now) {
                                     session.selectedOrderId = order.id
                                 }
                             }
@@ -60,7 +55,6 @@ struct OrdersBoardView: View {
                         Button("Clear orders") {
                             Task { await session.dismissAllOrders() }
                         }
-                        Button("Stop sound") { session.stopSound() }
                         Divider()
                         Button("Logout", role: .destructive) { session.logout() }
                     } label: {
@@ -72,13 +66,17 @@ struct OrdersBoardView: View {
             }
             .sheet(isPresented: $showSettings) {
                 SettingsView()
+                    .environmentObject(session)
             }
-            .sheet(item: Binding(
-                get: { session.selectedOrder },
-                set: { session.selectedOrderId = $0?.id }
-            )) { order in
-                OrderDetailView(order: order)
+            .overlay {
+                if let order = session.selectedOrder {
+                    OrderPopupOverlay(order: order)
+                        .environmentObject(session)
+                        .transition(.opacity)
+                        .zIndex(10)
+                }
             }
+            .animation(.easeInOut(duration: 0.2), value: session.selectedOrderId)
         }
     }
 
@@ -141,73 +139,119 @@ struct OrdersBoardView: View {
     }
 }
 
+/// Large centered popup (~90% height) — not full screen, so the board stays visible behind.
+struct OrderPopupOverlay: View {
+    @EnvironmentObject private var session: AdminSession
+    let order: AdminOrder
+
+    var body: some View {
+        GeometryReader { geo in
+            let width = min(geo.size.width * 0.92, 980)
+            let height = geo.size.height * 0.90
+
+            ZStack {
+                Color.black.opacity(0.4)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        session.selectedOrderId = nil
+                    }
+
+                OrderDetailView(order: order) {
+                    session.selectedOrderId = nil
+                }
+                .environmentObject(session)
+                .frame(width: width, height: height)
+                .background(Color(uiColor: .systemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .shadow(color: .black.opacity(0.25), radius: 24, y: 8)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+}
+
 struct OrderCardView: View {
     let order: AdminOrder
+    let now: Date
     let onOpen: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if order.status == "missed" {
-                badge("Missed — not accepted in 4 minutes", color: .orange)
-            }
-            if order.status == "cancelled", order.statusReason == "Customer cancelled online" {
-                badge("Customer cancelled online", color: .red)
-            }
-            if order.isPending, !order.isASAP {
-                badge("Scheduled — accept when ready", color: .cyan)
-            }
+        Button(action: onOpen) {
+            HStack(alignment: .top, spacing: 16) {
+                VStack(alignment: .leading, spacing: 6) {
+                    if order.status == "missed" {
+                        badge("Missed — not accepted in 4 minutes", color: .orange)
+                    }
+                    if order.status == "cancelled", order.statusReason == "Customer cancelled online" {
+                        badge("Customer cancelled online", color: .red)
+                    }
+                    if order.isPending, !order.isASAP {
+                        badge("Scheduled — accept when ready", color: .cyan)
+                    }
 
-            Text(order.customerTitle)
-                .font(.title2.bold())
-            Text(AdminFormat.time(order.createdAt))
-                .foregroundStyle(.secondary)
-            Text("\(AdminFormat.phoneDisplay(order.customer?.phone)) · \(order.status.capitalized)")
-                .font(.body)
+                    Text(order.customerTitle)
+                        .font(.title2.bold())
+                        .foregroundStyle(.primary)
+                    Text("\(AdminFormat.time(order.createdAt)) · \(AdminFormat.phoneDisplay(order.customer?.phone)) · \(order.status.capitalized)")
+                        .font(.body)
+                        .foregroundStyle(.secondary)
 
-            if order.isASAP {
-                Text("ASAP pickup")
-                    .font(.headline)
-                    .foregroundStyle(.orange)
-            } else {
-                Text("Pickup \(AdminFormat.time(order.pickupTime))")
-                    .font(.headline)
-                    .foregroundStyle(.blue)
-            }
+                    HStack(spacing: 8) {
+                        if order.isASAP {
+                            Text(order.isAccepted ? "Ready \(AdminFormat.time(order.pickupTime))" : "ASAP pickup")
+                                .font(.headline)
+                                .foregroundStyle(.orange)
+                        } else {
+                            Text("Pickup \(AdminFormat.time(order.pickupTime))")
+                                .font(.headline)
+                                .foregroundStyle(.blue)
+                        }
+                        if let countdown = order.countdown(now: now) {
+                            Text(countdown)
+                                .font(.subheadline.bold())
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.orange.opacity(0.2))
+                                .foregroundStyle(Color.orange)
+                                .clipShape(Capsule())
+                        }
+                    }
 
-            FlowChips(items: order.extras)
+                    FlexibleChipWrap(items: order.extras)
+                }
 
-            HStack {
-                Button(action: onOpen) {
+                Spacer(minLength: 8)
+
+                VStack(alignment: .trailing, spacing: 10) {
+                    Text(AdminFormat.money(order.total ?? order.subtotal))
+                        .font(.title2.bold())
+                        .foregroundStyle(.primary)
+                    Text("Tax \(AdminFormat.money(order.tax))")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                     Text(
                         order.isPending
-                            ? "Review & accept (\(order.itemCount))"
-                            : "View menu (\(order.itemCount))"
+                            ? "Review (\(order.itemCount))"
+                            : "Menu (\(order.itemCount))"
                     )
                     .font(.headline)
-                    .frame(minHeight: 44)
-                    .padding(.horizontal, 14)
+                    .frame(minWidth: 120, minHeight: 44)
+                    .padding(.horizontal, 12)
                     .background(Color.teal.opacity(0.15))
                     .foregroundStyle(Color.teal)
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
-                Spacer()
-                VStack(alignment: .trailing) {
-                    Text(AdminFormat.money(order.total ?? order.subtotal))
-                        .font(.title2.bold())
-                    Text("Tax \(AdminFormat.money(order.tax))")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
             }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(uiColor: .systemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(borderColor, lineWidth: 2)
+            )
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(uiColor: .systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(borderColor, lineWidth: 2)
-        )
+        .buttonStyle(.plain)
     }
 
     private var borderColor: Color {
@@ -229,20 +273,10 @@ struct OrderCardView: View {
     }
 }
 
-struct FlowChips: View {
-    let items: [String]
-
-    var body: some View {
-        FlexibleChipWrap(items: items)
-    }
-}
-
-/// Simple wrapping chip row for iPad.
 struct FlexibleChipWrap: View {
     let items: [String]
 
     var body: some View {
-        // Adaptive grid keeps chips readable without a custom layout engine.
         LazyVGrid(
             columns: [GridItem(.adaptive(minimum: 110), spacing: 8, alignment: .leading)],
             alignment: .leading,

@@ -49,10 +49,11 @@ struct AdminOrder: Identifiable, Decodable, Equatable {
 
     var isPending: Bool { status == "pending" }
     var isASAP: Bool { pickupType == "asap" }
+    var isAccepted: Bool { status == "accepted" }
 
     var customerTitle: String {
-        let first = customer?.firstName?.capitalized ?? "Guest"
-        let last = customer?.lastName?.capitalized ?? ""
+        let first = AdminFormat.displayName(customer?.firstName) ?? "Guest"
+        let last = AdminFormat.displayName(customer?.lastName) ?? ""
         return last.isEmpty ? first : "\(first) \(last)"
     }
 
@@ -75,6 +76,21 @@ struct AdminOrder: Identifiable, Decodable, Equatable {
         if noSoySauce == true { lines.append("No soy sauce") }
         return lines
     }
+
+    /// Countdown to pickup/ready time for accepted ASAP and scheduled orders.
+    func countdown(now: Date) -> String? {
+        guard let pickupTime, let date = ISO8601DateFormatter.parse(pickupTime) else { return nil }
+        let show =
+            isAccepted
+            || (pickupType == "scheduled" && (isPending || isAccepted))
+        guard show else { return nil }
+        let diffMs = date.timeIntervalSince(now)
+        guard diffMs > 0 else { return nil }
+        let totalMinutes = Int(ceil(diffMs / 60))
+        let hours = totalMinutes / 60
+        let minutes = totalMinutes % 60
+        return hours > 0 ? "\(hours)h \(minutes)m" : "\(minutes)m"
+    }
 }
 
 struct AdminOrderItem: Identifiable, Decodable, Equatable {
@@ -94,9 +110,13 @@ struct AdminOrderItem: Identifiable, Decodable, Equatable {
 
     var isGF: Bool { sectionSlug == "gluten-free" }
 
+    var displayName: String {
+        AdminFormat.menuItemName(name)
+    }
+
     var optionSummary: String {
         (selectedOptions ?? [])
-            .map(\.name)
+            .map { AdminFormat.optionLabel($0.name) }
             .filter { !$0.isEmpty }
             .joined(separator: ", ")
     }
@@ -135,15 +155,100 @@ struct RestaurantSettingsPayload: Decodable {
     let closingTime: String?
     let testMode: Bool?
     let soldOutItemIds: [String]?
+    let specialClosedDates: [SpecialClosedDatePayload]?
 
     enum CodingKeys: String, CodingKey {
         case pauseUntil = "pause_until"
         case closingTime = "closing_time"
         case testMode = "test_mode"
         case soldOutItemIds = "sold_out_item_ids"
+        case specialClosedDates = "special_closed_dates"
     }
 }
 
 struct WaitingTimePayload: Decodable {
     let minutes: Int?
+}
+
+/// Special closed dates may arrive as a string (legacy) or `{start,end,message}`.
+enum SpecialClosedDatePayload: Decodable, Equatable {
+    case day(String)
+    case period(SpecialClosedPeriod)
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let day = try? container.decode(String.self) {
+            self = .day(day)
+            return
+        }
+        self = .period(try container.decode(SpecialClosedPeriod.self))
+    }
+
+    var asPeriod: SpecialClosedPeriod {
+        switch self {
+        case .day(let day):
+            return SpecialClosedPeriod(start: day, end: day, message: nil)
+        case .period(let period):
+            return period
+        }
+    }
+}
+
+struct SpecialClosedPeriod: Codable, Equatable, Identifiable, Hashable {
+    var start: String
+    var end: String
+    var message: String?
+
+    var id: String { "\(start)|\(end)|\(message ?? "")" }
+
+    var label: String {
+        start == end ? start : "\(start) to \(end)"
+    }
+}
+
+struct MenuResponse: Decodable {
+    let sections: [MenuSection]
+    let categories: [MenuCategory]
+    let items: [MenuItemPayload]
+}
+
+struct MenuSection: Decodable, Identifiable, Equatable {
+    let id: String
+    let name: String
+    let slug: String
+    let sortOrder: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, slug
+        case sortOrder = "sort_order"
+    }
+
+    var isGF: Bool { slug == "gluten-free" }
+}
+
+struct MenuCategory: Decodable, Identifiable, Equatable {
+    let id: String
+    let sectionId: String
+    let name: String
+    let slug: String
+    let sortOrder: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, slug
+        case sectionId = "section_id"
+        case sortOrder = "sort_order"
+    }
+}
+
+struct MenuItemPayload: Decodable, Identifiable, Equatable {
+    let id: String
+    let categoryId: String
+    let name: String
+    let sortOrder: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case id, name
+        case categoryId = "category_id"
+        case sortOrder = "sort_order"
+    }
 }

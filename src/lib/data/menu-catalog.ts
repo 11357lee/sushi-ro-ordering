@@ -261,6 +261,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 4,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a1000001-0000-0000-0000-00000000001a",
@@ -1303,6 +1304,7 @@ export const CATALOG_ITEMS: CatalogMenuItem[] = [
     is_available: true,
     has_roll_options: false,
     sort_order: 4,
+    labels: withLabels(undefined, LABEL.raw),
   },
   {
     id: "a2000001-0000-0000-0000-00000000000b",

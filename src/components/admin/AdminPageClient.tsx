@@ -29,6 +29,8 @@ const PREP_MINUTE_OPTIONS_PRIMARY = ["5", "10", "15", "20", "25", "30", "35", "4
 const PREP_MINUTE_OPTIONS_EXTENDED = ["60", "70", "80", "90", "100", "120"];
 const CANCEL_ALERT_STORAGE_KEY = "sushi-ro-admin-cancel-alerts";
 const REMEMBER_DEVICE_KEY = "sushi-ro-admin-remembered-key";
+/** Auto-close item popup on new order only after this long with no screen touches. */
+const ADMIN_IDLE_POPUP_CLOSE_MS = 15 * 60 * 1000;
 
 type AdminAuthFailure = "empty" | "invalid" | "network";
 type AdminAuthResult = { ok: true } | { ok: false; reason: AdminAuthFailure };
@@ -375,6 +377,7 @@ export function AdminPageClient() {
   const ordersReadyRef = useRef(false);
   const knownOrderIdsRef = useRef<Set<string>>(new Set());
   const knownOrdersSeededRef = useRef(false);
+  const lastInteractionAtRef = useRef<number>(Date.now());
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [soundUnlocked, setSoundUnlocked] = useState(false);
   const [expandedSoldOutCategory, setExpandedSoldOutCategory] = useState<string | null>(null);
@@ -885,8 +888,26 @@ export function AdminPageClient() {
     adminSound.startPending();
   }, [hasPendingAlert, pendingKind]);
 
-  // New orders: close item popup + jump to orders (never interrupt Settings),
-  // and force an immediate sound alert so iPad doesn't stay silent.
+  // Track staff touches so we only auto-close popups after long idle.
+  useEffect(() => {
+    if (!authenticated) return;
+    const mark = () => {
+      lastInteractionAtRef.current = Date.now();
+    };
+    lastInteractionAtRef.current = Date.now();
+    window.addEventListener("pointerdown", mark, { passive: true });
+    window.addEventListener("touchstart", mark, { passive: true });
+    window.addEventListener("keydown", mark);
+    return () => {
+      window.removeEventListener("pointerdown", mark);
+      window.removeEventListener("touchstart", mark);
+      window.removeEventListener("keydown", mark);
+    };
+  }, [authenticated]);
+
+  // New orders: always re-alert sound on Orders tab; only auto-close an open
+  // item popup (and return to the main list) after 15 minutes with no touches.
+  // Never interrupt the Settings page.
   useEffect(() => {
     if (!authenticated || !ordersReadyRef.current) {
       knownOrdersSeededRef.current = false;
@@ -909,18 +930,22 @@ export function AdminPageClient() {
     const newPending = newOrders.filter((order) => order.status === "pending");
     if (newPending.length === 0) return;
 
-    // Settings page stays undisturbed.
+    // Settings page stays undisturbed (no popup close, no forced navigation).
     if (tab === "settings") return;
-
-    setItemsPopupOrderId(null);
-    setOrderMenuOpenId(null);
-    setTab("orders");
 
     if (soundEnabled && soundUnlocked && restaurantOpen) {
       const kind = newPending.some((order) => order.pickup_type === "asap")
         ? "asap"
         : "scheduled";
       adminSound.alertNewPending(kind);
+    }
+
+    const idleMs = Date.now() - lastInteractionAtRef.current;
+    const popupOpen = itemsPopupOrderId !== null;
+    if (popupOpen && idleMs >= ADMIN_IDLE_POPUP_CLOSE_MS) {
+      setItemsPopupOrderId(null);
+      setOrderMenuOpenId(null);
+      setTab("orders");
     }
   }, [
     authenticated,
@@ -929,6 +954,7 @@ export function AdminPageClient() {
     soundEnabled,
     soundUnlocked,
     restaurantOpen,
+    itemsPopupOrderId,
   ]);
 
   // Stop sound when leaving the page / unmounting.

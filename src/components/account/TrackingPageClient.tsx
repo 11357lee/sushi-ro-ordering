@@ -158,6 +158,7 @@ export function TrackingPageClient() {
   const [searched, setSearched] = useState(false);
   const [cancelling, setCancelling] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [deletingAll, setDeletingAll] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -236,6 +237,12 @@ export function TrackingPageClient() {
     router.push("/cart");
   };
 
+  const isActivePickupOrder = (order: Order) => {
+    if (order.status !== "pending" && order.status !== "accepted") return false;
+    if (!order.pickup_time) return true;
+    return new Date(order.pickup_time).getTime() > Date.now();
+  };
+
   const handleDeleteHistory = async (orderId: string) => {
     if (!customer?.id) return;
     const ok = confirm("Delete this order from your history? This cannot be undone.");
@@ -260,6 +267,33 @@ export function TrackingPageClient() {
       setCancelError("Could not delete order");
     } finally {
       setDeleting(null);
+    }
+  };
+
+  const handleDeleteAllHistory = async () => {
+    if (!customer?.id) return;
+    const ok = confirm(
+      "Delete all order history? Orders still waiting for pickup will be kept. This cannot be undone."
+    );
+    if (!ok) return;
+
+    setDeletingAll(true);
+    setCancelError(null);
+    try {
+      const res = await fetch(`/api/customers/${encodeURIComponent(customer.id)}/history`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setCancelError(data.error ?? "Could not delete history");
+        return;
+      }
+      setOrders((prev) => prev.filter(isActivePickupOrder));
+      setExpandedId(null);
+    } catch {
+      setCancelError("Could not delete history");
+    } finally {
+      setDeletingAll(false);
     }
   };
 
@@ -325,8 +359,23 @@ export function TrackingPageClient() {
             )}
           </section>
           <section>
-            <h2 className="text-lg font-semibold text-stone-900">Order history</h2>
-            <p className="mt-1 text-sm text-stone-500">Orders from before today.</p>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-stone-900">Order history</h2>
+                <p className="mt-1 text-sm text-stone-500">Orders from before today.</p>
+              </div>
+              {(historyOrders.length > 0 ||
+                todayOrders.some((order) => !isActivePickupOrder(order))) && (
+                <button
+                  type="button"
+                  onClick={() => void handleDeleteAllHistory()}
+                  disabled={deletingAll}
+                  className="shrink-0 rounded-lg border border-red-300 px-3 py-1.5 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                >
+                  {deletingAll ? "Deleting..." : "Delete all history"}
+                </button>
+              )}
+            </div>
             {historyOrders.length === 0 ? (
               <p className="mt-3 text-sm text-stone-500">No earlier orders yet.</p>
             ) : (

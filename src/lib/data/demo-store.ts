@@ -107,6 +107,23 @@ export function deleteDemoOrderForCustomer(orderId: string, customerId: string):
   return true;
 }
 
+/** Keep active pickup orders; delete the rest of this customer's history (demo). */
+export function deleteDemoCustomerHistoryExceptActive(customerId: string): number {
+  const store = getStore();
+  const now = Date.now();
+  let deleted = 0;
+  for (const [id, order] of Array.from(store.orders.entries())) {
+    if (order.customer_id !== customerId) continue;
+    const keep =
+      (order.status === "pending" || order.status === "accepted") &&
+      (!order.pickup_time || new Date(order.pickup_time).getTime() > now);
+    if (keep) continue;
+    store.orders.delete(id);
+    deleted += 1;
+  }
+  return deleted;
+}
+
 export function updateDemoOrderStatus(
   id: string,
   status: OrderStatus,

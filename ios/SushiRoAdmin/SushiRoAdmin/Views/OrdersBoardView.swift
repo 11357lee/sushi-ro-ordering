@@ -12,10 +12,7 @@ struct OrdersBoardView: View {
                 waitingBar
                 Divider()
                 if session.orders.isEmpty {
-                    VStack(spacing: 12) {
-                        Image(systemName: "tray")
-                            .font(.system(size: 44))
-                            .foregroundStyle(.secondary)
+                    VStack(spacing: 8) {
                         Text("No orders on screen")
                             .font(.title3.weight(.semibold))
                         Text("New pickup orders will appear here.")
@@ -127,10 +124,11 @@ struct OrdersBoardView: View {
         guard session.waitingMinutes == minutes else {
             return Color(uiColor: .secondarySystemBackground)
         }
+        // Soft same-tone status colors (not bright green/orange/red).
         switch minutes {
-        case 15: return .green
-        case 30: return .orange
-        default: return .red
+        case 15: return AdminColors.waitShort
+        case 30: return AdminColors.waitMedium
+        default: return AdminColors.waitLong
         }
     }
 
@@ -222,8 +220,8 @@ struct OrderCardView: View {
 
                 Spacer(minLength: 8)
 
-                VStack(alignment: .trailing, spacing: 10) {
-                    Text(AdminFormat.money(order.total ?? order.subtotal))
+                VStack(alignment: .trailing, spacing: 6) {
+                    Text(AdminFormat.money(totalWithTax))
                         .font(.title2.bold())
                         .foregroundStyle(.primary)
                     Text("Tax \(AdminFormat.money(order.tax))")
@@ -237,8 +235,8 @@ struct OrderCardView: View {
                     .font(.headline)
                     .frame(minWidth: 120, minHeight: 44)
                     .padding(.horizontal, 12)
-                    .background(Color.teal.opacity(0.15))
-                    .foregroundStyle(Color.teal)
+                    .background(AdminColors.reviewFill)
+                    .foregroundStyle(AdminColors.reviewText)
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
             }
@@ -252,6 +250,12 @@ struct OrderCardView: View {
             )
         }
         .buttonStyle(.plain)
+    }
+
+    /// Total including tax (falls back to subtotal + tax if needed).
+    private var totalWithTax: Double {
+        if let total = order.total { return total }
+        return (order.subtotal ?? 0) + (order.tax ?? 0)
     }
 
     private var borderColor: Color {
@@ -283,12 +287,13 @@ struct FlexibleChipWrap: View {
             spacing: 8
         ) {
             ForEach(items, id: \.self) { item in
+                // Plain text only — no icons.
                 Text(item)
                     .font(.subheadline.weight(.medium))
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
-                    .background(Color.blue.opacity(0.12))
-                    .foregroundStyle(Color.blue)
+                    .background(AdminColors.chipFill)
+                    .foregroundStyle(AdminColors.chipText)
                     .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             }
         }

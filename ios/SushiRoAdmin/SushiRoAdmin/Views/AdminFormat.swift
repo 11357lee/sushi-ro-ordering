@@ -167,4 +167,16 @@ enum AdminColors {
     static let gfStroke = Color(red: 0.40, green: 0.08, blue: 0.72)
     static let gfBadge = Color(red: 0.38, green: 0.05, blue: 0.68)
     static let regularFill = Color(uiColor: .secondarySystemBackground)
+
+    /// Soft waiting-time button fills (portrait kitchen UI).
+    static let waitShort = Color(red: 0.45, green: 0.52, blue: 0.40) // muted olive — 15m
+    static let waitMedium = Color(red: 0.62, green: 0.55, blue: 0.42) // muted taupe — 30m
+    static let waitLong = Color(red: 0.50, green: 0.43, blue: 0.38) // muted brown-gray — 1h/2h
+
+    static let reviewFill = Color(red: 0.90, green: 0.88, blue: 0.84)
+    static let reviewText = Color(red: 0.35, green: 0.32, blue: 0.28)
+    static let chipFill = Color(red: 0.92, green: 0.91, blue: 0.89)
+    static let chipText = Color(red: 0.32, green: 0.30, blue: 0.28)
+    static let acceptFill = Color(red: 0.45, green: 0.52, blue: 0.40)
+    static let rejectFill = Color(red: 0.50, green: 0.43, blue: 0.38)
 }

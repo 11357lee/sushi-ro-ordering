@@ -1,5 +1,4 @@
 import {
-  addDays,
   addMinutes,
   format,
   isSunday,
@@ -321,38 +320,37 @@ export function generateScheduledPickupSlots(
   return generateBusinessPickupSlots({ closingTime, leadMinutes });
 }
 
+/** Same-day Later pickup slots only (no next-day options). */
 export function generateBusinessPickupSlots({
   closingTime = "21:00:00",
   leadMinutes = 60,
-  days = 3,
+  // Kept for call-site compatibility; multi-day pickup is not offered.
+  days: _days = 1,
 }: {
   closingTime?: string;
   leadMinutes?: number;
   days?: number;
 } = {}): { value: string; label: string }[] {
+  void _days;
   const now = new Date();
   const [closeHour, closeMinute] = closingTime.split(":").map(Number);
   const slots: { value: string; label: string }[] = [];
 
-  for (let dayOffset = 0; dayOffset < days; dayOffset += 1) {
-    const day = addDays(now, dayOffset);
-    const hours = isSunday(day) ? BUSINESS_HOURS.sunday : BUSINESS_HOURS.weekday;
-    const open = parseTimeOnDate(hours.open, day);
-    const close = setSeconds(setMinutes(setHours(day, closeHour), closeMinute), 0);
-    const earliest = dayOffset === 0 ? addMinutes(now, leadMinutes) : open;
-    const start = earliest > open ? earliest : open;
-    const roundedMinutes = Math.ceil(start.getMinutes() / 15) * 15;
-    let slot = setSeconds(setMinutes(setHours(start, start.getHours()), roundedMinutes), 0);
+  const day = now;
+  const hours = isSunday(day) ? BUSINESS_HOURS.sunday : BUSINESS_HOURS.weekday;
+  const open = parseTimeOnDate(hours.open, day);
+  const close = setSeconds(setMinutes(setHours(day, closeHour), closeMinute), 0);
+  const earliest = addMinutes(now, leadMinutes);
+  const start = earliest > open ? earliest : open;
+  const roundedMinutes = Math.ceil(start.getMinutes() / 15) * 15;
+  let slot = setSeconds(setMinutes(setHours(start, start.getHours()), roundedMinutes), 0);
 
-    while (slot <= close) {
-      slots.push({
-        value: slot.toISOString(),
-        label: `${dayOffset === 0 ? "Today" : format(slot, "EEE")} ${format(slot, "h:mm a")}`,
-      });
-      slot = addMinutes(slot, 15);
-    }
-
-    if (slots.length >= 24) break;
+  while (slot <= close) {
+    slots.push({
+      value: slot.toISOString(),
+      label: `Today ${format(slot, "h:mm a")}`,
+    });
+    slot = addMinutes(slot, 15);
   }
 
   return slots;

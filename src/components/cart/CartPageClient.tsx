@@ -44,9 +44,10 @@ export function CartPageClient() {
         const openNow = settings ? isRestaurantOpen(settings) : true;
         const paused = isPauseActive(settings?.pause_until);
         const disabledNow = Boolean(data.orderingDisabled) && !testMode;
+        // Same-day pickup only (even in test mode).
         const nextSlots = generateBusinessPickupSlots({
           closingTime: ORDERING_DISABLED_START,
-          days: testMode ? 3 : 1,
+          days: 1,
         });
         setPickupSlots(nextSlots);
         setOrderingDisabled(disabledNow);

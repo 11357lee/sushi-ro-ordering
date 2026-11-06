@@ -176,7 +176,7 @@ struct OrderDetailView: View {
                             ? Text("")
                             : Text(" - \(item.optionSummary)")
                                 .font(.title3.weight(.regular))
-                                .foregroundColor(.blue)
+                                .foregroundColor(AdminColors.chipText)
                     )
                 )
                 .fixedSize(horizontal: false, vertical: true)
@@ -246,7 +246,7 @@ struct OrderDetailView: View {
                     Text("Accept")
                         .font(.subheadline.weight(.bold))
                         .frame(maxWidth: .infinity, minHeight: 40)
-                        .background(Color.green)
+                        .background(AdminColors.acceptFill)
                         .foregroundStyle(.white)
                         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 }
@@ -261,7 +261,7 @@ struct OrderDetailView: View {
                     Text("Reject")
                         .font(.subheadline.weight(.bold))
                         .frame(maxWidth: .infinity, minHeight: 40)
-                        .background(Color.red)
+                        .background(AdminColors.rejectFill)
                         .foregroundStyle(.white)
                         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 }
@@ -294,7 +294,7 @@ struct OrderDetailView: View {
                 .background(
                     customPrepText.isEmpty && prepMinutes == minutes
                         ? Color.primary
-                        : (extended ? Color.orange.opacity(0.2) : Color(uiColor: .secondarySystemBackground))
+                        : (extended ? AdminColors.waitMedium.opacity(0.25) : Color(uiColor: .secondarySystemBackground))
                 )
                 .foregroundStyle(
                     customPrepText.isEmpty && prepMinutes == minutes

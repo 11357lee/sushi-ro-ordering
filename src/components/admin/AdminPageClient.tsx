@@ -209,17 +209,13 @@ function PopupPendingActions({
           }
           className={`min-h-12 rounded-xl px-2 py-2.5 text-base font-bold text-white ${
             acceptRemaining !== null && acceptRemaining <= 60
-              ? "bg-amber-600 hover:bg-amber-700"
-              : "bg-emerald-600 hover:bg-emerald-700"
+              ? "bg-[#9E8C6B] hover:bg-[#8F7E5F]"
+              : "bg-[#73856B] hover:bg-[#66785E]"
           }`}
         >
           <span className="leading-tight">Accept</span>
           {acceptRemaining !== null && (
-            <span
-              className={`ml-1.5 font-mono text-base font-extrabold tabular-nums ${
-                acceptRemaining <= 60 ? "text-amber-100" : "text-emerald-100"
-              }`}
-            >
+            <span className="ml-1.5 font-mono text-base font-extrabold tabular-nums text-white/90">
               {Math.floor(acceptRemaining / 60)}:
               {String(acceptRemaining % 60).padStart(2, "0")}
             </span>
@@ -237,7 +233,7 @@ function PopupPendingActions({
                 : reasonInputs[order.id] ?? "Out of items"
             )
           }
-          className="min-h-12 rounded-xl bg-red-600 px-2 py-2.5 text-base font-bold text-white hover:bg-red-700"
+          className="min-h-12 rounded-xl bg-[#806E61] px-2 py-2.5 text-base font-bold text-white hover:bg-[#716155]"
         >
           Reject
         </button>
@@ -285,7 +281,7 @@ function OrderExtras({ order }: { order: Order }) {
   return (
     <ul className="flex flex-wrap gap-1.5 text-base">
       {extras.map((line) => (
-        <li key={line} className="rounded-lg bg-blue-50 px-2.5 py-1.5 font-medium text-blue-800">
+        <li key={line} className="rounded-lg bg-stone-100 px-2.5 py-1.5 font-medium text-stone-700">
           {line}
         </li>
       ))}
@@ -1058,10 +1054,10 @@ export function AdminPageClient() {
               className={`min-h-11 min-w-[4.25rem] rounded-xl px-3.5 py-2.5 text-base font-bold ${
                 waitingMinutes === m
                   ? m <= 15
-                    ? "bg-emerald-600 text-white"
+                    ? "bg-[#73856B] text-white"
                     : m === 30
-                      ? "bg-amber-400 text-stone-900"
-                      : "bg-red-600 text-white"
+                      ? "bg-[#9E8C6B] text-white"
+                      : "bg-[#806E61] text-white"
                   : "bg-white text-stone-700 ring-1 ring-stone-200 disabled:cursor-not-allowed disabled:opacity-50"
               }`}
             >
@@ -1239,27 +1235,30 @@ export function AdminPageClient() {
                   0
                 );
 
+                const totalWithTax =
+                  order.total ?? (order.subtotal ?? 0) + (order.tax ?? 0);
+
                 const itemsBlock = (
                   <div className={isPending ? "mt-3" : "mt-2 border-t border-stone-100 pt-2"}>
                     <SpecialNotes order={order} />
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setItemsPopupOrderId(order.id)}
-                        className="min-h-11 rounded-xl border border-teal-200 bg-teal-50 px-3.5 py-2.5 text-base font-bold text-teal-800 hover:bg-teal-100"
-                      >
-                        {isPending
-                          ? `Review & accept (${itemCount} item${itemCount === 1 ? "" : "s"})`
-                          : `View menu (${itemCount} item${itemCount === 1 ? "" : "s"})`}
-                      </button>
+                    <div className="flex flex-col items-end gap-2">
                       <div className="text-right">
                         <p className="text-2xl font-extrabold text-stone-950">
-                          {formatPrice(order.total ?? order.subtotal)}
+                          {formatPrice(totalWithTax)}
                         </p>
                         <p className="text-base font-medium text-stone-500">
                           Tax {formatPrice(order.tax ?? 0)}
                         </p>
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => setItemsPopupOrderId(order.id)}
+                        className="min-h-11 rounded-xl border border-stone-300 bg-[#E6E2DB] px-3.5 py-2.5 text-base font-bold text-[#594F47] hover:bg-[#DDD8D0]"
+                      >
+                        {isPending
+                          ? `Review & accept (${itemCount} item${itemCount === 1 ? "" : "s"})`
+                          : `View menu (${itemCount} item${itemCount === 1 ? "" : "s"})`}
+                      </button>
                     </div>
                   </div>
                 );

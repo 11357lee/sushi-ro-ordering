@@ -37,6 +37,7 @@ export function AccountPageClient() {
   const [profileMessage, setProfileMessage] = useState("");
   const [profileError, setProfileError] = useState("");
   const [profileLoading, setProfileLoading] = useState(false);
+  const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loggedIn || !customer?.id) return;
@@ -136,6 +137,30 @@ export function AccountPageClient() {
       setProfileError(err instanceof Error ? err.message : "Could not delete account");
     } finally {
       setProfileLoading(false);
+    }
+  };
+
+  const handleDeleteOrder = async (orderId: string) => {
+    if (!customer?.id) return;
+    const ok = confirm("Delete this order from your history? This cannot be undone.");
+    if (!ok) return;
+
+    setDeletingOrderId(orderId);
+    setProfileError("");
+    try {
+      const res = await fetch(`/api/orders/${encodeURIComponent(orderId)}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customerId: customer.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Could not delete order");
+      setOrders((prev) => prev.filter((order) => order.id !== orderId));
+      if (expandedId === orderId) setExpandedId(null);
+    } catch (err) {
+      setProfileError(err instanceof Error ? err.message : "Could not delete order");
+    } finally {
+      setDeletingOrderId(null);
     }
   };
 
@@ -298,20 +323,30 @@ export function AccountPageClient() {
                   </ul>
                 </div>
               )}
-              <button
-                type="button"
-                onClick={() => setExpandedId(expanded ? null : order.id)}
-                className="mt-3 mr-2 rounded-lg border border-stone-300 px-4 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50"
-              >
-                {expanded ? "Hide order" : "View order"}
-              </button>
-              <button
-                type="button"
-                onClick={() => handleReorder(order)}
-                className="mt-3 rounded-lg bg-stone-900 px-4 py-2 text-sm font-semibold text-white hover:bg-stone-800"
-              >
-                Reorder
-              </button>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setExpandedId(expanded ? null : order.id)}
+                  className="rounded-lg border border-stone-300 px-4 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50"
+                >
+                  {expanded ? "Hide order" : "View order"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleReorder(order)}
+                  className="rounded-lg bg-stone-900 px-4 py-2 text-sm font-semibold text-white hover:bg-stone-800"
+                >
+                  Reorder
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleDeleteOrder(order.id)}
+                  disabled={deletingOrderId === order.id}
+                  className="rounded-lg border border-red-300 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                >
+                  {deletingOrderId === order.id ? "Deleting..." : "Delete history"}
+                </button>
+              </div>
             </div>
           );
           })

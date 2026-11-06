@@ -61,6 +61,8 @@ const OPTIONS: MenuOption[] = [
   { id: "33333333-3333-3333-3333-333333333704", name: "Red (Red Tuna)", price_modifier: 1.5, sort_order: 43 },
   { id: "33333333-3333-3333-3333-333333333705", name: "Rainbow (Assorted fish with fish roe)", price_modifier: 1.5, sort_order: 44 },
   { id: "33333333-3333-3333-3333-333333333706", name: "Black (BBQ Eel)", price_modifier: 2, sort_order: 45 },
+  /** GF Dragon only — no fish roe. */
+  { id: "33333333-3333-3333-3333-333333333707", name: "Rainbow (Assorted fish)", price_modifier: 1.5, sort_order: 44 },
 
   // House toppings (same price)
   { id: "33333333-3333-3333-3333-333333333711", name: "Shrimp", price_modifier: 0, sort_order: 50 },
@@ -149,6 +151,15 @@ const DRAGON_TOPPING_IDS = [
   "33333333-3333-3333-3333-333333333706",
 ];
 
+const GF_DRAGON_TOPPING_IDS = [
+  "33333333-3333-3333-3333-333333333701",
+  "33333333-3333-3333-3333-333333333702",
+  "33333333-3333-3333-3333-333333333703",
+  "33333333-3333-3333-3333-333333333704",
+  "33333333-3333-3333-3333-333333333707",
+  "33333333-3333-3333-3333-333333333706",
+];
+
 const HOUSE_TOPPING_IDS = [
   "33333333-3333-3333-3333-333333333711",
   "33333333-3333-3333-3333-333333333712",
@@ -226,11 +237,11 @@ function optionsForItem(item: MenuItem): MenuOption[] {
   if (item.id === "a1000001-0000-0000-0000-00000000005d") return optionsByIds(SWEET_ROLL_OPTION_IDS);
   if (item.id === "a1000001-0000-0000-0000-00000000005f") return optionsByIds(EXTRA_SAUCE_OPTION_IDS);
 
-  if (
-    item.id === "a1000001-0000-0000-0000-000000000010" ||
-    item.id === "a2000001-0000-0000-0000-000000000005"
-  ) {
+  if (item.id === "a1000001-0000-0000-0000-000000000010") {
     return [...optionsByIds(DRAGON_TOPPING_IDS), ...optionsByIds([SOY_SHEET_OPTION_ID])];
+  }
+  if (item.id === "a2000001-0000-0000-0000-000000000005") {
+    return [...optionsByIds(GF_DRAGON_TOPPING_IDS), ...optionsByIds([SOY_SHEET_OPTION_ID])];
   }
 
   if (item.id === "a1000001-0000-0000-0000-00000000004c") {

@@ -103,13 +103,18 @@ export function CartPageClient() {
     <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-stone-900">Your cart</h1>
-        <button
-          type="button"
-          onClick={clearCart}
-          className="text-sm font-medium text-red-600 hover:text-red-700"
-        >
-          Clear cart
-        </button>
+        <div className="flex items-center gap-4">
+          <Link href="/" className="text-sm font-medium text-teal-700 hover:text-teal-800">
+            Order more
+          </Link>
+          <button
+            type="button"
+            onClick={clearCart}
+            className="text-sm font-medium text-red-600 hover:text-red-700"
+          >
+            Clear cart
+          </button>
+        </div>
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -308,7 +313,7 @@ export function CartPageClient() {
         <textarea
           value={extras.specialInstructions}
           onChange={(e) => setExtras({ specialInstructions: e.target.value })}
-          placeholder="Price may differ depending on your request."
+          placeholder="Without your instructions, we pack each order’s rolls our usual way. If you want containers separated in a specific way, please let us know."
           rows={3}
           className="mt-3 w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none"
         />
@@ -345,6 +350,12 @@ export function CartPageClient() {
           Continue to checkout
         </Link>
       )}
+      <Link
+        href="/"
+        className="mt-3 block w-full rounded-xl border border-stone-300 py-3 text-center text-base font-semibold text-stone-800 hover:bg-stone-50"
+      >
+        Order more
+      </Link>
     </div>
   );
 }

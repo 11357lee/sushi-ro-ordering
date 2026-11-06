@@ -33,16 +33,22 @@ function OrderCard({
   expandedId,
   setExpandedId,
   cancelling,
+  deleting,
+  canDeleteHistory,
   onCancel,
   onReorder,
+  onDeleteHistory,
 }: {
   order: Order;
   waitingMinutes: number;
   expandedId: string | null;
   setExpandedId: (id: string | null) => void;
   cancelling: string | null;
+  deleting: string | null;
+  canDeleteHistory: boolean;
   onCancel: (orderId: string) => void;
   onReorder: (order: Order) => void;
+  onDeleteHistory: (orderId: string) => void;
 }) {
   const canCancel = canCustomerCancelOrder(order, waitingMinutes);
   return (
@@ -94,6 +100,16 @@ function OrderCard({
             {cancelling === order.id ? "Cancelling..." : "Cancel order"}
           </button>
         )}
+        {canDeleteHistory && (
+          <button
+            type="button"
+            onClick={() => onDeleteHistory(order.id)}
+            disabled={deleting === order.id}
+            className="text-sm font-medium text-red-600 hover:underline disabled:opacity-50"
+          >
+            {deleting === order.id ? "Deleting..." : "Delete history"}
+          </button>
+        )}
       </div>
       {expandedId === order.id && (
         <div className="mt-4 border-t border-stone-100 pt-4">
@@ -141,6 +157,7 @@ export function TrackingPageClient() {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [cancelling, setCancelling] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -219,13 +236,43 @@ export function TrackingPageClient() {
     router.push("/cart");
   };
 
+  const handleDeleteHistory = async (orderId: string) => {
+    if (!customer?.id) return;
+    const ok = confirm("Delete this order from your history? This cannot be undone.");
+    if (!ok) return;
+
+    setDeleting(orderId);
+    setCancelError(null);
+    try {
+      const res = await fetch(`/api/orders/${encodeURIComponent(orderId)}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customerId: customer.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setCancelError(data.error ?? "Could not delete order");
+        return;
+      }
+      setOrders((prev) => prev.filter((order) => order.id !== orderId));
+      if (expandedId === orderId) setExpandedId(null);
+    } catch {
+      setCancelError("Could not delete order");
+    } finally {
+      setDeleting(null);
+    }
+  };
+
   const cardProps = {
     waitingMinutes,
     expandedId,
     setExpandedId,
     cancelling,
+    deleting,
+    canDeleteHistory: loggedIn,
     onCancel: handleCancel,
     onReorder: handleReorder,
+    onDeleteHistory: handleDeleteHistory,
   };
 
   return (

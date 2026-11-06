@@ -139,15 +139,15 @@ struct OrdersBoardView: View {
     }
 }
 
-/// Large centered popup (~90% height) — not full screen, so the board stays visible behind.
+/// Large centered popup — not full screen, so the board stays visible behind.
 struct OrderPopupOverlay: View {
     @EnvironmentObject private var session: AdminSession
     let order: AdminOrder
 
     var body: some View {
         GeometryReader { geo in
-            let width = min(geo.size.width * 0.92, 980)
-            let height = geo.size.height * 0.90
+            let width = min(geo.size.width * 0.94, 1000)
+            let height = geo.size.height * 0.94
 
             ZStack {
                 Color.black.opacity(0.4)

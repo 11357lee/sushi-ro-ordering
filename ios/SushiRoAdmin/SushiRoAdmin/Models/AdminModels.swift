@@ -110,15 +110,16 @@ struct AdminOrderItem: Identifiable, Decodable, Equatable {
 
     var isGF: Bool { sectionSlug == "gluten-free" }
 
+    private var displayParts: (title: String, optionSummary: String) {
+        AdminFormat.orderItemParts(name: name, options: selectedOptions ?? [])
+    }
+
     var displayName: String {
-        AdminFormat.menuItemName(name)
+        displayParts.title
     }
 
     var optionSummary: String {
-        (selectedOptions ?? [])
-            .map { AdminFormat.optionLabel($0.name) }
-            .filter { !$0.isEmpty }
-            .joined(separator: ", ")
+        displayParts.optionSummary
     }
 }
 

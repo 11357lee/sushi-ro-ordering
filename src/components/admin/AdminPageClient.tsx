@@ -15,8 +15,8 @@ import {
   isWithinBusinessHours,
   normalizeSpecialClosedPeriods,
   restaurantCalendarDate,
+  formatAdminOrderItemParts,
   sortOrderItemsForAdmin,
-  toAdminOptionLabel,
   toDisplayName,
 } from "@/lib/utils";
 import { acceptSecondsRemaining } from "@/lib/order-accept-window";
@@ -316,13 +316,11 @@ function OrderItems({
     const isGF = item.section_slug === "gluten-free";
     const prev = index > 0 ? items[index - 1] : null;
     const prevIsGF = prev?.section_slug === "gluten-free";
-    const optionSummary = (item.selected_options ?? [])
-      .map((o) => toAdminOptionLabel(o.name))
-      .filter(Boolean)
-      .join(", ");
+    const { title, optionSummary } = formatAdminOrderItemParts(item);
     return {
       item,
       isGF,
+      title,
       optionSummary,
       showDivider: prev !== null && prevIsGF !== isGF,
     };
@@ -330,12 +328,12 @@ function OrderItems({
 
   return (
     <ul className="space-y-1.5 rounded-lg bg-stone-50 px-2.5 py-2.5 text-xl leading-snug">
-      {rows.map(({ item, isGF, optionSummary, showDivider }) => (
+      {rows.map(({ item, isGF, title, optionSummary, showDivider }) => (
         <li key={item.id}>
           {showDivider && <div className="my-1.5 border-t border-stone-200" />}
           <div className={isGF ? "rounded-md bg-purple-50 px-1.5 py-1 text-purple-950" : "px-1.5 py-0.5"}>
             <p className="text-xl font-medium text-stone-800">
-              {item.quantity} x {toDisplayName(item.name)}
+              {item.quantity}x {title}
               {optionSummary ? (
                 <span className="font-normal text-sky-700"> - {optionSummary}</span>
               ) : null}

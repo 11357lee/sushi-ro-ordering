@@ -98,6 +98,15 @@ export function dismissAllDemoOrders(): void {
   }
 }
 
+/** Customer removes an order from their own history (demo mode). */
+export function deleteDemoOrderForCustomer(orderId: string, customerId: string): boolean {
+  const store = getStore();
+  const order = store.orders.get(orderId);
+  if (!order || order.customer_id !== customerId) return false;
+  store.orders.delete(orderId);
+  return true;
+}
+
 export function updateDemoOrderStatus(
   id: string,
   status: OrderStatus,

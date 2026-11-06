@@ -100,6 +100,72 @@ export function toAdminOptionLabel(text: string): string {
   return toDisplayName(short);
 }
 
+const BENTO_MEAT_OPTION_NAMES = new Set([
+  "Chicken Teriyaki",
+  "Beef Teriyaki",
+  "Salmon Teriyaki",
+  "Shrimp Teriyaki",
+  "Chicken cutlet with spicy sauce",
+  "Pork cutlet with spicy sauce",
+  "Fish Cutlet with spicy sauce",
+  "Unagi",
+  "Grilled Mackerel",
+]);
+
+const BENTO_SIDE_OPTION_NAMES = new Set([
+  "Maki (3 California and 3 BBQ Salmon)",
+  "Tempura (3 vegetables and 1 Shrimp)",
+  "Vegetable Gyoza",
+  "Vegetable Spring Roll",
+  "Maki (6 cucumber-avocado)",
+  "Vegetable Tempura",
+]);
+
+/**
+ * Admin line parts for an order item.
+ * Bento Box + Chicken cutlet + Maki → title "Chicken Cutlet Bento Box", options "Maki"
+ */
+export function formatAdminOrderItemParts(item: {
+  name: string;
+  selected_options?: { name: string }[] | null;
+}): { title: string; optionSummary: string } {
+  const options = item.selected_options ?? [];
+  const normalizedName = item.name.trim().toLowerCase();
+
+  if (normalizedName === "bento box") {
+    const meat = options.find((o) => BENTO_MEAT_OPTION_NAMES.has(o.name));
+    const side = options.find((o) => BENTO_SIDE_OPTION_NAMES.has(o.name));
+    const rest = options.filter((o) => o !== meat && o !== side);
+    const meatLabel = meat ? toAdminOptionLabel(meat.name) : "";
+    const title = meatLabel
+      ? `${meatLabel} Bento Box`
+      : toDisplayName(item.name);
+    const optionSummary = [side, ...rest]
+      .filter(Boolean)
+      .map((o) => toAdminOptionLabel(o!.name))
+      .filter(Boolean)
+      .join(", ");
+    return { title, optionSummary };
+  }
+
+  if (normalizedName.includes("veggie bento")) {
+    const side = options.find((o) => BENTO_SIDE_OPTION_NAMES.has(o.name));
+    const rest = options.filter((o) => o !== side);
+    const optionSummary = [side, ...rest]
+      .filter(Boolean)
+      .map((o) => toAdminOptionLabel(o!.name))
+      .filter(Boolean)
+      .join(", ");
+    return { title: toDisplayName(item.name), optionSummary };
+  }
+
+  const optionSummary = options
+    .map((o) => toAdminOptionLabel(o.name))
+    .filter(Boolean)
+    .join(", ");
+  return { title: toDisplayName(item.name), optionSummary };
+}
+
 export function calcLineTotal(
   price: number,
   quantity: number,

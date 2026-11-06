@@ -93,28 +93,33 @@ export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientPr
       return section?.slug === activeSection;
     });
 
-    if (activeCategory) {
+    const query = search.trim().toLowerCase();
+
+    // While searching, scan the whole Regular / GF section (ignore category tab).
+    if (!query && activeCategory) {
       items = items.filter((item) => {
         const cat = liveMenu.categories.find((c) => c.id === item.category_id);
         return cat?.slug === activeCategory;
       });
     }
 
-    if (search.trim()) {
-      const q = search.toLowerCase();
+    if (query) {
       items = items.filter((item) => {
-        if (item.name.toLowerCase().includes(q)) return true;
-        if (item.description?.toLowerCase().includes(q)) return true;
+        if (item.name.toLowerCase().includes(query)) return true;
+        if (item.description?.toLowerCase().includes(query)) return true;
+        const cat = liveMenu.categories.find((c) => c.id === item.category_id);
+        if (cat?.name.toLowerCase().includes(query)) return true;
+        if (cat?.slug.toLowerCase().includes(query)) return true;
         if (
           item.labels?.some(
             (label) =>
-              label.name.toLowerCase().includes(q) ||
-              label.slug.toLowerCase().includes(q)
+              label.name.toLowerCase().includes(query) ||
+              label.slug.toLowerCase().includes(query)
           )
         ) {
           return true;
         }
-        if (q.length >= 2 && ("raw".startsWith(q) || q.includes("raw"))) {
+        if (query.length >= 2 && ("raw".startsWith(query) || query.includes("raw"))) {
           if (item.options?.some((option) => isRawOption(option.id))) return true;
         }
         return false;
@@ -146,7 +151,13 @@ export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientPr
     <>
       <RestaurantBanner initialSettings={settings} initialWaitingTime={waitingTime} />
 
-      <MenuSearch value={search} onChange={setSearch} />
+      <MenuSearch
+        value={search}
+        onChange={(value) => {
+          setSearch(value);
+          if (value.trim()) setActiveCategory(null);
+        }}
+      />
 
       <SectionTabs
         sections={liveMenu.sections}
@@ -173,15 +184,6 @@ export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientPr
           >
             Clear search
           </button>
-          {activeCategory && (
-            <button
-              type="button"
-              onClick={() => setActiveCategory(null)}
-              className="rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold text-stone-700 hover:bg-stone-200"
-            >
-              Clear category
-            </button>
-          )}
         </div>
       )}
 
@@ -226,10 +228,8 @@ export function MenuPageClient({ menu, settings, waitingTime }: MenuPageClientPr
             )}
             {search.trim() && (
               <p className="mb-4 text-sm text-stone-600">
-                {filteredItems.length} result{filteredItems.length === 1 ? "" : "s"}
-                {activeCategoryDetails
-                  ? ` in ${toDisplayName(activeCategoryDetails.name)}`
-                  : " across the menu"}
+                {filteredItems.length} result{filteredItems.length === 1 ? "" : "s"} in{" "}
+                {activeSection === "gluten-free" ? "Gluten Free" : "Regular"} menu
               </p>
             )}
             <div className={itemGridClass(activeCategoryDetails?.slug)}>
